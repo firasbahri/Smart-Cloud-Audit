@@ -1,7 +1,11 @@
 import jwt
+import os
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-secret_key = "SmartAudit_SECRET_KEY8877979"
+load_dotenv()
+
+secret_key = os.getenv("SECRET_KEY")
 expiration_time = timedelta(hours=1)
 
 def create_access_token(data: dict):
@@ -17,4 +21,3 @@ def verify_access_token(token: str):
         return payload
     except jwt.PyJWTError:
         return None
-    

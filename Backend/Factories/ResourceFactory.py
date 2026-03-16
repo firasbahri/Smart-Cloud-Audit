@@ -119,5 +119,4 @@ class ResourceFactory:
             )
           rules.append(rule)
       return rules
-        
-
+   
