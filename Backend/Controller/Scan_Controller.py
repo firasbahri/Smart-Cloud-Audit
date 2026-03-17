@@ -26,7 +26,8 @@ class ScanController:
     users=[]
     try:
       usersIAM = self.scan_service.scan_users()
-      users = ResourceFactory.create_users(usersIAM)
+      usersFactory = ResourceFactory.create_users(usersIAM)
+      users=JSONSerializer.serializeList(usersFactory)
       return users
       
     except Exception as e:
@@ -37,7 +38,8 @@ class ScanController:
   def scan_groups(self):
     try:
       groupsIAM = self.scan_service.scan_groups()
-      groups = ResourceFactory.create_groups(groupsIAM)
+      groupsFactory = ResourceFactory.create_groups(groupsIAM)
+      groups=JSONSerializer.serializeList(groupsFactory)
       return groups 
     except Exception as e:
       return {f"message : error while scanning groups": str(e) }
@@ -45,7 +47,8 @@ class ScanController:
   def scan_roles(self):
     try:
       roleIAM = self.scan_service.scan_roles()
-      roles= ResourceFactory.create_roles(roleIAM)
+      rolesFactory = ResourceFactory.create_roles(roleIAM)
+      roles = JSONSerializer.serializeList(rolesFactory)
       return roles
      
     except Exception as e:
@@ -54,7 +57,8 @@ class ScanController:
   def scan_ec2(self):
     try:
       ec2 = self.scan_service.scan_ec2()
-      instances= ResourceFactory.create_ec2(ec2)
+      instancesFactory= ResourceFactory.create_ec2(ec2)
+      instances = JSONSerializer.serializeList(instancesFactory)
       return instances
   
     except Exception as e:
@@ -63,7 +67,8 @@ class ScanController:
   def scan_s3(self):
     try:
       s3 = self.scan_service.scan_s3()
-      buckets= ResourceFactory.create_s3(s3)
+      bucketsFactory= ResourceFactory.create_buckets(s3)
+      buckets = JSONSerializer.serializeList(bucketsFactory)
       return buckets
     except Exception as e:
       return {f"message : error while scanning s3": str(e)}

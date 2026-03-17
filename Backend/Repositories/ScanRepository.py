@@ -20,15 +20,20 @@ class ScanRepository:
     result = await self.colls.update_one({"scan_id": scan_id}, {"$set": scanDict})
     return result.modified_count > 0  
   
-  async def get_scan_result(self, scan_id):
-    scanResponse= await self.colls.find_one({"scan_id": scan_id})
+  async def get_scan_result(self, scan_id, user_id):
+    scanResponse= await self.colls.find_one({"scan_id": scan_id, "user_id": user_id})
     if scanResponse:
-      scanResult=ScanResult(scanResponse["scan_id"],scanResponse["account_id"])
-      scanResult.resources=scanResponse["resources"]
-      scanResult.created_at=scanResponse["created_at"]
-      scanResult.errors=scanResponse["errors"]
-      scanResult.porcentage=scanResponse["porcentage"]
-      scanResult.status=scanResponse["status"]
+      scanResult = ScanResult(
+          scan_id=scanResponse["scan_id"],
+          arn=scanResponse["arn"],
+          cloud_id=scanResponse["cloudAccount_id"],
+          user_id=scanResponse["user_id"]
+      )
+      scanResult.resources = scanResponse.get("resources", {})
+      scanResult.created_at = scanResponse.get("created_at")
+      scanResult.errors = scanResponse.get("errors", [])
+      scanResult.progress = scanResponse.get("progress", 0)
+      scanResult.status = scanResponse.get("status", "Started")
       return scanResult
     return None
   

@@ -69,6 +69,27 @@ class AwsScanner(CloudProvider):
                 }
                 
                 users.append(root_user)
+                for u in users:
+                    if u['UserName'] == 'root':
+                        continue
+                    try:
+                        mfa=iam.list_mfa_devices(UserName=u['UserName'])['MFADevices']
+                        u['Mfa_enabled'] = len(mfa) > 0
+
+                    except ClientError:
+                        u['Mfa_enabled'] = False
+                    
+                    try:
+                        access_keys=iam.list_access_keys(UserName=u['UserName'])['AccessKeyMetadata']
+                        u['AccessKeyMetadata'] = access_keys
+                    except ClientError:
+                        u['AccessKeyMetadata'] = []    
+
+                    try:
+                        policies = iam.list_attached_user_policies(UserName=u['UserName'])['AttachedPolicies']
+                        u['AttachedManagedPolicies'] = policies
+                    except ClientError:
+                        u['AttachedManagedPolicies'] = []            
             except ClientError as e:
                 # Si no hay permisos para obtener summary, continuar sin root
                 if e.response['Error']['Code'] != 'AccessDenied':
@@ -91,6 +112,18 @@ class AwsScanner(CloudProvider):
             
             iam = self.session.client('iam')
             groups = iam.list_groups()
+            for g in groups['Groups']:
+                try:
+                    users = iam.get_group(GroupName=g['GroupName'])['Users']
+                    g['Users'] = users
+                except ClientError:
+                    g['Users'] = []
+                
+                try:
+                    policies = iam.list_attached_group_policies(GroupName=g['GroupName'])['AttachedPolicies']
+                    g['AttachedManagedPolicies'] = policies
+                except ClientError:
+                    g['AttachedManagedPolicies'] = []
             return groups['Groups']
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -108,6 +141,13 @@ class AwsScanner(CloudProvider):
             
             iam = self.session.client('iam')
             roles = iam.list_roles()
+            for r in roles['Roles']:
+                try:
+                    policies = iam.list_attached_role_policies(RoleName=r['RoleName'])['AttachedPolicies']
+                    r['AttachedManagedPolicies'] = policies
+                except ClientError:
+                    r['AttachedManagedPolicies'] = []
+
             return roles['Roles']
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -125,7 +165,41 @@ class AwsScanner(CloudProvider):
             
             s3 = self.session.client('s3')
             buckets = s3.list_buckets()
+            for b in buckets['Buckets']:
+                b['name'] = b['Name']
+                b['CreationDate'] = b['CreationDate'].isoformat() 
+                try:
+                    public_access = s3.get_public_access_block(Bucket=b['Name'])
+                    b['PublicAccess'] = public_access.get('PublicAccessBlockConfiguration',None)
+                except ClientError:
+                    b['PublicAccess'] = None
+                try:
+                    versioning = s3.get_bucket_versioning(Bucket=b['Name'])
+                    b['Versioning'] = versioning.get('Status','Disabled')
+                except ClientError:
+                    b['Versioning'] = 'Disabled'
+
+                try:
+                    encryption = s3.get_bucket_encryption(Bucket=b['Name'])
+                    b['Encryption'] = True
+                except ClientError:
+                    b['Encryption'] = False
+
+                try:
+                    policies = s3.get_bucket_policy(Bucket=b['Name'])
+                    b['Policies'] = policies.get('Policy', None)
+                except ClientError:
+                    b['Policies'] = None
+
+                try:
+                    location = s3.get_bucket_location(Bucket=b['Name'])
+                    b['Region'] = location.get('LocationConstraint')
+                except ClientError:
+                    b['Region'] = 'Unknown'
+
+
             return buckets['Buckets']
+
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
@@ -142,7 +216,22 @@ class AwsScanner(CloudProvider):
             
             ec2 = self.session.client('ec2', region_name='us-east-1')
             instances = ec2.describe_instances()
+            for reservation in instances['Reservations']:
+                for instance in reservation['Instances']:
+                    try:
+                        volumes = ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
+                        list_volumes = []
+                        for v in volumes['Volumes']:
+                            list_volumes.append({
+                                "VolumeId": v['VolumeId'],
+                                "encryption": v['Encrypted']
+                            })
+                        instance['volumes'] = list_volumes
+                    except ClientError:
+                        instance['volumes'] = None
+
             return instances['Reservations']
+    
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':

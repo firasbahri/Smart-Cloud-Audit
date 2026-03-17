@@ -3,8 +3,8 @@
 from .IAM import IAM
 
 class IAMRole(IAM):
-  def __init__(self,id,description,service,region,Creation_date,assume_role_policy,policies):
-    super().__init__(id,description,service,region,Creation_date,policies)
+  def __init__(self,id,name,service,region,Creation_date,assume_role_policy,policies):
+    super().__init__(id,name,service,region,Creation_date,policies)
     self.assume_role_policy = assume_role_policy
 
   def get_assume_role_policy(self):

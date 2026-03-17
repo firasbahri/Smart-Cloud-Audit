@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+motor
+aio-pika
+boto3
+PyJWT
+python-dotenv
+passlib[bcrypt]

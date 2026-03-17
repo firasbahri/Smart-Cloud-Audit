@@ -1,8 +1,8 @@
 
 class Resource:
-  def __init__(self,id,description,service,region,date):
+  def __init__(self,id,name,service,region,date):
     self.id = id
-    self.description = description
+    self.name = name
     self.service = service
     self.region = region
     if date is None:
@@ -16,8 +16,8 @@ class Resource:
   def get_id(self):
     return self.id
   
-  def get_description(self):
-    return self.description
+  def get_name(self):
+    return self.name
   def get_service(self):
     return self.service
   def get_region(self):

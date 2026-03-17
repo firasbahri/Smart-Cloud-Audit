@@ -12,7 +12,7 @@ async def register(user: UserRegisterRequest):
   
     try:
         user_id = await auth_service.register_user(user.username, user.password, user.email)
-        return {"message": "User registered successfully", "user_id": user_id}
+        return {"message": "Usuario registrado exitosamente", "user_id": user_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
@@ -20,7 +20,7 @@ async def register(user: UserRegisterRequest):
 async def login(user: UserLoginRequest):
     try:
         token = await auth_service.login_user(user.username, user.password)
-        return {"message": "Login successful", "token": token}
+        return {"message": "inicio de sesión exitoso", "token": token}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

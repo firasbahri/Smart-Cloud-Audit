@@ -1,5 +1,6 @@
 from rabbitMq.connection import RabbitMQConnection
 import aio_pika
+import json
 
 class RabbitMQProducer:
 
@@ -8,7 +9,7 @@ class RabbitMQProducer:
         message={"scan_id": scan_id, "identifier": identifier}
         
         await RabbitMQConnection.channel.default_exchange.publish(
-            aio_pika.Message(body=str(message).encode()),
+            aio_pika.Message(body=json.dumps(message).encode()),
             routing_key="scan_queue"
         )
         print("Message sent to RabbitMQ: ", message)

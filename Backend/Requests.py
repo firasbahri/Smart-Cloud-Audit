@@ -28,3 +28,4 @@ class CloudUpdateRequest(BaseModel):
 class CloudDeleteRequest(BaseModel):
   id: str
 
+

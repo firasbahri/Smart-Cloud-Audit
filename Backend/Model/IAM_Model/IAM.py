@@ -3,8 +3,8 @@
 from ..resource import Resource
 
 class IAM (Resource):
-  def __init__(self,id,description,service,region,Creation_date,policies):
-    super().__init__(id,description,service,region,Creation_date)
+  def __init__(self,id,name,service,region,Creation_date,policies):
+    super().__init__(id,name,service,region,Creation_date)
     self.policies = policies
 
   def add_policy(self,policy):

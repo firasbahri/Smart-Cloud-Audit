@@ -2,6 +2,7 @@ from Model.IAM_Model.IAMUser import IAMUser
 from Model.IAM_Model.IAMGroup import IAMGroup
 from Model.IAM_Model.IAMRole import IAMRole
 from Model.EC2_Model.EC2 import EC2
+from Model.s3Bucket import S3Bucket
 from Model.EC2_Model.SecurityGroup import SecurityGroup
 from Model.EC2_Model.Rule import Rule
 
@@ -16,30 +17,30 @@ class ResourceFactory:
                 print("hola")
                 userRoot = IAMUser(
                     id=u['UserId'],
-                    description=u['UserName'],
-                    service='IAM',
-                    region='global',
-                    groups=[],
-                    access_keys=u.get('AccessKeysPresent', 0),
-                    date=u.get('CreateDate', ''),
-                    policies=[],
-                    mfa_enabled=u.get('MfaActive', False)
-                )
-                users.append(userRoot)
-                
-            else:
-                print("hola2")
-               
-                user = IAMUser(
-                    id=u['UserId'],
-                    description=u['UserName'],
+                    name=u['UserName'],
                     service='IAM',
                     region='global',
                     groups=[],
                     access_keys=u.get('AccessKeyMetadata', []),
                     date=u.get('CreateDate', ''),
                     policies=u.get('AttachedManagedPolicies', []),
-                    mfa_enabled=u.get('MFADevices', [])
+                    mfa_enabled=u.get('Mfa_enabled'),
+                    password_last_used=u.get('PasswordLastUsed', None)
+                )
+                users.append(userRoot)
+                
+            else:   
+                user = IAMUser(
+                    id=u['UserId'],
+                    name=u['UserName'],
+                    service='IAM',
+                    region='global',
+                    groups=[],
+                    access_keys=u.get('AccessKeyMetadata', []),
+                    date=u.get('CreateDate', ''),
+                    policies=u.get('AttachedManagedPolicies', []),
+                    mfa_enabled=u.get('Mfa_enabled', False),
+                    password_last_used=u.get('PasswordLastUsed', None)
                 )
                 users.append(user)
         return users
@@ -50,7 +51,7 @@ class ResourceFactory:
         for g in groupsRaw:
             group = IAMGroup(
                 id=g.get('GroupId', ''),
-                description=g.get('GroupName', ''),
+                name=g.get('GroupName', ''),
                 service='IAM',
                 region='global',
                 Creation_date=g.get('CreateDate'),
@@ -66,7 +67,7 @@ class ResourceFactory:
         for r in rolesRaw:
             role = IAMRole(
                 id=r.get('RoleId', ''),
-                description=r.get('RoleName', ''),
+                name=r.get('RoleName', ''),
                 service='IAM',
                 region='global',
                 Creation_date=r.get('CreateDate',''),
@@ -95,13 +96,14 @@ class ResourceFactory:
             for i in r['Instances']:
                 instance = EC2(
                     id=i.get('InstanceId', ''),
-                    description=i.get('InstanceType', ''),
+                    name=i.get('InstanceType', ''),
                     service='EC2',
                     region=i.get('Placement', {}).get('AvailabilityZone', ''),
                 date=i.get('LaunchTime'),
                 instance_type=i.get('InstanceType', ''),
                 state=i.get('State', {}).get('Name', ''),
                 security_groups=ResourceFactory.create_security_groups(i.get('SecurityGroups', [])), 
+                volumes=i.get('volumes')
             )
             instances.append(instance)
         return instances
@@ -120,3 +122,21 @@ class ResourceFactory:
           rules.append(rule)
       return rules
    
+    @staticmethod
+    def create_buckets(bucketsRaw):
+        buckets = []
+        for b in bucketsRaw:
+            bucket = S3Bucket(
+                id=b.get('Name', ''),
+                name=b.get('Name', ''),
+                service='S3',
+                region=b.get('Region', ''),
+                Creation_date=b.get('CreationDate', ''),
+                public_access=b.get('PublicAccess'),
+                versioning=b.get('Versioning'),
+                encryption=b.get('Encryption'),
+                policies=b.get('Policies')
+                
+            )
+            buckets.append(bucket)
+        return buckets

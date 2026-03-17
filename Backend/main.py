@@ -16,9 +16,9 @@ print("inicio de applicacion...")
 app = FastAPI()
 
 
-#@app.on_event("startup")
-#async def startup_event():
- #   await RabbitMQConnection.connect()
+@app.on_event("startup")
+async def startup_event():
+    await RabbitMQConnection.connect()
 
 
 
@@ -33,4 +33,4 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth")
 app.include_router(cloud_auth_router, prefix="/cloud")
-app.include_router(cloud_scan_router)
+app.include_router(cloud_scan_router,prefix="/cloud")

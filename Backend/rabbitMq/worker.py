@@ -11,32 +11,31 @@ from services.JSONSerializer import JSONSerializer
 async def process_message(message: aio_pika.IncomingMessage):
     async with message.process():
         collection = MongoDB.db["scans"]
+        scan_id = None
         try:
             body = json.loads(message.body.decode())
             arn = body["identifier"]
             scan_id = body["scan_id"]
             scan_controller = ScanController(arn)
             account_id = scan_controller.connect()
+            print(f"Connected to AWS account {account_id} for scan {scan_id}")
             
             await collection.update_one({"scan_id": scan_id}, {"$set": {"status": "running"}})
             users = scan_controller.scan_users()
-            usersList = JSONSerializer.serialize(users)
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"porcentage": 20, "resources.users": usersList}})
+            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 20, "resources.users": users}})
             groups = scan_controller.scan_groups()
-            groupsList = JSONSerializer.serialize(groups)
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"porcentage": 40, "resources.groups": groupsList}})
+          
+            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 40, "resources.groups": groups}})
             roles = scan_controller.scan_roles()
-            rolesList = JSONSerializer.serialize(roles)
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"porcentage": 60, "resources.roles": rolesList}})
+            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 60, "resources.roles": roles}})
             ec2 = scan_controller.scan_ec2()
-            ec2List = JSONSerializer.serialize(ec2)
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"porcentage": 80, "resources.ec2": ec2List}})
+            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 80, "resources.ec2": ec2}})
             buckets = scan_controller.scan_s3()
-            bucketsList = JSONSerializer.serialize(buckets)
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"porcentage": 100, "status": "completed", "resources.buckets": bucketsList}})
+            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 100, "status": "completed", "resources.buckets": buckets}})
         except Exception as e:
             print(f"Error processing message: {e}")
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"status": "error", "errors": str(e)}})
+            if scan_id is not None:
+                await collection.update_one({"scan_id": scan_id}, {"$set": {"status": "error", "errors": str(e)}})
 
 async def main():
     MongoDB.connect()

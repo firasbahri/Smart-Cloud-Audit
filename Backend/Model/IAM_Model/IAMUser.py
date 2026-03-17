@@ -3,11 +3,12 @@
 from .IAM import IAM
 
 class IAMUser(IAM):
-  def __init__(self,id,description,service,region,groups,access_keys,date,policies,mfa_enabled):
-    super().__init__(id,description,service,region,date,policies)
+  def __init__(self,id,name,service,region,groups,access_keys,date,policies,mfa_enabled,password_last_used):
+    super().__init__(id,name,service,region,date,policies)
     self.access_keys = access_keys
     self.groups = groups
     self.mfa_enabled = mfa_enabled
+    self.password_last_used = password_last_used
   
 
 
