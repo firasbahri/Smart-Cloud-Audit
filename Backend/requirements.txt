@@ -6,3 +6,4 @@ boto3
 PyJWT
 python-dotenv
 passlib[bcrypt]
+pytest
