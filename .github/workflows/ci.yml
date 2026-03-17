@@ -29,4 +29,4 @@ jobs:
       - name : security scan
         run : |
           pip install bandit
-          bandit -r Backend --exclude Backend/venv
+          bandit -r Backend --exclude Backend/venv, Backend/tests
