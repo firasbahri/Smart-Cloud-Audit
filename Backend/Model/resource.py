@@ -1,10 +1,12 @@
 
 class Resource:
-  def __init__(self,id,name,service,region,date):
+  def __init__(self,id,name,service,region,date,policies):
     self.id = id
     self.name = name
     self.service = service
     self.region = region
+    self.policies = policies
+
     if date is None:
       self.date = None
     elif hasattr(date, 'isoformat'):

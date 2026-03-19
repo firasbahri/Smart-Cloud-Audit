@@ -20,7 +20,7 @@ async def register(user: UserRegisterRequest):
 async def login(user: UserLoginRequest):
     try:
         token = await auth_service.login_user(user.username, user.password)
-        return {"message": "inicio de sesión exitoso", "token": token}
+        return {"token": token}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

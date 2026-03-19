@@ -39,8 +39,11 @@ async def process_message(message: aio_pika.IncomingMessage):
 
 async def main():
     MongoDB.connect()
+    #connectar a rabbitMQ 
     await RabbitMQConnection.connect()
+    #sacar la cola de rabbitMQ
     queue = await RabbitMQConnection.channel.declare_queue("scan_queue", durable=True)
+    #consumir mensajes de la cola
     await queue.consume(process_message, no_ack=False)
     await asyncio.Future()  
 

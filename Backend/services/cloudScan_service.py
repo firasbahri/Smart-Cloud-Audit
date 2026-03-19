@@ -30,6 +30,7 @@ class CloudScanService:
           user_id=user_id
       )
       scanId= await self.scan_repository.create_scan_result(scanResult)
+      # enviar mensaje a rabbitMQ para iniciar el escaneo
       await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn)
       
       return {"message": "Scan started successfully", "scan_id": scan_id}

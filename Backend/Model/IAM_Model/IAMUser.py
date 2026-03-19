@@ -1,8 +1,8 @@
 
 
-from .IAM import IAM
+from Model.resource import Resource
 
-class IAMUser(IAM):
+class IAMUser(Resource):
   def __init__(self,id,name,service,region,groups,access_keys,date,policies,mfa_enabled,password_last_used):
     super().__init__(id,name,service,region,date,policies)
     self.access_keys = access_keys

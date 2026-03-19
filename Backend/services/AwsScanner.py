@@ -105,7 +105,7 @@ class AwsScanner(CloudProvider):
             raise Exception(f"Error inesperado al escanear usuarios: {str(e)}")
     
     def scan_groups(self):
-        """Escanea grupos IAM"""
+      
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
@@ -134,7 +134,7 @@ class AwsScanner(CloudProvider):
             raise Exception(f"Error inesperado al escanear grupos: {str(e)}")
     
     def scan_roles(self):
-        """Escanea roles IAM"""
+
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
@@ -209,7 +209,7 @@ class AwsScanner(CloudProvider):
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
     
     def scan_ec2(self):
-        """Escanea instancias EC2"""
+        
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
