@@ -4,7 +4,7 @@ import json
 from rabbitMq.connection import RabbitMQConnection
 from Controller.Scan_Controller import ScanController
 from Model.scanResult import ScanResult
-from mongoDB import MongoDB
+from Backend.DataBase.mongoDB import MongoDB
 from services.JSONSerializer import JSONSerializer
 import logging
 

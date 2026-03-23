@@ -1,63 +1,55 @@
 Backend/
   .env
   .gitignore
-  dependencies.py
-  main.py
-  mongoDB.py
-  Requests.py
-  requirements.txt
-  tokenConfigure.py
-
   api/
     auth.py
-    cloudAuth.py
     cloud_scan.py
-
+    cloudAuth.py
   Controller/
     Scan_Controller.py
-
+  DataBase/
+    mongoDB.py
+  dependencies.py
   Factories/
     ResourceFactory.py
     scannerFactory.py
-
+  main.py
   Model/
     cloud.py
+    EC2_Model/
+      EC2.py
+      Rule.py
+      SecurityGroup.py
+    IAM_Model/
+      __init__.py
+      IAMGroup.py
+      IAMRole.py
+      IAMUser.py
     resource.py
     s3Bucket.py
     scanResult.py
     user.py
     Vulnerability.py
-
-    EC2_Model/
-      EC2.py
-      Rule.py
-      SecurityGroup.py
-
-    IAM_Model/
-      IAMGroup.py
-      IAMRole.py
-      IAMUser.py
-      __init__.py
-
   rabbitMq/
     connection.py
     producer.py
     worker.py
-
   Repositories/
     cloudRepository.py
+    IRepository.py
     ScanRepository.py
     userRepository.py
-
+  Requests.py
+  requirements.txt
   scanners/
     AwsScanner.py
     IScanner.py
-
   services/
     auth_service.py
     cloudAuth_service.py
     cloudScan_service.py
     JSONSerializer.py
-
+  STRUCTURE.txt
   tests/
     test_basics.py
+  tokenConfigure.py

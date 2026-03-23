@@ -795,7 +795,6 @@ const saveEdit = async () => {
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.detail)
-    auditStore.setScanData(editAccount.arn, data.result)
   } catch (error) {
     toast.add({
       severity: 'error',

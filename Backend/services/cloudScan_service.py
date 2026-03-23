@@ -16,7 +16,7 @@ class CloudScanService:
   async def start_scan(self, id: str, user_id: str):
       print(f"Starting scan for cloud account {id} and user {user_id}")
       resources = []
-      cloud= await self.cloud_repository.found_cloud_account(id)
+      cloud= await self.cloud_repository.findById(id)
       if not cloud:
           raise HTTPException(status_code=404, detail="Cloud account not found")
       
@@ -36,14 +36,14 @@ class CloudScanService:
           user_id=user_id,
           resources=resources
       )
-      scanId= await self.scan_repository.create_scan_result(scanResult)
+      scanId= await self.scan_repository.create(scanResult)
       await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn, provider=provider)
       
       return {"message": "Scan started successfully", "scan_id": scan_id}
 
 
   async def get_scan_status(self, scan_id: str, user_id: str):
-        scanResult=await self.scan_repository.get_scan_result(scan_id, user_id)
+        scanResult=await self.scan_repository.findById(scan_id)
         if not scanResult:
             raise HTTPException(status_code=404, detail="Scan not found")
         if scanResult.status == "Started":

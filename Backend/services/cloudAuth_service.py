@@ -13,7 +13,7 @@ class CloudAuthService:
 
 
     async def register_aws(self,arn: str,user_id: str,name: str, description: str,provider: str):
-        user= await self.user_repository.find_user_by_id(user_id)
+        user= await self.user_repository.findById(user_id)
 
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -23,7 +23,7 @@ class CloudAuthService:
             account_id = scan_controller.connect()       
             creation_date = DateTime.now(timezone.utc).isoformat()
             cloud_data=Cloud(name,provider,arn,account_id,user_id,description,creation_date)
-            id=await self.cloud_repository.create_cloud_user(cloud_data)
+            id=await self.cloud_repository.create(cloud_data)
         except HTTPException :
             raise
         except Exception as e: 
@@ -32,7 +32,7 @@ class CloudAuthService:
         return id
     async def get_cloud_data(self, user_id: str):
 
-        user= await self.user_repository.find_user_by_id(user_id)
+        user= await self.user_repository.findById(user_id)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -52,11 +52,11 @@ class CloudAuthService:
     async def update_cloud_data(self, id: str,user_id: str,name: str, description: str,):
         
 
-        user = await self.user_repository.find_user_by_id(user_id)
+        user = await self.user_repository.findById(user_id)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        existedCloud = await self.cloud_repository.found_cloud_account(id)
+        existedCloud = await self.cloud_repository.findById(id)
         if not existedCloud:
             raise HTTPException(status_code=404, detail="Cloud data not found")
 
@@ -66,7 +66,7 @@ class CloudAuthService:
             existedCloud.description = description
 
         try:
-            await self.cloud_repository.update_cloud_user(existedCloud)
+            await self.cloud_repository.update(existedCloud)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -75,12 +75,12 @@ class CloudAuthService:
 
         
     async def delete_cloud_data(self, user_id: str,id_cloud: str):
-        user= await self.user_repository.find_user_by_id(user_id)
+        user= await self.user_repository.findById(user_id)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
         try:
-            await self.cloud_repository.delete_cloud_user(id_cloud)
+            await self.cloud_repository.delete(id_cloud)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

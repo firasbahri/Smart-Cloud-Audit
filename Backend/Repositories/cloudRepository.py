@@ -1,4 +1,5 @@
-from mongoDB import MongoDB
+from DataBase.mongoDB import MongoDB
+from Repositories.IRepository import IRepository
 from Model.cloud import Cloud
 from fastapi import HTTPException
 from bson import ObjectId
@@ -6,12 +7,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class CloudRepository:
+class CloudRepository(IRepository):
   def __init__(self):
     self.collection = MongoDB.db["cloud_users"]
 
 
-  async def create_cloud_user(self,cloud : Cloud):
+  async def create(self,cloud : Cloud):
    cloud_dict= cloud.__dict__
    cloudExisted= await self.collection.find_one({"account_id": cloud.account_id, "user_id": cloud.user_id})
 
@@ -50,7 +51,7 @@ class CloudRepository:
       return clouds
     return None
 
-  async def found_cloud_account(self,id):
+  async def findById(self,id):
     cloud= await self.collection.find_one({"_id": ObjectId(id)})
     if cloud:
         id= cloud.get("_id")
@@ -66,14 +67,14 @@ class CloudRepository:
         )
     return None
 
-  async def update_cloud_user(self,cloud : Cloud):
+  async def update(self,cloud : Cloud):
      cloudDict= cloud.__dict__
      result= await self.collection.update_one({"_id": ObjectId(cloud.id)}, {"$set": cloudDict})
      if result.modified_count > 0:
         return True
      return False
   
-  async def delete_cloud_user(self,cloud_id):
+  async def delete(self,cloud_id):
      result= await self.collection.delete_one({"_id": ObjectId(cloud_id)}) 
      if result.deleted_count > 0:
         return True

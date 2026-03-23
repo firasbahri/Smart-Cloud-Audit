@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from mongoDB import MongoDB
+from DataBase.mongoDB import MongoDB
 from rabbitMq.connection import RabbitMQConnection
 
 logger = logging.getLogger(__name__)
