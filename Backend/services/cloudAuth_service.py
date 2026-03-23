@@ -4,7 +4,6 @@ from Repositories.userRepository import UserRepository
 from Repositories.cloudRepository import CloudRepository
 from services.JSONSerializer import JSONSerializer
 from datetime import datetime as DateTime, timezone
-
 from Model.cloud import Cloud
 
 class CloudAuthService:
@@ -20,7 +19,7 @@ class CloudAuthService:
             raise HTTPException(status_code=401, detail="Invalid token")
         
         try:
-            scan_controller = ScanController(arn)
+            scan_controller = ScanController(arn,provider)
             account_id = scan_controller.connect()       
             creation_date = DateTime.now(timezone.utc).isoformat()
             cloud_data=Cloud(name,provider,arn,account_id,user_id,description,creation_date)

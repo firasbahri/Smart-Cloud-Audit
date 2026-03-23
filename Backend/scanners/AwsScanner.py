@@ -2,13 +2,20 @@
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, BotoCoreError
-from .CloudProvider import CloudProvider
+from .IScanner import IScanner
 from fastapi import HTTPException
+import logging
 
-class AwsScanner(CloudProvider):
+logger = logging.getLogger(__name__)
+
+class AwsScanner(IScanner):
     session = None
     def __init__(self):
         super().__init__("AWS")
+
+    def get_resources(self):
+        resources=["users","groups","roles","s3","ec2"]
+        return resources
 
     def connect(self, arn):
         
@@ -37,24 +44,42 @@ class AwsScanner(CloudProvider):
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
+                logger.error(f"Access denied when assuming role: {arn}")
                 raise HTTPException(status_code=403, detail=f"Acceso denegado al asumir rol: {arn}")
             elif error_code == 'InvalidClientTokenId':
+                logger.error(f"Invalid AWS credentials when connecting with ARN {arn}")
                 raise HTTPException(status_code=400, detail="Credenciales AWS inválidas")
             else:
+                logger.error(f"ClientError when connecting to AWS with ARN {arn}: {e.response['Error']['Message']}")
                 raise HTTPException(status_code=500, detail=f"Error al conectar con AWS: {e.response['Error']['Message']}")
         except NoCredentialsError:
             raise HTTPException(status_code=400, detail="No se encontraron credenciales AWS configuradas")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error inesperado al conectar: {str(e)}")
 
-    def scan_users(self):
+    def scan_resource(self, resource):
+        if resource == "users":
+            return self.scan_users()
+        elif resource == "groups":
+            return self.scan_groups()
+        elif resource == "roles":
+            return self.scan_roles()
+        elif resource == "s3":
+            return self.scan_s3()
+        elif resource == "ec2":
+            return self.scan_ec2()
+        else:
+            logger.error(f"Resource type {resource} not supported for scanning")
+            raise HTTPException(status_code=400, detail=f"Recurso {resource} no soportado para escanear")
+            
+        
 
+    def scan_users(self):
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
             
             iam = self.session.client('iam')
-            print(iam.list_users()['Users'][0]['UserName'])
             users = iam.list_users()['Users']
             try:
                 summary = iam.get_account_summary()['SummaryMap']
@@ -152,9 +177,11 @@ class AwsScanner(CloudProvider):
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
+                logger.error(f"Access denied when listing IAM roles")
                 raise PermissionError("Sin permisos para listar roles IAM")
             raise Exception(f"Error al escanear roles: {e.response['Error']['Message']}")
         except Exception as e:
+            logger.error(f"Unexpected error when scanning IAM roles: {str(e)}")
             raise Exception(f"Error inesperado al escanear roles: {str(e)}")
     
     def scan_s3(self):
@@ -203,6 +230,7 @@ class AwsScanner(CloudProvider):
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
+                logger.error(f"Access denied when listing S3 buckets")
                 raise PermissionError("Sin permisos para listar buckets S3")
             raise Exception(f"Error al escanear S3: {e.response['Error']['Message']}")
         except Exception as e:

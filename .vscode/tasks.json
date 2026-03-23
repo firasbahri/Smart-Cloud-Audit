@@ -1,0 +1,121 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Ensure RabbitMQ",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$name='smartaudit-rabbitmq'; $exists=docker ps -a --filter \"name=^/$name$\" --format \"{{.Names}}\"; if ($exists -eq $name) { $running=docker ps --filter \"name=^/$name$\" --format \"{{.Names}}\"; if ($running -ne $name) { docker start $name | Out-Null; Write-Host 'RabbitMQ iniciado.' } else { Write-Host 'RabbitMQ ya estaba iniciado.' } } else { docker run -d --name $name --restart unless-stopped -p 5672:5672 -p 15672:15672 rabbitmq:3-management | Out-Null; Write-Host 'RabbitMQ creado e iniciado.' }"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend API",
+      "type": "process",
+      "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
+      "args": [
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--reload"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/Backend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "smartaudit-backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Worker RabbitMQ",
+      "type": "process",
+      "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
+      "args": [
+        "-m",
+        "rabbitMq.worker"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/Backend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "smartaudit-worker"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend Vite",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/Frontend/smart-audit-frontend"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "smartaudit-frontend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start SmartAudit (3 terminales)",
+      "dependsOn": [
+        "Backend API",
+        "Worker RabbitMQ",
+        "Frontend Vite"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "SmartAudit: Arrancar Todo",
+      "dependsOn": [
+        "Ensure RabbitMQ",
+        "Start SmartAudit (3 terminales)"
+      ],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SmartAudit: Parar Todo",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like '*SmartAudit*' -and ( $_.CommandLine -like '*main:app*--reload*' -or $_.CommandLine -like '*rabbitMq.worker*' -or $_.CommandLine -like '*npm*run*dev*' -or $_.CommandLine -like '*vite*' ) }; if (-not $procs) { Write-Host 'No habia procesos SmartAudit activos.'; exit 0 }; foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue; Write-Host ('Detenido PID ' + $p.ProcessId) }"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -2,7 +2,6 @@ from fastapi import HTTPException, APIRouter, Depends
 from Requests import CloudDeleteRequest
 from dependencies import get_user_id_from_token
 from services.cloudScan_service import CloudScanService
-
 cloud_scan_service = CloudScanService()
 router = APIRouter()
 

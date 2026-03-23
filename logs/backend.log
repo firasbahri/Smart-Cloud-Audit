@@ -1,0 +1,54 @@
+2026-03-23 00:28:39,571 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:28:39,668 | INFO | root | Connected to MongoDB
+2026-03-23 00:28:40,267 | INFO | main | Inicio de aplicacion
+2026-03-23 00:28:40,281 | INFO | main | Conectando a RabbitMQ en startup
+2026-03-23 00:28:40,282 | INFO | root | Connecting to RabbitMQ...
+2026-03-23 00:28:40,624 | INFO | aio_pika.robust_connection | Connection to amqp://guest:******@localhost/ closed. Reconnecting after 5 seconds.
+2026-03-23 00:28:42,249 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:28:42,257 | INFO | root | Connected to MongoDB
+2026-03-23 00:28:42,745 | INFO | main | Inicio de aplicacion
+2026-03-23 00:28:42,761 | INFO | main | Conectando a RabbitMQ en startup
+2026-03-23 00:28:42,763 | INFO | root | Connecting to RabbitMQ...
+2026-03-23 00:28:48,831 | INFO | aio_pika.robust_connection | Connection to amqp://guest:******@localhost/ closed. Reconnecting after 5 seconds.
+2026-03-23 00:28:50,512 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:28:50,519 | INFO | root | Connected to MongoDB
+2026-03-23 00:28:51,057 | INFO | main | Inicio de aplicacion
+2026-03-23 00:28:51,070 | INFO | main | Conectando a RabbitMQ en startup
+2026-03-23 00:28:51,071 | INFO | root | Connecting to RabbitMQ...
+2026-03-23 00:28:55,167 | INFO | aio_pika.robust_connection | Connection to amqp://guest:******@localhost/ closed. Reconnecting after 5 seconds.
+2026-03-23 00:28:56,711 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:28:56,722 | INFO | root | Connected to MongoDB
+2026-03-23 00:28:57,219 | INFO | main | Inicio de aplicacion
+2026-03-23 00:28:57,232 | INFO | main | Conectando a RabbitMQ en startup
+2026-03-23 00:28:57,234 | INFO | root | Connecting to RabbitMQ...
+2026-03-23 00:29:00,982 | INFO | aio_pika.robust_connection | Connection to amqp://guest:******@localhost/ closed. Reconnecting after 5 seconds.
+2026-03-23 00:29:02,576 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:29:02,585 | INFO | root | Connected to MongoDB
+2026-03-23 00:29:03,032 | INFO | main | Inicio de aplicacion
+2026-03-23 00:29:03,051 | INFO | main | Conectando a RabbitMQ en startup
+2026-03-23 00:29:03,053 | INFO | root | Connecting to RabbitMQ...
+2026-03-23 00:29:07,189 | INFO | aio_pika.robust_connection | Connection to amqp://guest:******@localhost/ closed. Reconnecting after 5 seconds.
+2026-03-23 00:29:09,112 | INFO | root | Connecting to MongoDB...
+2026-03-23 00:29:09,133 | INFO | root | Connected to MongoDB
+2026-03-23 00:29:11,700 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:11,706 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:17,281 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:17,289 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:21,687 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:21,697 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:25,303 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:25,315 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:32,667 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:32,676 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:41,648 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:41,660 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:29:48,062 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:29:48,070 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:30:00,245 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:30:00,280 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:30:08,290 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:30:08,319 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:30:39,686 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:30:39,699 | INFO | mongoDB | Conexion a MongoDB establecida
+2026-03-23 00:30:45,738 | INFO | mongoDB | Conectando a MongoDB
+2026-03-23 00:30:45,774 | INFO | mongoDB | Conexion a MongoDB establecida

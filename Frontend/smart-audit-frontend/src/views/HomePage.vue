@@ -54,39 +54,45 @@
           </div>
         </div>
         <div class="hero-visual">
-          <div class="visual-card">
+          <Card class="visual-card">
+            <template #content>
             <SmartAuditLogo :size="120" />
-          </div>
+            </template>
+          </Card>
         </div>
       </div>
     </section>
 
-    <!-- Features Section -->
+  
     <section class="features-section">
       <h2 class="section-title">Características Principales</h2>
       <div class="features-grid">
-        <div class="feature-card" v-for="feature in features" :key="feature.title">
-          <div class="feature-icon">
-            <component :is="feature.icon" />
-          </div>
-          <h3>{{ feature.title }}</h3>
-          <p>{{ feature.description }}</p>
-        </div>
+        <Card class="feature-card" v-for="feature in features" :key="feature.title">
+          <template #content>
+            <div class="feature-icon">
+              <component :is="feature.icon" />
+            </div>
+            <h3>{{ feature.title }}</h3>
+            <p>{{ feature.description }}</p>
+          </template>
+        </Card>
       </div>
     </section>
 
-    <!-- Services Section -->
+   
     <section class="services-section">
       <h2 class="section-title">Servicios AWS Soportados</h2>
       <div class="services-grid">
-        <div class="service-card" v-for="service in services" :key="service.name">
-          <div class="service-icon">{{ service.icon }}</div>
-          <h4>{{ service.name }}</h4>
-        </div>
+        <Card class="service-card" v-for="service in services" :key="service.name">
+          <template #content>
+            <div class="service-icon">{{ service.icon }}</div>
+            <Tag :value="service.name" severity="secondary" class="service-tag" />
+          </template>
+        </Card>
       </div>
     </section>
 
-    <!-- CTA Section -->
+
     <section class="cta-section">
       <div class="cta-content">
         <h2>¿Listo para asegurar tu infraestructura?</h2>
@@ -120,6 +126,8 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Button from 'primevue/button';
+import Card from 'primevue/card';
+import Tag from 'primevue/tag';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
 import { Shield, Search, BarChart3, Lock, Cloud, Zap } from 'lucide-vue-next';
 
@@ -287,10 +295,14 @@ const services = ref([
 .visual-card {
   background: #161b22;
   border: 1px solid rgba(34, 197, 94, 0.25);
-  padding: 3rem;
-  border-radius: 20px;
   box-shadow: 0 0 40px rgba(34, 197, 94, 0.15);
   animation: float 3s ease-in-out infinite;
+}
+
+.visual-card :deep(.p-card-body) {
+  padding: 3rem;
+  display: flex;
+  justify-content: center;
 }
 
 @keyframes float {
@@ -322,10 +334,12 @@ const services = ref([
 .feature-card {
   background: #161b22;
   border: 1px solid rgba(34, 197, 94, 0.1);
-  padding: 2rem;
-  border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feature-card :deep(.p-card-body) {
+  padding: 2rem;
 }
 
 .feature-card:hover {
@@ -378,10 +392,12 @@ const services = ref([
 .service-card {
   background: #21262d;
   border: 1px solid rgba(34, 197, 94, 0.08);
-  padding: 1.5rem;
-  border-radius: 12px;
   text-align: center;
   transition: transform 0.3s, border-color 0.3s;
+}
+
+.service-card :deep(.p-card-body) {
+  padding: 1.5rem;
 }
 
 .service-card:hover {
@@ -394,11 +410,8 @@ const services = ref([
   margin-bottom: 0.5rem;
 }
 
-.service-card h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #e6edf3;
-  margin: 0;
+.service-tag {
+  margin-top: 0.25rem;
 }
 
 /* CTA Section */

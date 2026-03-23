@@ -4,6 +4,9 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from mongoDB import MongoDB
 from rabbitMq.connection import RabbitMQConnection
+
+logger = logging.getLogger(__name__)
+
 MongoDB.connect()
 
 from api.auth import router as auth_router
@@ -11,8 +14,9 @@ from api.cloudAuth import router as cloud_auth_router
 from api.cloud_scan import router as cloud_scan_router
 
 
-print("inicio de applicacion...")
+logger.info("inicio de applicacion..")
 
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 app = FastAPI()
 
 

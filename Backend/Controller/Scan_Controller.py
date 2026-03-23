@@ -1,14 +1,15 @@
 
 from Factories.ResourceFactory import ResourceFactory
-from services.AwsScanner import AwsScanner
+from Factories.scannerFactory import ScannerFactory
 from services.JSONSerializer import JSONSerializer
 from Model.scanResult import ScanResult
 from uuid import uuid4
-
+import logging
+logger = logging.getLogger("scanController")
 class ScanController:
 
-  def __init__(self, arn):
-    self.scan_service =  AwsScanner()
+  def __init__(self, arn,provider):
+    self.scan_service = ScannerFactory.create_scanner(provider)
     self.arn = arn
     self.account_id = None
 
@@ -17,63 +18,32 @@ class ScanController:
       account_id=self.scan_service.connect(self.arn)
       self.account_id = account_id
     except Exception as e:
-      raise Exception(f"Error connecting to AWS: {str(e)}")
+      logger.error(f"Error connecting to service: {str(e)}")
+
+      raise Exception(f"Error connecting to service: {str(e)}")
     
      
     return account_id
 
-  def scan_users(self):
-    users=[]
+  def find_resources(self):
     try:
-      usersIAM = self.scan_service.scan_users()
-      usersFactory = ResourceFactory.create_users(usersIAM)
-      users=JSONSerializer.serializeList(usersFactory)
-      return users
-      
+      resources = self.scan_service.get_resources()
+      logger.info(f"Resources found: {resources}")
+      return resources
     except Exception as e:
-      return {f"message : error while scanning users": str(e)}
-      
-      
+      logger.error(f"Error finding resources: {str(e)}")
+      raise Exception(f"Error finding resources: {str(e)}")
 
-  def scan_groups(self):
-    try:
-      groupsIAM = self.scan_service.scan_groups()
-      groupsFactory = ResourceFactory.create_groups(groupsIAM)
-      groups=JSONSerializer.serializeList(groupsFactory)
-      return groups 
-    except Exception as e:
-      return {f"message : error while scanning groups": str(e) }
+  def scanByResource(self,resource):
+    resources = self.scan_service.get_resources()
+    if resource not in resources:
+      logger.warning(f"Resource {resource} not found in available resources: {resources}")
+      raise Exception(f"Resource {resource} not found in available resources: {resources}")
+    result= self.scan_service.scan_resource(resource)
+    result_serializado = JSONSerializer.serializeList(result)
+    return result_serializado
 
-  def scan_roles(self):
-    try:
-      roleIAM = self.scan_service.scan_roles()
-      rolesFactory = ResourceFactory.create_roles(roleIAM)
-      roles = JSONSerializer.serializeList(rolesFactory)
-      return roles
-     
-    except Exception as e:
-      return {f"message : error while scanning roles": str(e) }
-
-  def scan_ec2(self):
-    try:
-      ec2 = self.scan_service.scan_ec2()
-      instancesFactory= ResourceFactory.create_ec2(ec2)
-      instances = JSONSerializer.serializeList(instancesFactory)
-      return instances
-  
-    except Exception as e:
-     return (f"Error escaneando EC2: {str(e)}")
-
-  def scan_s3(self):
-    try:
-      s3 = self.scan_service.scan_s3()
-      bucketsFactory= ResourceFactory.create_buckets(s3)
-      buckets = JSONSerializer.serializeList(bucketsFactory)
-      return buckets
-    except Exception as e:
-      return {f"message : error while scanning s3": str(e)}
-
-
+ 
 
     
 

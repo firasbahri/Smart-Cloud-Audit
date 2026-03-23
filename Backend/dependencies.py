@@ -1,11 +1,14 @@
 
 from tokenConfigure import verify_access_token
 from fastapi import HTTPException, Header
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def get_user_id_from_token(Authorization: str= Header(...)):
     token = Authorization.split(" ")[1]
-    print("Received token in dependency: ", token)
+    logger.info(f"Extracted token: {token}")
     payload = verify_access_token(token)
     user_id = payload.get("sub")
     if user_id is None:

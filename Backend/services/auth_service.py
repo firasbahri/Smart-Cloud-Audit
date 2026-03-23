@@ -4,6 +4,9 @@ from Model.user import User
 from passlib.hash import bcrypt
 from fastapi import HTTPException
 from tokenConfigure import create_access_token, verify_access_token
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AuthService:
     def __init__(self):
@@ -22,8 +25,9 @@ class AuthService:
         userFounded= await self.user_repository.find_user_by_username(username)
         if userFounded and bcrypt.verify(password, userFounded.password):
             token=create_access_token({"sub": userFounded.id})
-            print("Generated token:", token)
+            logger.info(f"Generated token for username: {username}")
             return token
+        logger.warning(f"Failed login attempt for username: {username}")
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
        

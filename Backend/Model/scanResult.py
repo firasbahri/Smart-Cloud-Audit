@@ -1,17 +1,17 @@
 from datetime import datetime as Datetime
 
 class ScanResult:
-    def __init__(self, scan_id, arn,cloud_id,user_id):
+    def __init__(self, scan_id, arn,cloud_id,user_id,resources=None):
         self.scan_id = scan_id
         self.arn = arn
         self.cloudAccount_id = cloud_id
         self.user_id = user_id
-        self.resources = {
+        self.resources = resources if resources is not None else {
             "users": [],
             "groups": [],
             "roles": [],
             "buckets": [],
-            "ec2": []
+            "ec2": [],
         }
         self.created_at = Datetime.now()
         self.errors = []

@@ -2,6 +2,9 @@ from mongoDB import MongoDB
 from Model.cloud import Cloud
 from fastapi import HTTPException
 from bson import ObjectId
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CloudRepository:
   def __init__(self):
@@ -13,26 +16,22 @@ class CloudRepository:
    cloudExisted= await self.collection.find_one({"account_id": cloud.account_id, "user_id": cloud.user_id})
 
    if cloudExisted:
+      logger.warning(f"Cloud user already exists for account_id: {cloud.account_id} and user_id: {cloud.user_id}")
       raise HTTPException(status_code=400, detail="Cloud user already exists")
 
    result= await self.collection.insert_one(cloud_dict)
-   print("Inserted cloud data with id: ", result.inserted_id)
    return str(result.inserted_id)
 
 
 
   async def found_cloud_accounts(self,user_id):
-    print("REPOSITORY: Finding cloud data for user_id: ", user_id)
+    logger.info(f"REPOSITORY: Finding cloud data for user_id: {user_id}")
     result= self.collection.find({"user_id": user_id})
-   
+
     clouds= []
     async for cloud in result:
-      print("cloud name: ", cloud.get("name"))
-      print("cloud provider: ", cloud.get("provider"))
-      print("cloud account_id: ", cloud.get("account_id"))
-      print("cloud user_id: ", cloud.get("user_id"))
+      logger.info(f"Found cloud data: {cloud}")
       id= cloud.get("_id")
-      print("cloud id: ", id)
       clouds.append(Cloud(
         cloud.get("name"),
         cloud.get("provider"),
@@ -44,11 +43,11 @@ class CloudRepository:
         id=str(cloud.get("_id"))
         )
       )
-      
+
     if clouds:
-        for cloud in clouds:
-            print("Found cloud data: ", cloud.__dict__)
-        return clouds
+      for cloud in clouds:
+        logger.info(f"Found cloud data: {cloud.__dict__}")
+      return clouds
     return None
 
   async def found_cloud_account(self,id):

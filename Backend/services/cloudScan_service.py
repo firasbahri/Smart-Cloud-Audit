@@ -14,6 +14,8 @@ class CloudScanService:
 
 
   async def start_scan(self, id: str, user_id: str):
+      print(f"Starting scan for cloud account {id} and user {user_id}")
+      resources = []
       cloud= await self.cloud_repository.found_cloud_account(id)
       if not cloud:
           raise HTTPException(status_code=404, detail="Cloud account not found")
@@ -22,16 +24,20 @@ class CloudScanService:
           raise HTTPException(status_code=403, detail="Forbidden: You don't have access to this cloud account")
       
       arn = cloud.identifier
+      provider = cloud.provider
+      print(f"Starting scan for cloud account {id} with ARN {arn} and provider {provider}")
+      if provider == "AWS":
+           resources={"users": [], "groups": [], "roles": [], "buckets": [], "ec2": []}
       scan_id = str(uuid4())
       scanResult= ScanResult(
           scan_id=scan_id,
           arn=arn,
           cloud_id=cloud.id,
-          user_id=user_id
+          user_id=user_id,
+          resources=resources
       )
       scanId= await self.scan_repository.create_scan_result(scanResult)
-      # enviar mensaje a rabbitMQ para iniciar el escaneo
-      await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn)
+      await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn, provider=provider)
       
       return {"message": "Scan started successfully", "scan_id": scan_id}
 

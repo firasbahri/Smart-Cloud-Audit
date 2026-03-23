@@ -6,9 +6,16 @@ from Controller.Scan_Controller import ScanController
 from Model.scanResult import ScanResult
 from mongoDB import MongoDB
 from services.JSONSerializer import JSONSerializer
+import logging
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 
 async def process_message(message: aio_pika.IncomingMessage):
+    logger.info(f"Received message: {message.body.decode()}")
     async with message.process():
         collection = MongoDB.db["scans"]
         scan_id = None
@@ -16,24 +23,35 @@ async def process_message(message: aio_pika.IncomingMessage):
             body = json.loads(message.body.decode())
             arn = body["identifier"]
             scan_id = body["scan_id"]
-            scan_controller = ScanController(arn)
+            provider = body["provider"] 
+            scan_controller = ScanController(arn, provider)
             account_id = scan_controller.connect()
-            print(f"Connected to AWS account {account_id} for scan {scan_id}")
-            
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"status": "running"}})
-            users = scan_controller.scan_users()
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 20, "resources.users": users}})
-            groups = scan_controller.scan_groups()
-          
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 40, "resources.groups": groups}})
-            roles = scan_controller.scan_roles()
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 60, "resources.roles": roles}})
-            ec2 = scan_controller.scan_ec2()
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 80, "resources.ec2": ec2}})
-            buckets = scan_controller.scan_s3()
-            await collection.update_one({"scan_id": scan_id}, {"$set": {"progress": 100, "status": "completed", "resources.buckets": buckets}})
+            logger.info(f"Connected to {provider} account {account_id} for scan {scan_id}")
+            resources = scan_controller.find_resources()
+            total_findings = len(resources)
+            logger.info(f"Found {total_findings} resources to scan for scan {scan_id}")
+
+            for index, resource in enumerate(resources):
+                results = scan_controller.scanByResource(resource)
+                progress = int(((index + 1) / total_findings) * 100) if total_findings else 100
+                status = "running" if progress < 100 else "completed"
+                resource_key = "buckets" if resource == "s3" else resource
+
+                await collection.update_one(
+                    {"scan_id": scan_id},
+                    {
+                        "$set": {
+                            "status": status,
+                            "progress": progress,
+                            f"resources.{resource_key}": results,
+                        }
+                    },
+                )
+
+                logger.info(f"Finished scanning resource {resource} for scan {scan_id}")
+           
         except Exception as e:
-            print(f"Error processing message: {e}")
+            logger.error(f"Error processing message: {e}")
             if scan_id is not None:
                 await collection.update_one({"scan_id": scan_id}, {"$set": {"status": "error", "errors": str(e)}})
 
