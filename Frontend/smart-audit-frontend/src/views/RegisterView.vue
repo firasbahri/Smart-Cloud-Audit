@@ -182,8 +182,8 @@ const register = async (e) => {
     }
       toast.add({ 
       severity: 'success', 
-      summary: 'Registro exitoso', 
-      detail: 'Tu cuenta ha sido creada correctamente',
+      summary: 'Verificación enviada', 
+      detail: 'Por favor, verifica tu correo electrónico para activar tu cuenta.',
       life: 3000 
     });
       setTimeout(() => {
@@ -225,8 +225,6 @@ const register = async (e) => {
   max-width: 480px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
   animation: fadeInUp 0.5s ease-out;
-  max-height: 95vh;
-  overflow-y: auto;
 }
 
 @keyframes fadeInUp {

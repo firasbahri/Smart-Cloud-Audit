@@ -3,6 +3,7 @@
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, BotoCoreError
 from .IScanner import IScanner
+from Factories.awsFactory import AWSFactory
 from fastapi import HTTPException
 import logging
 
@@ -59,15 +60,21 @@ class AwsScanner(IScanner):
 
     def scan_resource(self, resource):
         if resource == "users":
-            return self.scan_users()
+            users=self.scan_users()
+            logger.info(f"Scanned users: {users}")
+            return AWSFactory.create_users(users)
         elif resource == "groups":
-            return self.scan_groups()
+            groups=self.scan_groups()
+            return AWSFactory.create_groups(groups)
         elif resource == "roles":
-            return self.scan_roles()
+            roles=self.scan_roles()
+            return AWSFactory.create_roles(roles)
         elif resource == "s3":
-            return self.scan_s3()
+            buckets=self.scan_s3()
+            return AWSFactory.create_buckets(buckets)
         elif resource == "ec2":
-            return self.scan_ec2()
+            ec2_instances=self.scan_ec2()
+            return AWSFactory.create_ec2(ec2_instances)
         else:
             logger.error(f"Resource type {resource} not supported for scanning")
             raise HTTPException(status_code=400, detail=f"Recurso {resource} no soportado para escanear")

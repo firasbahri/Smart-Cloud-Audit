@@ -19,5 +19,7 @@ class IAMUser(Resource):
   def get_groups(self):
     return self.groups
 
+  def get_Policies(self):
+    return self.policies
 
     

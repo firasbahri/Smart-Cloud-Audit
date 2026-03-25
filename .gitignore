@@ -1,8 +1,14 @@
 ﻿
 Backend/.env
+Backend/__pycache__/
+Backend/venv/
+
+
 
 .env
 
 __pycache__/
 
 *.pyc
+start-all.ps1
+stop-all.ps1

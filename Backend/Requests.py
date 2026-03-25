@@ -28,4 +28,6 @@ class CloudUpdateRequest(BaseModel):
 class CloudDeleteRequest(BaseModel):
   id: str
 
+class cloudAuditRequest(BaseModel):
+  scan_id: str  
 

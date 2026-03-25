@@ -10,6 +10,9 @@
         </div>
         <h1>Smart Audit</h1>
         <p class="subtitle">Inicia sesión en tu cuenta</p>
+        <Message v-if="verificationMessage" severity="success" size="small" class="mt-3">
+          {{ verificationMessage }}
+        </Message>
       </div>
 
       <Form v-slot="$form" :initialValues :resolver @submit="onFormSubmit" :disabled="isLoading"  class="flex flex-column gap-4">
@@ -78,10 +81,18 @@ import Message from 'primevue/message';
 import Toast from 'primevue/toast';
 import { Form } from '@primevue/forms';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { onMounted } from 'vue';
 
 const toast = useToast();
 const router= useRouter();
+const route = useRoute();
+const verificationMessage = ref('');
+onMounted(() => {
+  if (route.query.verified) {
+    verificationMessage.value = 'Email verificado exitosamente. Ahora puedes iniciar sesión.';
+  }
+});
 const initialValues = ref({
   username: '',
   password: ''
@@ -115,6 +126,15 @@ const onFormSubmit = async(e) => {
     });
   const data = await response.json();
   console.log("response ",response.status)
+  if (response.status === 403) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error de inicio de sesión',
+      detail: 'Tu correo electrónico no ha sido verificado. Por favor, verifica tu correo para activar tu cuenta.',
+      life: 3000
+    });
+  }
+
     if (response.status==200) {
       toast.add({ 
         severity: 'success', 
@@ -123,7 +143,7 @@ const onFormSubmit = async(e) => {
          life: 3000 
       });
       
-      console.log("token ",data.token)
+      console.log("token es  ",data.token)
       localStorage.setItem('token', data.token);
 
       setTimeout(() => {

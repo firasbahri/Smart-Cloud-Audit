@@ -25,7 +25,6 @@ class CloudScanService:
       
       arn = cloud.identifier
       provider = cloud.provider
-      print(f"Starting scan for cloud account {id} with ARN {arn} and provider {provider}")
       if provider == "AWS":
            resources={"users": [], "groups": [], "roles": [], "buckets": [], "ec2": []}
       scan_id = str(uuid4())

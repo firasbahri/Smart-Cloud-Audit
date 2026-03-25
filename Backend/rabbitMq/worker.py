@@ -2,14 +2,14 @@ import aio_pika
 import asyncio
 import json
 from rabbitMq.connection import RabbitMQConnection
-from Controller.Scan_Controller import ScanController
+from controllers.scan_Controller import ScanController
 from Model.scanResult import ScanResult
-from Backend.DataBase.mongoDB import MongoDB
+from DataBase.mongoDB import MongoDB
 from services.JSONSerializer import JSONSerializer
 import logging
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format=' %(filename)s :%(lineno)d %(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

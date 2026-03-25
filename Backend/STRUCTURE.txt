@@ -1,20 +1,27 @@
 Backend/
   .env
   .gitignore
+  analyzer/
+    aws_analyzer.py
+    IAM_Analyzer.py
+    IAnalyzer.py
   api/
     auth.py
+    cloud_audit.py
     cloud_scan.py
     cloudAuth.py
   Controller/
-    Scan_Controller.py
+    auditController.py
+    scan_Controller.py
   DataBase/
     mongoDB.py
   dependencies.py
   Factories/
-    ResourceFactory.py
+    awsFactory.py
     scannerFactory.py
   main.py
   Model/
+    auditResult.py
     cloud.py
     EC2_Model/
       EC2.py
@@ -29,12 +36,13 @@ Backend/
     s3Bucket.py
     scanResult.py
     user.py
-    Vulnerability.py
+    vulnerability.py
   rabbitMq/
     connection.py
     producer.py
     worker.py
   Repositories/
+    auditRepository.py
     cloudRepository.py
     IRepository.py
     ScanRepository.py
@@ -46,8 +54,11 @@ Backend/
     IScanner.py
   services/
     auth_service.py
+    cloudAudit_service.py
     cloudAuth_service.py
     cloudScan_service.py
+    email_service.py
+    JSONDeserializer.py
     JSONSerializer.py
   STRUCTURE.txt
   tests/

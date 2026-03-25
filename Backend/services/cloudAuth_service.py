@@ -1,4 +1,4 @@
-from Controller.Scan_Controller import ScanController
+from controllers.scan_Controller import ScanController
 from fastapi import HTTPException
 from Repositories.userRepository import UserRepository
 from Repositories.cloudRepository import CloudRepository
@@ -45,12 +45,11 @@ class CloudAuthService:
             raise HTTPException(status_code=404, detail="Cloud data not found for the user")
         
         cloudsDataSerializado=JSONSerializer.serializeList(clouds_data)
-        print("Serialized cloud data: ", cloudsDataSerializado)
+       
 
         return cloudsDataSerializado
 
     async def update_cloud_data(self, id: str,user_id: str,name: str, description: str,):
-        
 
         user = await self.user_repository.findById(user_id)
         if not user:
