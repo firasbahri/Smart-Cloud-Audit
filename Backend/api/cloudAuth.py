@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException,Header,Depends
 from Requests import CloudAddRequest,CloudUpdateRequest,CloudDeleteRequest
 from services.cloudAuth_service import CloudAuthService
+from Responses import CloudRegisterResponse, BoolResponse
 from tokenConfigure import verify_access_token
 from dependencies import get_user_id_from_token
 import logging
 CloudService= CloudAuthService()
 router= APIRouter()
 logger= logging.getLogger(__name__)
-@router.post("/register_cloud")
+@router.post("/register_cloud", response_model=CloudRegisterResponse)
 async def cloud_auth( cloudAddRequest : CloudAddRequest,user_id: str = Depends(get_user_id_from_token)):
     
     arn = cloudAddRequest.arn
@@ -16,7 +17,7 @@ async def cloud_auth( cloudAddRequest : CloudAddRequest,user_id: str = Depends(g
     description=cloudAddRequest.description    
     id=await CloudService.register_aws(arn, user_id, name, description,provider)
     logger.info(f"Cloud account registered with id: {id}")
-    return{"message": "Cloud account registered successfully", "id": str(id)}
+    return {"message": "Cloud account registered successfully", "id": str(id)}
 
    
 
@@ -28,7 +29,7 @@ async def getCloudData( user_id: str = Depends(get_user_id_from_token)):
     return clouds_data
 
 
-@router.post("/update_cloud_data")
+@router.post("/update_cloud_data", response_model=BoolResponse)
 async def updateCloudData(cloudUpdateRequest : CloudUpdateRequest, user_id: str = Depends(get_user_id_from_token)):
     
     id = cloudUpdateRequest.id
@@ -37,13 +38,13 @@ async def updateCloudData(cloudUpdateRequest : CloudUpdateRequest, user_id: str 
 
     result = await CloudService.update_cloud_data(id, user_id, name, description)
     logger.info(f"Cloud data updated for id: {id}")
-    return result
+    return {"success": bool(result)}
 
 
-@router.delete("/delete_cloud_data")
+@router.delete("/delete_cloud_data", response_model=BoolResponse)
 async def deleteCloudData(cloudDeleteRequest : CloudDeleteRequest, user_id: str = Depends(get_user_id_from_token)):
     logger.info(f"Received request to delete cloud data with id: {cloudDeleteRequest.id} for user_id: {user_id}")
     id= cloudDeleteRequest.id
     result = await CloudService.delete_cloud_data(user_id,id)
     logger.info(f"Cloud data deleted for id: {id}")
-    return result
+    return {"success": bool(result)}

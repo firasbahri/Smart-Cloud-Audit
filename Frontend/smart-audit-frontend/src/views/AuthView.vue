@@ -51,7 +51,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuditStore } from '../store/scanStore';
+import { useScanStore } from '../store/scanStore';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
@@ -59,7 +59,7 @@ import ProgressSpinner from 'primevue/progressspinner';
 import { Shield, Key, CloudCog, AlertCircle } from 'lucide-vue-next';
 
 const router = useRouter();
-const auditStore = useAuditStore();
+const scanStore = useScanStore();
 const localArn = ref('');
 const isLoading = ref(false);
 const errorMsg = ref('');

@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { set } from "zod";
 
 export const useAuditStore = defineStore("audit", () => {
   const audits = ref([]);
@@ -11,10 +10,12 @@ export const useAuditStore = defineStore("audit", () => {
   const auditingAccounts = ref({});
   const auditIdByAccount = ref({});
 
-  const setAudits = (auditId,data) => {
-    auditId.value = auditId;
-    audits.value = data;
-  }
+  const setAudits = (auditIdValue, data) => {
+    const normalized = Array.isArray(data) ? data : [];
+    id.value = auditIdValue || "";
+    audits.value = normalized;
+    auditResult.value = normalized;
+  };
 
   const startAccountAudit = (accountId, auditId) => {
     auditingAccounts.value[accountId] = true;
@@ -24,8 +25,52 @@ export const useAuditStore = defineStore("audit", () => {
 
   const clearData = () => {
     id.value = "";
+    audits.value = [];
     auditResult.value = null;
-  }
+  };
+
+  const loadAuditDataForAccount = async (account) => {
+    const accountId = account?.id || account?.account_id || account;
+    if (!accountId) {
+      clearData();
+      return null;
+    }
+
+    try {
+      const endpoint = `http://localhost:8000/cloud/last-audit-result/${accountId}`;
+      const token = localStorage.getItem('token');
+      if (!token) {
+        clearData();
+        return null;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error fetching audit result');
+      }
+
+      const data = await response.json();
+      const result = data.vulnerabilities || data.results || [];
+      const auditID = data.audit_id || "";
+
+      setAudits(auditID, result);
+      if (auditID) {
+        auditIdByAccount.value[accountId] = auditID;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error loading audit data:', error);
+      clearData();
+      return null;
+    }
+  };
 
   return {
     audits,
@@ -38,7 +83,9 @@ export const useAuditStore = defineStore("audit", () => {
     auditIdByAccount,
     clearData,
     startAccountAudit,
+    loadAuditDataForAccount
   };
 });
+
 
 

@@ -25,8 +25,7 @@ class AwsScanner(IScanner):
                 raise HTTPException(status_code=400, detail="Arn Invalido. Debe comenzar con 'arn:aws:iam::'")
             
             sts = boto3.client('sts')
-            identity = sts.get_caller_identity()    
-            account_id = identity['Account']
+
        
             response = sts.assume_role(
                 RoleArn=arn,
@@ -39,6 +38,9 @@ class AwsScanner(IScanner):
                 aws_secret_access_key=credentials['SecretAccessKey'],
                 aws_session_token=credentials['SessionToken']
             )
+            client_st = self.session.client('sts')
+            identity = client_st.get_caller_identity()
+            account_id = identity['Account']
             return account_id
 
           

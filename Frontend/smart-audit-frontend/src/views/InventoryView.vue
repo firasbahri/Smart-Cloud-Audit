@@ -136,10 +136,6 @@ import { Package, ShieldCheck, Server, Database, Key, Monitor, HardDrive, FileX,
 const router = useRouter();
 const scanStore = useScanStore();
 
-// Seguridad: Si recargan la página y Pinia está vacío, los mandamos al login
-if (!scanStore.scanResult) {
-  router.push('/');
-}
 
 
 const roles = computed(() => scanStore.scanResult?.roles || []);

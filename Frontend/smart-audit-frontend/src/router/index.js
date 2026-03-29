@@ -27,6 +27,7 @@ const router = createRouter({
       path: '/app',
       name: 'layout',
       component: () => import('../views/MainPage.vue'),
+      meta: { requiresAuth: true },
       redirect: '/app/cloud-accounts',
       children: [
         { path: 'cloud-accounts', component: () => import('../views/CloudAccountsView.vue') },
@@ -38,6 +39,22 @@ const router = createRouter({
     }
   ]
 })
+
+router.beforeEach((to, from, next) => {
+  const authRequired = to.matched.some(record => record.meta.requiresAuth);
+  const loggedIn = localStorage.getItem('token');
+  const publicPages = ['/', '/login', '/register', '/auth'];
+
+  if (authRequired && !loggedIn) {
+    return next('/login');
+  }
+
+  if (!authRequired && loggedIn && publicPages.includes(to.path)) {
+    return next('/app/cloud-accounts');
+  }
+
+  return next();
+});
 
 
 export default  router

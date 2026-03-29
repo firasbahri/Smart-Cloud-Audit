@@ -7,7 +7,7 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
   const selectedAccount = ref(null)
 
   const activeAccountId = computed(() =>
-    selectedAccount.value?.account_id || selectedAccount.value?.id || null
+    selectedAccount.value?.account_id 
   )
 
   const awsAccounts = computed(() => 

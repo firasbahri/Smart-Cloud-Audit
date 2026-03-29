@@ -2,6 +2,8 @@ from controllers.scan_Controller import ScanController
 from fastapi import HTTPException
 from Repositories.userRepository import UserRepository
 from Repositories.cloudRepository import CloudRepository
+from Repositories.auditRepository import AuditRepository
+from Repositories.ScanRepository import ScanRepository
 from services.JSONSerializer import JSONSerializer
 from datetime import datetime as DateTime, timezone
 from Model.cloud import Cloud
@@ -10,6 +12,7 @@ class CloudAuthService:
     def __init__(self):
         self.cloud_repository = CloudRepository()
         self.user_repository = UserRepository()
+        
 
 
     async def register_aws(self,arn: str,user_id: str,name: str, description: str,provider: str):
@@ -79,6 +82,10 @@ class CloudAuthService:
             raise HTTPException(status_code=401, detail="Invalid token")
 
         try:
+            scanRep= ScanRepository()
+            auditRep= AuditRepository()
+            await scanRep.deleteByAccountUser(id_cloud, user_id)
+            await auditRep.deleteByAccountUser(id_cloud, user_id)
             await self.cloud_repository.delete(id_cloud)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

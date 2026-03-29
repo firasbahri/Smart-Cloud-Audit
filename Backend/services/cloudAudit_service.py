@@ -33,8 +33,14 @@ class CloudAuditService:
         auditID=str(uuid4())
         creationDate=dateTime.now(timezone.utc)
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
-        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId, created_at=creationDate)
+        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id,created_at=creationDate)
         await self.audit_repository.create(auditResult)
         logger.info(f"Found {len(vulnerabilities)} vulnerabilities in scan {scan_id} for user {user_id}")
-        return {"vulnerabilities": vulnerabilities_serialized,"audit_id": auditID}
+        return auditResult
         
+    async def get_last_audit_result(self, account_id: str, user_id: str):
+        result= await self.audit_repository.findLastByAccountUser(account_id, user_id)
+        if not result:
+            logger.error(f"No audit results found for account {account_id} and user {user_id}")
+            raise HTTPException(status_code=404, detail="No audit results found for this account")
+        return result

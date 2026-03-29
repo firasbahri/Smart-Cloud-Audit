@@ -20,7 +20,7 @@ class ScanController:
       logger.error(f"Error connecting to service: {str(e)}")
 
       raise Exception(f"Error connecting to service: {str(e)}")
-    
+    logger.info(f"Connected to service with account ID: {account_id}")
      
     return account_id
 

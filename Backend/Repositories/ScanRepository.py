@@ -1,7 +1,8 @@
 from DataBase.mongoDB import MongoDB
 from Repositories.IRepository import IRepository
 from Model.scanResult import ScanResult
-
+import logging
+logger = logging.getLogger(__name__)    
 
 class ScanRepository(IRepository):
     def __init__(self):
@@ -51,3 +52,24 @@ class ScanRepository(IRepository):
         result = await self.colls.delete_one({"scan_id": scan_id})
         return result.deleted_count > 0
   
+
+    async def findByAccountUser(self, accountID, userID):
+        logger.info("finding scan for user id {userID} and account {accountID}")
+        scan_response = await self.colls.find_one({"cloudAccount_id": accountID, "user_id": userID})
+        if scan_response:
+            scan_result = ScanResult(
+                scan_id=scan_response["scan_id"],
+                arn=scan_response["arn"],
+                cloud_id=scan_response["cloudAccount_id"],
+                user_id=scan_response["user_id"],
+            )
+            scan_result.resources = scan_response.get("resources", {})
+            scan_result.created_at = scan_response.get("created_at")
+            scan_result.errors = scan_response.get("errors", [])
+            scan_result.progress = scan_response.get("progress", 0)
+            scan_result.status = scan_response.get("status", "Started")
+            return scan_result
+        
+    async def deleteByAccountUser(self, accountID, userID):
+        result = await self.colls.delete_one({"cloudAccount_id": accountID, "user_id": userID})
+        return result.deleted_count > 0

@@ -5,6 +5,9 @@ from rabbitMq.producer import RabbitMQProducer
 from Model.scanResult import ScanResult
 from typing import Optional
 from uuid import uuid4
+import logging  
+
+logger=logging.getLogger(__name__)
 
 class CloudScanService:
   def __init__(self):
@@ -37,18 +40,20 @@ class CloudScanService:
       )
       scanId= await self.scan_repository.create(scanResult)
       await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn, provider=provider)
-      
-      return {"message": "Scan started successfully", "scan_id": scan_id}
+      return scanResult
 
 
   async def get_scan_status(self, scan_id: str, user_id: str):
         scanResult=await self.scan_repository.findById(scan_id)
         if not scanResult:
             raise HTTPException(status_code=404, detail="Scan not found")
-        if scanResult.status == "Started":
-            return {"status": scanResult.status, "progress": scanResult.progress}
-        elif scanResult.status == "running":
-            return {"status": scanResult.status, "progress": scanResult.progress}
-        else:
-            return {"status": scanResult.status, "progress": scanResult.progress, "results": scanResult.resources, "errors": scanResult.errors}
+        return scanResult
 
+
+  async def get_scan_result(self, accountID: str, user_id: str):
+      logger.info("finding scan for userID {user_id} and account {accountID}")
+      scanResult=await self.scan_repository.findByAccountUser(accountID, user_id)
+      if not scanResult:
+          raise HTTPException(status_code=404,detail="scan not found")
+
+      return scanResult

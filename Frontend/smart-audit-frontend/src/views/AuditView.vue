@@ -91,6 +91,7 @@
 import { computed, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useScanStore } from '../store/scanStore'
+import { useAuditStore } from '../store/auditStore'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
@@ -98,9 +99,14 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
 const scanStore = useScanStore()
+const auditStore = useAuditStore()
 const toast = useToast()
 
-const vulnerabilities = ref([])
+const vulnerabilities = computed(() => {
+	if (Array.isArray(auditStore.auditResult)) return auditStore.auditResult
+	if (Array.isArray(auditStore.audits)) return auditStore.audits
+	return []
+})
 const selectedSeverity = ref('ALL')
 const isLoadingStatic = ref(false)
 const isLoadingAi = ref(false)
@@ -232,17 +238,17 @@ const runAudit = async (mode) => {
 		}
 
 		const incoming = Array.isArray(data?.vulnerabilities) ? data.vulnerabilities : []
-    console.log('Vulnerabilidades recibidas:', incoming)
-		vulnerabilities.value = incoming.map((item, index) => normalizeVulnerability(item, index, mode))
+		const normalized = incoming.map((item, index) => normalizeVulnerability(item, index, mode))
+		auditStore.setAudits(data?.audit_id || '', normalized)
 
 		toast.add({
 			severity: 'success',
 			summary: 'Auditoria completada',
-			detail: `Se encontraron ${vulnerabilities.value.length} vulnerabilidades`,
+			detail: `Se encontraron ${normalized.length} vulnerabilidades`,
 			life: 3000
 		})
 	} catch (error) {
-		vulnerabilities.value = []
+		auditStore.clearData()
 		toast.add({
 			severity: 'error',
 			summary: 'Error en auditoria',

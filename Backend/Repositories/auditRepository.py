@@ -1,5 +1,6 @@
 from Repositories.IRepository import IRepository
 from DataBase.mongoDB import MongoDB  
+from Model.auditResult import AuditResult
 
 class AuditRepository(IRepository):
     def __init__(self):
@@ -12,6 +13,19 @@ class AuditRepository(IRepository):
                 audit_dict[key] = value
         result = await self.collection.insert_one(audit_dict)
         return str(result.inserted_id)
+    
+    async def findLastByAccountUser(self, account_id, user_id):
+        result = await self.collection.find_one({"accountID": account_id, "userID": user_id}, sort=[("created_at", -1)])
+        if not result:
+            return None
+
+        return AuditResult(
+            id=result.get("id") or str(result.get("_id")),
+            vulnerabilities=result.get("vulnerabilities", []),
+            accountID=result.get("accountID"),
+            userID=result.get("userID"),
+            created_at=result.get("created_at")
+        )
 
     async def findById(self, audit_id):
         pass
@@ -20,4 +34,9 @@ class AuditRepository(IRepository):
         pass
     
     async def delete(self, audit_id):
-        pass
+        result= await self.collection.delete_one({"_id": audit_id})
+        return result.deleted_count > 0
+    
+    async def deleteByAccountUser(self, accountID, userID):
+        result = await self.collection.delete_one({"accountID": accountID, "userID": userID})
+        return result.deleted_count > 0

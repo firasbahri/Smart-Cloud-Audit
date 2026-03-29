@@ -51,6 +51,51 @@ export const useScanStore = defineStore('scan', () => {
     scanIdByAccount.value = {}
   }
 
+  const loadScanDataForAccount = async (account) => {
+    const accountId = account?.id || account?.account_id || account
+
+    if (!accountId) {
+      clearData()
+      return null
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      clearData()
+      return null
+    }
+
+    const endpoint = `http://localhost:8000/cloud/get_scan_result/${accountId}`
+    try {
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Error al cargar resultados de escaneo')
+      }
+
+      const scanId = data.scan_id || ''
+      const result = data.results || data.resources || null
+      if (!scanId) {
+        clearData()
+        return null
+      }
+
+      setScanData(scanId, result)
+      scanIdByAccount.value[accountId] = scanId
+      return data
+    } catch (error) {
+      console.error('Error cargando datos de escaneo:', error)
+      clearData()
+      return null
+    }
+  }
+
 
   return {
     id,
@@ -64,6 +109,7 @@ export const useScanStore = defineStore('scan', () => {
     completeAccountScan,
     failAccountScan,
     clearAccountScan,
-    clearData
+    clearData,  
+    loadScanDataForAccount
   }
 })
