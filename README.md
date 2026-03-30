@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Smart Audit  (Work in Progress)
 
 ## 🚀 Current Features
@@ -22,3 +23,7 @@ Work in progress (Final Year Project)
 
 ## 👤 Author
 Mohamed Firas Bahri
+=======
+# Smart-Cloud-Audit
+Plataforma de auditoría de seguridad Cloud automatizada que combina análisis estático de infraestructura  con remediación inteligente generada por IA
+>>>>>>> f1c7f35 (Initial commit)

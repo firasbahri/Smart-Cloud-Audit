@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from DataBase.mongoDB import MongoDB
-from rabbitMq.connection import RabbitMQConnection
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(filename)s : %(asctime)s - %(l
 app = FastAPI()
 
 
-@app.on_event("startup")
-async def startup_event():
-    await RabbitMQConnection.connect()
+
 
 
 

@@ -7,3 +7,5 @@ PyJWT
 python-dotenv
 passlib[bcrypt]
 pytest
+celery
+pymongo

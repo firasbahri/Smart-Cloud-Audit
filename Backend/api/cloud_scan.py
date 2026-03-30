@@ -1,8 +1,10 @@
-from fastapi import HTTPException, APIRouter, Depends
+from fastapi import HTTPException, APIRouter, Depends,websockets,WebSocketDisconnect
 from Requests import CloudDeleteRequest
 from dependencies import get_user_id_from_token
 from services.cloudScan_service import CloudScanService
 from Responses import ScanStatusResponse, ScanResultResponse, StartScanResponse
+import asyncio
+
 import logging
 cloud_scan_service = CloudScanService()
 router = APIRouter()
@@ -36,3 +38,23 @@ async def get_scan_result(accountID: str, user_id: str = Depends(get_user_id_fro
        results=result.resources,
        errors=result.errors
    )
+
+
+
+@router.websocket("/ws/scan_progress/{scan_id}")
+async def websocket_scan_progress(websocket: websockets.WebSocket, scan_id: str, user_id: str = Depends(get_user_id_from_token)):
+    await websocket.accept()
+    try:
+        while True:
+            result = await cloud_scan_service.get_scan_status(scan_id, user_id)
+            await websocket.send_json({
+                "status": str(result.status),
+                "progress": int(result.progress or 0),
+                "results": result.resources,
+                "errors": result.errors
+            })
+            if result.status in ["Completed", "Failed"]:
+                break
+            await asyncio.sleep(5)  # Espera 5 segundos antes de la siguiente actualización
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for scan_id: {scan_id} and user_id: {user_id}")

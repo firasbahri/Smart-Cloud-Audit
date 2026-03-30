@@ -1,4 +1,4 @@
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ class MongoDB:
         logger.info("Connecting to MongoDB...")
         try:
            if not MongoDB.client:
-               MongoDB.client =AsyncIOMotorClient("mongodb://localhost:27017/")
+               MongoDB.client =AsyncMongoClient("mongodb://localhost:27017/")
                MongoDB.db = MongoDB.client["testdb"]
                logger.info("Connected to MongoDB")
         except Exception as e:
