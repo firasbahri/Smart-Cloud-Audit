@@ -31,9 +31,8 @@ class CloudAuditService:
         deserializedResources=JSONDeserializer.deserialize_resources(resources)
         vulnerabilities=auditController.staticAudit(deserializedResources)
         auditID=str(uuid4())
-        creationDate=dateTime.now(timezone.utc)
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
-        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id,created_at=creationDate)
+        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id)
         await self.audit_repository.create(auditResult)
         logger.info(f"Found {len(vulnerabilities)} vulnerabilities in scan {scan_id} for user {user_id}")
         return auditResult

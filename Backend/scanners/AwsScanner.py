@@ -92,13 +92,14 @@ class AwsScanner(IScanner):
             users = iam.list_users()['Users']
             try:
                 summary = iam.get_account_summary()['SummaryMap']
-                
+                mfa_enabled = summary.get('AccountMFAEnabled', False) 
+                logger.info(f"Account MFA enabled: {mfa_enabled}")
                 root_user = {
                     'UserName': 'root',
                     'UserId': 'root',
                     'Arn': None,
                     'CreateDate': None,
-                    'MfaActive': summary.get('AccountMFAEnabled', False),
+                    'Mfa_enabled': bool(summary.get('AccountMFAEnabled', 0)),
                     'AccessKeysPresent': summary.get('AccountAccessKeysPresent', 0),
                 }
                 

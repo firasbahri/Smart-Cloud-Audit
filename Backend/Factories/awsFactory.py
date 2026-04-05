@@ -16,6 +16,8 @@ class AWSFactory:
         for u in usersRaw:
            
             if u['UserName'] == 'root':
+                logger.info("Creating root user")
+                logger.info(f"mfa_enabled for root user: {u.get('MfaActive', False)}")
               
                 userRoot = IAMUser(
                     id=u['UserId'],
@@ -26,7 +28,7 @@ class AWSFactory:
                     access_keys=u.get('AccessKeyMetadata', []),
                     date=u.get('CreateDate', ''),
                     policies=u.get('AttachedManagedPolicies', []),
-                    mfa_enabled=u.get('Mfa_enabled'),
+                    mfa_enabled=u.get('Mfa_enabled',),
                     password_last_used=u.get('PasswordLastUsed', None)
                 )
              

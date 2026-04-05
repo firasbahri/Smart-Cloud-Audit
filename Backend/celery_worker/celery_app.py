@@ -2,7 +2,7 @@ from celery import Celery
 
 celery_app = Celery('smart_audit',
                     broker="amqp://guest:guest@localhost:5672//",
-                    include=['celery.tasks'])
+                    include=['celery_worker.tasks'])
 
 
 celery_app.conf.update(

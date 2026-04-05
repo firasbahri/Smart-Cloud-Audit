@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from Repositories.ScanRepository import ScanRepository
 from Repositories.cloudRepository import CloudRepository
-from rabbitMq.producer import RabbitMQProducer
+from celery_worker.tasks import scan_cloud_account
 from Model.scanResult import ScanResult
+from datetime import datetime as DateTime, timezone
 from typing import Optional
 from uuid import uuid4
 import logging  
@@ -31,15 +32,19 @@ class CloudScanService:
       if provider == "AWS":
            resources={"users": [], "groups": [], "roles": [], "buckets": [], "ec2": []}
       scan_id = str(uuid4())
+      creation_date=DateTime.now(timezone.utc).isoformat()
       scanResult= ScanResult(
           scan_id=scan_id,
           arn=arn,
           cloud_id=cloud.id,
           user_id=user_id,
+           creation_at=creation_date,
           resources=resources
+         
       )
+
       scanId= await self.scan_repository.create(scanResult)
-      await RabbitMQProducer.send_message(scan_id=scan_id, identifier=arn, provider=provider)
+      scan_cloud_account.delay(scan_id, arn, provider)
       return scanResult
 
 

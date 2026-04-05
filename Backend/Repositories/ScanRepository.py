@@ -39,9 +39,9 @@ class ScanRepository(IRepository):
                 arn=scan_response["arn"],
                 cloud_id=scan_response["cloudAccount_id"],
                 user_id=scan_response["user_id"],
+                creation_at=scan_response.get("created_at")
             )
             scan_result.resources = scan_response.get("resources", {})
-            scan_result.created_at = scan_response.get("created_at")
             scan_result.errors = scan_response.get("errors", [])
             scan_result.progress = scan_response.get("progress", 0)
             scan_result.status = scan_response.get("status", "Started")
@@ -62,9 +62,9 @@ class ScanRepository(IRepository):
                 arn=scan_response["arn"],
                 cloud_id=scan_response["cloudAccount_id"],
                 user_id=scan_response["user_id"],
+                creation_at=scan_response.get("created_at")
             )
             scan_result.resources = scan_response.get("resources", {})
-            scan_result.created_at = scan_response.get("created_at")
             scan_result.errors = scan_response.get("errors", [])
             scan_result.progress = scan_response.get("progress", 0)
             scan_result.status = scan_response.get("status", "Started")

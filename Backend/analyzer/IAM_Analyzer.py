@@ -30,6 +30,7 @@ class IAMAnalyzer:
     def check_mfa(self, users):
         vulnerabilities = []
         for user in users:
+            logger.info(f"for user {user.name}, mfa_enabled: {user.mfa_enabled} ")
             if not user.mfa_enabled:
                 vulnerabilities.append(
                     Vulnerability(

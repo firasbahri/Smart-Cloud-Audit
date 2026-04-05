@@ -8,11 +8,12 @@ export const useScanStore = defineStore('scan', () => {
   const scanProgressByAccount = ref({})
   const scanningAccounts = ref({})
   const scanIdByAccount = ref({})
-
+  const scanCreatedAt=ref(null)
   
   const setScanData = (scanId, data) => {
     id.value = scanId
     scanResult.value = data
+    scanCreatedAt.value = data.created_at || null
   }
 
   const startAccountScan = (accountId, scanId) => {
@@ -49,6 +50,7 @@ export const useScanStore = defineStore('scan', () => {
     scanProgressByAccount.value = {}
     scanningAccounts.value = {}
     scanIdByAccount.value = {}
+    scanCreatedAt.value = null
   }
 
   const loadScanDataForAccount = async (account) => {
@@ -88,6 +90,7 @@ export const useScanStore = defineStore('scan', () => {
 
       setScanData(scanId, result)
       scanIdByAccount.value[accountId] = scanId
+      scanCreatedAt.value = data.created_at || null
       return data
     } catch (error) {
       console.error('Error cargando datos de escaneo:', error)
@@ -103,6 +106,7 @@ export const useScanStore = defineStore('scan', () => {
     scanProgressByAccount,
     scanningAccounts,
     scanIdByAccount,
+    scanCreatedAt,
     setScanData,
     startAccountScan,
     setAccountScanProgress,

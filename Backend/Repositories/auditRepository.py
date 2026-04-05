@@ -19,13 +19,15 @@ class AuditRepository(IRepository):
         if not result:
             return None
 
-        return AuditResult(
+        auditResult = AuditResult(
             id=result.get("id") or str(result.get("_id")),
             vulnerabilities=result.get("vulnerabilities", []),
             accountID=result.get("accountID"),
             userID=result.get("userID"),
-            created_at=result.get("created_at")
         )
+        created_at = result.get("created_at")
+        auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
+        return auditResult
 
     async def findById(self, audit_id):
         pass

@@ -6,6 +6,7 @@ export const useAuditStore = defineStore("audit", () => {
   const selectedAudit = ref(null);
   const id = ref("");
   const auditResult = ref(null);
+  const auditCreatedAt = ref(null);
   const auditProgressByAccount = ref({});
   const auditingAccounts = ref({});
   const auditIdByAccount = ref({});
@@ -58,8 +59,10 @@ export const useAuditStore = defineStore("audit", () => {
       const data = await response.json();
       const result = data.vulnerabilities || data.results || [];
       const auditID = data.audit_id || "";
+      const createdAt = data.created_at || null;  
 
       setAudits(auditID, result);
+      auditCreatedAt.value = createdAt;
       if (auditID) {
         auditIdByAccount.value[accountId] = auditID;
       }
@@ -77,6 +80,7 @@ export const useAuditStore = defineStore("audit", () => {
     selectedAudit,
     id,
     auditResult,
+    auditCreatedAt,
     auditProgressByAccount,
     setAudits,
     auditingAccounts,

@@ -124,26 +124,33 @@
         <Clock :size="24" />
         <h3>Información del Escaneo</h3>
       </div>
-      <div v-if="scanStore.awsArn" class="scan-info flex flex-column gap-3">
-        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl surface-50">
+      <div v-if="cloudAccountsStore.selectedAccount" class="scan-info flex flex-column gap-3">
+        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl">
           <Cloud :size="20" />
           <div class="flex-1">
             <strong>ARN:</strong>
-            <span>{{ scanStore.awsArn }}</span>
+            <span>{{ cloudAccountsStore.selectedAccount.identifier }}</span>
           </div>
         </div>
-        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl surface-50">
+        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl">
           <CheckCircle2 :size="20" />
           <div class="flex-1">
             <strong>Estado:</strong>
             <Tag class="badge-success" severity="success" value="Conectado" rounded />
           </div>
         </div>
-        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl surface-50">
+        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl">
           <Calendar :size="20" />
           <div class="flex-1">
-            <strong>Fecha:</strong>
-            <span>{{ new Date().toLocaleString() }}</span>
+            <strong>Último escaneo:</strong>
+            <span>{{ scanStore.scanCreatedAt ? new Date(scanStore.scanCreatedAt).toLocaleString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-' }}</span>
+          </div>
+        </div>
+        <div class="info-item flex align-items-start gap-3 p-3 border-round-xl">
+          <Calendar :size="20" />
+          <div class="flex-1">
+            <strong>Última auditoría:</strong>
+            <span>{{ auditStore.auditCreatedAt ? new Date(auditStore.auditCreatedAt).toLocaleString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-' }}</span>
           </div>
         </div>
       </div>
@@ -157,17 +164,29 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import Card from 'primevue/card';
 import Tag from 'primevue/tag';
 import { useScanStore } from '../store/scanStore';
-import { 
-  LayoutDashboard, ShieldCheck, Server, Database, AlertTriangle, 
-  TrendingUp, Activity, HardDrive, AlertCircle, Clock, Cloud, 
-  CheckCircle2, Calendar, FileQuestion, Users, User, Users2 
+import { useCloudAccountsStore } from '../store/cloudAccountsStore';
+import { useAuditStore } from '../store/auditStore';
+import {
+  LayoutDashboard, ShieldCheck, Server, Database, AlertTriangle,
+  TrendingUp, Activity, HardDrive, AlertCircle, Clock, Cloud,
+  CheckCircle2, Calendar, FileQuestion, Users, User, Users2
 } from 'lucide-vue-next';
 
 const scanStore = useScanStore();
+const cloudAccountsStore = useCloudAccountsStore();
+const auditStore = useAuditStore();
+
+onMounted(async () => {
+  cloudAccountsStore.loadSelectedAccount()
+  if (cloudAccountsStore.selectedAccount) {
+    await scanStore.loadScanDataForAccount(cloudAccountsStore.selectedAccount)
+    await auditStore.loadAuditDataForAccount(cloudAccountsStore.selectedAccount)
+  }
+})
 
 const rolesCount = computed(() => scanStore.scanResult?.roles?.length || 0);
 const instancesCount = computed(() => scanStore.scanResult?.ec2?.length || 0);
@@ -331,6 +350,8 @@ const issuesCount = computed(() => 0);
 
 .info-item {
   transition: all 0.2s ease;
+  background: #0d1117;
+  border: 1px solid rgba(34, 197, 94, 0.1);
 }
 
 .info-item:hover {

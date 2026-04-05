@@ -1,8 +1,10 @@
 import logging
-from celery.celery_app import celery_app
+from celery_worker.celery_app import celery_app
 from pymongo import MongoClient
 from controllers.scan_Controller import ScanController
 
+
+logging.basicConfig(level=logging.INFO, format='%(filename)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)  
 
 mongo_client = MongoClient("mongodb://localhost:27017/")

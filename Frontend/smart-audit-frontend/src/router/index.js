@@ -40,9 +40,20 @@ const router = createRouter({
   ]
 })
 
+const isTokenValid = () => {
+  const token = localStorage.getItem('token')
+  if (!token) return false
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp * 1000 > Date.now()
+  } catch {
+    return false
+  }
+}
+
 router.beforeEach((to, from, next) => {
   const authRequired = to.matched.some(record => record.meta.requiresAuth);
-  const loggedIn = localStorage.getItem('token');
+  const loggedIn = isTokenValid();
   const publicPages = ['/', '/login', '/register', '/auth'];
 
   if (authRequired && !loggedIn) {

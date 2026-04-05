@@ -382,7 +382,7 @@ const scanStore = useScanStore()
 const isLoadingAccounts = ref(true)
 const shouldShowLoading = ref(false)
 let loadingIndicatorTimer = null
-const pollingIntervals = new Map()
+const eventSources= new Map()
 
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
@@ -391,6 +391,7 @@ const showDetailsDialog = ref(false)
 const selectedProvider = ref(null)
 const selectedAccount = ref(null)
 const menu = ref()
+
 
 const newAccount = reactive({
   name: '',
@@ -437,10 +438,10 @@ onUnmounted(() => {
     loadingIndicatorTimer = null
   }
 
-  for (const intervalId of pollingIntervals.values()) {
-    clearInterval(intervalId)
+  for (const es of eventSources.values()) {
+    es.close()
   }
-  pollingIntervals.clear()
+  eventSources.clear()
 })
 
 const menuItems = ref([
@@ -565,7 +566,7 @@ const shouldShowProgressBar = (accountId) => {
 const restoreActivePollings = () => {
   Object.entries(scanStore.scanIdByAccount).forEach(([accountId, scanId]) => {
     if (scanStore.scanningAccounts[accountId] && scanId) {
-      startPollingScanStatus(scanId, accountId)
+      startSSEScan(scanId, accountId)
     }
   })
 }
@@ -623,31 +624,33 @@ const addAccount = async () => {
   closeDialog()
 }
 
-const startPollingScanStatus = (scanId, accountId) => {
-  if (pollingIntervals.has(accountId)) {
+const startSSEScan = (scanId, accountId) => {
+
+  if (eventSources.has(accountId)) {
     return
   }
 
   scanStore.startAccountScan(accountId, scanId)
 
-  const interval = setInterval(async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const API_URL = `http://localhost:8000/cloud/scan_status/${scanId}`
-      const response = await fetch(API_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.detail)
 
-      const progress = Number(data.progress ?? data.porcentage ?? 0)
+  const token = localStorage.getItem('token')
+  const url = `http://localhost:8000/cloud/scan_progress_sse/${scanId}?token=${token}`
+  const es = new EventSource(url)
+  eventSources.set(accountId, es)
+
+  es.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      const progress = Number(data.progress ?? 0)
       scanStore.setAccountScanProgress(accountId, progress)
 
+      if (data.results) {
+        scanStore.setScanData(accountId, data.results)
+      }
+
       if (data.status === 'completed') {
-        clearInterval(interval)
-        pollingIntervals.delete(accountId)
+        es.close()
+        eventSources.delete(accountId)
         scanStore.completeAccountScan(accountId)
         toast.add({
           severity: 'success',
@@ -655,12 +658,11 @@ const startPollingScanStatus = (scanId, accountId) => {
           detail: 'El escaneo de la cuenta ha finalizado',
           life: 3000
         })
-        scanStore.setScanData(accountId, data.results)
       }
 
-      if (data.status === 'error') {
-        clearInterval(interval)
-        pollingIntervals.delete(accountId)
+      if (data.status === 'failed') {
+        es.close()
+        eventSources.delete(accountId)
         scanStore.failAccountScan(accountId)
         toast.add({
           severity: 'error',
@@ -669,20 +671,22 @@ const startPollingScanStatus = (scanId, accountId) => {
           life: 3000
         })
       }
-    } catch (error) {
-      clearInterval(interval)
-      pollingIntervals.delete(accountId)
-      scanStore.failAccountScan(accountId)
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: error.message,
-        life: 3000
-      })
-    }
-  }, 5000)
+    } catch (e) {}
+  }
 
-  pollingIntervals.set(accountId, interval)
+  es.onerror = () => {
+    es.close()
+    eventSources.delete(accountId)
+    scanStore.failAccountScan(accountId)
+    toast.add({
+      severity: 'error',
+      summary: 'Error de conexión',
+      detail: 'Se perdió la conexión con el servidor',
+      life: 3000
+    })
+  }
+
+  eventSources.set(accountId, es)
 }
 
 const startScan = async (account) => {
@@ -706,7 +710,7 @@ const startScan = async (account) => {
 
       const scanId = data.scan_id
       scanStore.id = scanId
-      startPollingScanStatus(scanId, String(account.id))
+      startSSEScan(scanId, String(account.id))
     } catch (error) {
       scanStore.failAccountScan(String(account.id))
       toast.add({

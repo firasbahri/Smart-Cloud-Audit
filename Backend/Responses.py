@@ -21,12 +21,14 @@ class ScanStatusResponse(BaseModel):
 class ScanResultResponse(BaseModel):
     scan_id: str
     results: Optional[dict] = None
+    created_at: Optional[str] = None
     errors: Optional[List[str]] = None
 
 
 class AuditResponse(BaseModel):
     audit_id: str
     vulnerabilities: Optional[List[dict]] = None
+    created_at: Optional[str] = None
 
 
 class CloudRegisterResponse(BaseModel):
