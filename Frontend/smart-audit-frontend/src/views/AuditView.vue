@@ -92,13 +92,16 @@ import { computed, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useScanStore } from '../store/scanStore'
 import { useAuditStore } from '../store/auditStore'
+import { useCloudAccountsStore } from '../store/cloudAccountsStore'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 
+
 const scanStore = useScanStore()
+const cloudAccountsStore = useCloudAccountsStore()
 const auditStore = useAuditStore()
 const toast = useToast()
 
@@ -136,7 +139,7 @@ const totalResources = computed(() => {
 const hasResources = computed(() => totalResources.value > 0)
 
 const activeAccountLabel = computed(() => {
-	const accountFromResult = scanStore.scanResult?.cloudAccount_id
+	const accountFromResult = cloudAccountsStore.selectedAccount?.name || cloudAccountsStore.selectAccount?.id
 	if (accountFromResult) return String(accountFromResult)
 	if (scanStore.id) return String(scanStore.id)
 	return 'Sin cuenta seleccionada'

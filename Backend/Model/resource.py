@@ -1,11 +1,10 @@
 
 class Resource:
-  def __init__(self,id,name,service,region,date,policies):
+  def __init__(self,id,name,service,region,date):
     self.id = id
     self.name = name
     self.service = service
     self.region = region
-    self.policies = policies
 
     if date is None:
       self.date = None

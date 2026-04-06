@@ -17,33 +17,41 @@ class AWSFactory:
            
             if u['UserName'] == 'root':
                 logger.info("Creating root user")
-                logger.info(f"mfa_enabled for root user: {u.get('MfaActive', False)}")
-              
                 userRoot = IAMUser(
                     id=u['UserId'],
                     name=u['UserName'],
                     service='IAM',
                     region='global',
-                    groups=[],
                     access_keys=u.get('AccessKeyMetadata', []),
                     date=u.get('CreateDate', ''),
-                    policies=u.get('AttachedManagedPolicies', []),
-                    mfa_enabled=u.get('Mfa_enabled',),
+                    managed_policies=[],
+                    inline_policies=[],
+                    mfa_enabled=u.get('Mfa_enabled'),
                     password_last_used=u.get('PasswordLastUsed', None)
                 )
-             
                 users.append(userRoot)
-                
-            else:   
+
+            else:
+                inline_policies_normalized = []
+                for p in u.get('InlinePolicies', []):
+                    for s in p.get('PolicyDocument', {}).get('Statement', []):
+                        logger.info(f"Normalizing inline policy {p['PolicyName']} for user {u['UserName']}")
+                        inline_policies_normalized.append({
+                            "policy_name": p["PolicyName"],
+                            "actions": s.get("Action") if isinstance(s.get("Action"), list) else [s.get("Action")],
+                            "resources": s.get("Resource") if isinstance(s.get("Resource"), list) else [s.get("Resource")],
+                            "effect": s.get("Effect")
+                        })
+
                 user = IAMUser(
                     id=u['UserId'],
                     name=u['UserName'],
                     service='IAM',
                     region='global',
-                    groups=[],
                     access_keys=u.get('AccessKeyMetadata', []),
                     date=u.get('CreateDate', ''),
-                    policies=u.get('AttachedManagedPolicies', []),
+                    managed_policies=[{"policy_name": p["PolicyName"]} for p in u.get('AttachedManagedPolicies', [])],
+                    inline_policies=inline_policies_normalized,
                     mfa_enabled=u.get('Mfa_enabled', False),
                     password_last_used=u.get('PasswordLastUsed', None)
                 )
@@ -55,14 +63,25 @@ class AWSFactory:
     def create_groups(groupsRaw):
         groups = []
         for g in groupsRaw:
+            inline_policies_normalized = []
+            for policy in g.get('InlinePolicies', []):
+                for statement in policy.get('PolicyDocument', {}).get('Statement', []):
+                    logger.info(f"Normalizing inline policy {policy['PolicyName']} for group {g['GroupName']}")
+                    inline_policies_normalized.append({
+                        "policy_name": policy["PolicyName"],
+                        "actions": statement.get("Action") if isinstance(statement.get("Action"), list) else [statement.get("Action")],
+                        "resources": statement.get("Resource") if isinstance(statement.get("Resource"), list) else [statement.get("Resource")],
+                        "effect": statement.get("Effect")
+                    })
             group = IAMGroup(
                 id=g.get('GroupId', ''),
                 name=g.get('GroupName', ''),
                 service='IAM',
                 region='global',
                 Creation_date=g.get('CreateDate'),
-                users=[],
-                policies=g.get('AttachedManagedPolicies', [])
+                users=g.get('Users', []),
+                managed_policies=[{"policy_name": p["PolicyName"]} for p in g.get('AttachedManagedPolicies', [])],
+                inline_policies=inline_policies_normalized
             )
             groups.append(group)
         return groups
@@ -78,7 +97,8 @@ class AWSFactory:
                 region='global',
                 Creation_date=r.get('CreateDate',''),
                 assume_role_policy=r.get('AssumeRolePolicyDocument'),
-                policies=r.get('AttachedManagedPolicies', [])
+                managed_policies=r.get('AttachedManagedPolicies', []),
+                inline_policies=r.get('InlinePolicies', [])
             )
             roles.append(role)
         return roles
@@ -141,7 +161,7 @@ class AWSFactory:
                 public_access=b.get('PublicAccess'),
                 versioning=b.get('Versioning'),
                 encryption=b.get('Encryption'),
-                policies=b.get('Policies')
+                bucket_policy=b.get('Policies')
                 
             )
             buckets.append(bucket)

@@ -112,7 +112,7 @@
         <ul class="resource-list list-none p-0 m-0">
           <li v-for="group in groups" :key="group.GroupName" class="flex align-items-center gap-2">
             <Users2 :size="16" />
-            <span>{{ group.GroupName }}</span>
+            <span>{{ group.name }}</span>
           </li>
           <li v-if="!groups.length" class="empty-msg flex align-items-center gap-2 justify-content-center">
             <FileX :size="16" />

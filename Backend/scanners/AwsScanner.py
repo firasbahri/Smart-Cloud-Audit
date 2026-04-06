@@ -118,11 +118,26 @@ class AwsScanner(IScanner):
                         access_keys=iam.list_access_keys(UserName=u['UserName'])['AccessKeyMetadata']
                         u['AccessKeyMetadata'] = access_keys
                     except ClientError:
-                        u['AccessKeyMetadata'] = []    
+                        u['AccessKeyMetadata'] = []  
+
+                    try: 
+                        u["InlinePolicies"] = []
+                        inlinePolicies = iam.list_user_policies(UserName=u['UserName'])['PolicyNames'] 
+                        logger.info(f"User {u['UserName']} has inline policies: {inlinePolicies}")  
+                        for policy_name in inlinePolicies:
+                            policy_document = iam.get_user_policy(UserName=u['UserName'], PolicyName=policy_name)['PolicyDocument']
+                            logger.info(f"Policy document for {policy_name}: {policy_document}")
+                            u["InlinePolicies"].append({
+                                "PolicyName": policy_name,
+                                "PolicyDocument": policy_document
+                            })
+                    except ClientError:
+                        u["InlinePolicies"] = []
+
 
                     try:
-                        policies = iam.list_attached_user_policies(UserName=u['UserName'])['AttachedPolicies']
-                        u['AttachedManagedPolicies'] = policies
+                        Managedpolicies = iam.list_attached_user_policies(UserName=u['UserName'])['AttachedPolicies']
+                        u['AttachedManagedPolicies'] = Managedpolicies
                     except ClientError:
                         u['AttachedManagedPolicies'] = []            
             except ClientError as e:
@@ -154,6 +169,19 @@ class AwsScanner(IScanner):
                 except ClientError:
                     g['Users'] = []
                 
+                try :
+                    inlinePolicies = iam.list_group_policies(GroupName=g['GroupName'])['PolicyNames']
+                    g['InlinePolicies'] = []
+                    for policy_name in inlinePolicies:
+                        policy_document = iam.get_group_policy(GroupName=g['GroupName'], PolicyName=policy_name)['PolicyDocument']
+                        logger.info(f"Policy document for group {g['GroupName']} and policy {policy_name}: {policy_document}")
+                        g['InlinePolicies'].append({
+                            "PolicyName": policy_name,
+                            "PolicyDocument": policy_document
+                        })
+
+                except ClientError:
+                    g['InlinePolicies'] = []
                 try:
                     policies = iam.list_attached_group_policies(GroupName=g['GroupName'])['AttachedPolicies']
                     g['AttachedManagedPolicies'] = policies

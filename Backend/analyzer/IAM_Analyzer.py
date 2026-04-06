@@ -10,21 +10,76 @@ class IAMAnalyzer:
     def check_user_permissions(self, users):
         vulnerabilities = []
         for user in users:
-            if self.isAdmin(user.policies):
-                logger.info(f"User {user.name} has admin permissions")
-                vulnerability = Vulnerability(
-                    id=f"iam_user_{user.id}_admin_permissions",
-                    name="IAM User with Admin Permissions",
+            if self.isAdmin(user.managed_policies):
+                logger.info(f"User {user.name} has AdministratorAccess managed policy")
+                vulnerabilities.append(Vulnerability(
+                    id=f"iam_user_{user.id}_managed_admin",
+                    name="IAM User with AdministratorAccess Managed Policy",
                     description=(
-                        f"The IAM user '{user.name}' has administrative permissions, "
-                        "which can pose a significant risk if the account is compromised."
+                        f"The IAM user '{user.name}' has the 'AdministratorAccess' managed policy attached, "
+                        "granting full access to all AWS services and resources."
                     ),
-                    severity="High",
+                    severity="Critical",
                     resource_id=user.id,
                     resource_type="IAM User",
                     origin="Static Analysis",
-                )
-                vulnerabilities.append(vulnerability)
+                ))
+
+            wildCardPolicies= self.hasWildcardPermissions(user.inline_policies)
+            if wildCardPolicies:
+                for pName in wildCardPolicies:
+                    logger.info(f"User {user.name} has inline policy {pName} with wildcard permissions")
+                    vulnerabilities.append(Vulnerability(
+                        id=f"iam_user_{user.id}_inline_{pName}_wildcard",
+                        name=f"IAM User with Inline Policy {pName} Wildcard Permissions",
+                        description=(
+                            f"The IAM user '{user.name}' has an inline policy '{pName}' that allows wildcard permissions, "
+                            "which can lead to excessive privileges and potential security risks."
+                        ),
+                        severity="Critical",
+                        resource_id=user.id,
+                        resource_type="IAM User",
+                        origin="Static Analysis",
+                    ))
+              
+        return vulnerabilities
+
+    def check_group_permissions(self, groups):
+        vulnerabilities = []
+        logger.info(f"Checking permissions for {len(groups)} groups")
+        for group in groups:
+            logger.info(f"Checking group {group.name} with managed policies: {group.managed_policies} and inline policies: {group.inline_policies}")
+            if self.isAdmin(group.managed_policies):
+                logger.info(f"Group {group.name} has AdministratorAccess managed policy")
+                vulnerabilities.append(Vulnerability(
+                    id=f"iam_group_{group.id}_managed_admin",
+                    name="IAM Group with AdministratorAccess Managed Policy",
+                    description=(
+                        f"The IAM group '{group.name}' has the 'AdministratorAccess' managed policy attached, "
+                        "granting full access to all AWS services and resources for all users in the group."
+                    ),
+                    severity="Critical",
+                    resource_id=group.id,
+                    resource_type="IAM Group",
+                    origin="Static Analysis",
+                ))
+            wildCardPolicies= self.hasWildcardPermissions(group.inline_policies)
+            if wildCardPolicies:
+                for pName in wildCardPolicies:
+                    logger.info(f"Group {group.name} has inline policy {pName} with wildcard permissions")
+                    vulnerabilities.append(Vulnerability(
+                        id=f"iam_group_{group.id}_inline_{pName}_wildcard",
+                        name=f"IAM Group with Inline Policy {pName} Wildcard Permissions",
+                        description=(
+                            f"The IAM group '{group.name}' has an inline policy '{pName}' that allows wildcard permissions, "
+                        "which can lead to excessive privileges and potential security risks for all users in the group."
+                    ),
+                    severity="Critical",
+                    resource_id=group.id,
+                    resource_type="IAM Group",
+                    origin="Static Analysis",
+                ))
+
         return vulnerabilities
 
     def check_mfa(self, users):
@@ -99,7 +154,23 @@ class IAMAnalyzer:
         return vulnerabilities
 
     def isAdmin(self, policies: list) -> bool:
+        logger.info(f"Checking policies: {policies}")
         for policy in policies:
-            if policy.get("PolicyName") == "AdministratorAccess":
+            logger.info(f"Checking policy: {policy}")
+            if policy.get("policy_name") == "AdministratorAccess": 
                 return True
         return False
+    
+    def hasWildcardPermissions(self, inline_policies: list) -> list:
+        policiesWithWildcard = []
+        logger.info(f"Checking inline policies for wildcards: {inline_policies}")
+        for policy in inline_policies:
+            effect = policy.get("effect")
+            if effect != "Allow":
+                continue
+            action=policy.get("actions", [])
+            resources=policy.get("resources", [])
+            if "*" in action and "*" in resources:
+                policiesWithWildcard.append(policy.get("policy_name"))
+        return policiesWithWildcard
+    

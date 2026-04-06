@@ -41,10 +41,10 @@ class JSONDeserializer:
             name=raw.get("name", ""),
             service=raw.get("service", "IAM"),
             region=raw.get("region", "global"),
-            groups=raw.get("groups", []),
             access_keys=parsed_access_keys,
             date=JSONDeserializer.parse_datetime(raw.get("date")),
-            policies=raw.get("policies", []),
+            managed_policies=raw.get("managed_policies", []),
+            inline_policies=raw.get("inline_policies", []),
             mfa_enabled=raw.get("mfa_enabled", False),
             password_last_used=JSONDeserializer.parse_datetime(raw.get("password_last_used")),
         )
@@ -63,7 +63,9 @@ class JSONDeserializer:
             region=raw.get("region", "global"),
             Creation_date=JSONDeserializer.parse_datetime(raw.get("date")),
             users=raw.get("users", []),
-            policies=raw.get("policies", []),
+            managed_policies=raw.get("managed_policies", []),
+            inline_policies=raw.get("inline_policies", []),
+
         )
 
     @staticmethod
@@ -80,7 +82,8 @@ class JSONDeserializer:
             region=raw.get("region", "global"),
             Creation_date=JSONDeserializer.parse_datetime(raw.get("date")),
             assume_role_policy=raw.get("assume_role_policy"),
-            policies=raw.get("policies", []),
+            managed_policies=raw.get("managed_policies", []),
+            inline_policies=raw.get("inline_policies", []),
         )
 
     @staticmethod
@@ -159,7 +162,7 @@ class JSONDeserializer:
             service=raw.get("service", "S3"),
             region=raw.get("region", ""),
             Creation_date=JSONDeserializer.parse_datetime(raw.get("date")),
-            policies=raw.get("policies"),
+            bucket_policy=raw.get("bucket_policy"),
             versioning=raw.get("versioning"),
             encryption=raw.get("encryption"),
             public_access=raw.get("public_access"),
