@@ -1,29 +1,27 @@
-<<<<<<< HEAD
-# Smart Audit  (Work in Progress)
+# SmartAudit AI
 
-## 🚀 Current Features
-- Connects to AWS using Boto3  
-- Retrieves cloud resources (EC2, S3, etc.)  
-- Basic scanning of infrastructure  
+Plataforma de auditoría de seguridad cloud que combina análisis estático 
+de infraestructura AWS con remediación inteligente generada por IA.
 
-## 🧠 Project Vision
-This project aims to become a cloud security auditing platform that:
-- Detects misconfigurations in AWS
-- Uses AI to analyze risks
-- Generates remediation commands
+## ✅ Funcionalidades implementadas
+- Autenticación con verificación de email
+- Conexión a cuentas AWS mediante STS AssumeRole
+- Escaneo de recursos EC2, S3 e IAM
+- Detección de vulnerabilidades de seguridad
+- Escaneo en segundo plano con Celery + RabbitMQ
+- Notificaciones de progreso en tiempo real con SSE
+- Historial de auditorías por cuenta
 
-## 🛠️ Planned Features
-- AI-based security analysis
-- Automated vulnerability detection
-- CLI command generation for fixes
-- Advanced reporting dashboard
+## 🧠 En desarrollo
+- Capa de auditoría con análisis contextual de IA
+- Generación de comandos de remediación
 
-## ⚠️ Status
-Work in progress (Final Year Project)
+## 🛠️ Stack
+**Backend:** FastAPI, Celery, RabbitMQ, MongoDB, Boto3  
+**Frontend:** Vue 3, Pinia, Vue Router
 
-## 👤 Author
-Mohamed Firas Bahri
-=======
-# Smart-Cloud-Audit
-Plataforma de auditoría de seguridad Cloud automatizada que combina análisis estático de infraestructura  con remediación inteligente generada por IA
->>>>>>> f1c7f35 (Initial commit)
+## ⚠️ Estado
+Trabajo Final de Grado — en desarrollo activo
+
+## 👤 Autor
+Mohamed Firas Bahri — Universidad de Salamanca
