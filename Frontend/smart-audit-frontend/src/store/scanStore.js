@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { buildApiSseUrl, buildApiUrl } from '../utils/api'
 
 export const useScanStore = defineStore('scan', () => {
 
@@ -73,7 +74,7 @@ export const useScanStore = defineStore('scan', () => {
     startAccountScan(accountId, scanId)
 
     const token = localStorage.getItem('token')
-    const url = `http://localhost:8000/cloud/scan_progress_sse/${scanId}?token=${token}`
+    const url = buildApiSseUrl(`/cloud/scan_progress_sse/${scanId}`, { token })
     const es = new EventSource(url)
     eventSources.set(accountId, es)
 
@@ -140,7 +141,7 @@ export const useScanStore = defineStore('scan', () => {
     if (!token) { clearData(); return null }
 
     try {
-      const response = await fetch(`http://localhost:8000/cloud/get_scan_result/${accountId}`, {
+      const response = await fetch(buildApiUrl(`/cloud/get_scan_result/${accountId}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()

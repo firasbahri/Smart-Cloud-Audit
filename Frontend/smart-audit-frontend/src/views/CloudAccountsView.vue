@@ -374,6 +374,7 @@ import Divider from 'primevue/divider'
 import Menu from 'primevue/menu'
 import Toast from 'primevue/toast'
 import ProgressBar from 'primevue/progressbar'
+import { buildApiUrl } from '../utils/api'
 
 const toast = useToast()
 const cloudAccountsStore = useCloudAccountsStore()
@@ -562,7 +563,7 @@ const addAccount = async () => {
 
   try {
     const token = localStorage.getItem('token')
-    const API_URL = 'http://localhost:8000/cloud/register_cloud'
+    const API_URL = buildApiUrl('/cloud/register_cloud')
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
@@ -615,7 +616,7 @@ const startScan = async (account) => {
   if (account.provider === 'AWS') {
     const token = localStorage.getItem('token')
     try {
-      const URL = 'http://localhost:8000/cloud/start_scan'
+      const URL = buildApiUrl('/cloud/start_scan')
       const response = await fetch(URL, {
         method: 'POST',
         headers: {
@@ -651,7 +652,7 @@ const startScan = async (account) => {
 const confirmDelete = () => {
   try {
     const token = localStorage.getItem('token')
-    const API_URL = 'http://localhost:8000/cloud/delete_cloud_data'
+    const API_URL = buildApiUrl('/cloud/delete_cloud_data')
     fetch(API_URL, {
       method: 'DELETE',
       headers: {
@@ -706,7 +707,7 @@ const saveEdit = async () => {
 
   try {
     const token = localStorage.getItem('token')
-    const API_URL = 'http://localhost:8000/cloud/update_cloud_data'
+    const API_URL = buildApiUrl('/cloud/update_cloud_data')
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {

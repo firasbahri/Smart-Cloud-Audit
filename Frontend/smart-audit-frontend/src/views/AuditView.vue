@@ -93,6 +93,7 @@ import { useToast } from 'primevue/usetoast'
 import { useScanStore } from '../store/scanStore'
 import { useAuditStore } from '../store/auditStore'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
+import { buildApiUrl } from '../utils/api'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
@@ -222,8 +223,8 @@ const runAudit = async (mode) => {
 
 	try {
 		const endpoint = mode === 'static'
-			? "http://localhost:8000/cloud/static-audit"
-      : "http://localhost:8000/cloud/ai-audit"
+			? buildApiUrl('/cloud/static-audit')
+      : buildApiUrl('/cloud/ai-audit')
   
 
 		const response = await fetch(endpoint, {

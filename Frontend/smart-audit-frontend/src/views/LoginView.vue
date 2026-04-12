@@ -83,6 +83,7 @@ import { Form } from '@primevue/forms';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { onMounted } from 'vue';
+import { buildApiUrl } from '../utils/api';
 
 const toast = useToast();
 const router= useRouter();
@@ -112,7 +113,7 @@ const onFormSubmit = async(e) => {
 
   isLoading.value = true;
   try{
-    const API_URL = 'http://localhost:8000/auth/login';
+    const API_URL = buildApiUrl('/auth/login');
     const response = await 
     fetch(API_URL, {
       method: 'POST',

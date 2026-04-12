@@ -57,6 +57,7 @@ import Button from 'primevue/button';
 import Message from 'primevue/message';
 import ProgressSpinner from 'primevue/progressspinner';
 import { Shield, Key, CloudCog, AlertCircle } from 'lucide-vue-next';
+import { buildApiUrl } from '../utils/api';
 
 const router = useRouter();
 const scanStore = useScanStore();
@@ -74,7 +75,7 @@ const startScan = async () => {
   errorMsg.value = '';
 
   try {
-    const API_URL = 'http://127.0.0.1:8000'; 
+    const API_URL = buildApiUrl('/'); 
 
     const response = await fetch(API_URL, {
       method: 'POST',

@@ -113,6 +113,7 @@ import Toast from 'primevue/toast';
 import { Form } from '@primevue/forms';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
 import { is } from 'zod/v4/locales';
+import { buildApiUrl } from '../utils/api';
 
 const router = useRouter();
 const toast = useToast();
@@ -169,7 +170,7 @@ const register = async (e) => {
    isLoading.value = true;
   isLoading.value = true;
   try{
-    const API_URL = 'http://127.0.0.1:8000/auth/register';
+    const API_URL = buildApiUrl('/auth/register');
     const response = await fetch(API_URL,{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

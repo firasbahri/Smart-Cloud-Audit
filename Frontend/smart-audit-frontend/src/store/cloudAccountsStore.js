@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { buildApiUrl } from '../utils/api'
 
 export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
   
@@ -80,7 +81,7 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
     // TODO: Cargar cuentas desde el backend
     try {
       const token= localStorage.getItem('token')
-      const URL= 'http://localhost:8000/cloud/get_cloud_data'
+      const URL= buildApiUrl('/cloud/get_cloud_data')
       const response = await fetch(URL,{
         method : 'GET',
         headers :{

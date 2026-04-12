@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { buildApiUrl } from '../utils/api';
 
 export const useAuditStore = defineStore("audit", () => {
   const audits = ref([]);
@@ -38,7 +39,7 @@ export const useAuditStore = defineStore("audit", () => {
     }
 
     try {
-      const endpoint = `http://localhost:8000/cloud/last-audit-result/${accountId}`;
+      const endpoint = buildApiUrl(`/cloud/last-audit-result/${accountId}`);
       const token = localStorage.getItem('token');
       if (!token) {
         clearData();
