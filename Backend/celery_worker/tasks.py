@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(filename)s - %(name)s - %(leve
 logger = logging.getLogger(__name__)  
 
 
-mongo_client = MongoClient(os.getenv("MONGODB_URL"))
+mongo_client = MongoClient(os.getenv("MONGODB_URL"),tls=True,tlsAllowInvalidCertificates=True)
 db = mongo_client["testdb"]
 
 @celery_app.task(name="scan_cloud_account")
