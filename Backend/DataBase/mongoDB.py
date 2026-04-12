@@ -15,7 +15,7 @@ class MongoDB:
         logger.info("Connecting to MongoDB...")
         try:
            if not MongoDB.client:
-               MongoDB.client =AsyncMongoClient(os.getenv("MONGODB_URL"))
+               MongoDB.client =AsyncMongoClient(os.getenv("MONGODB_URL"),tls=True,tlsAllowInvalidCertificates=True)
                MongoDB.db = MongoDB.client["testdb"]
                logger.info("Connected to MongoDB")
         except Exception as e:
