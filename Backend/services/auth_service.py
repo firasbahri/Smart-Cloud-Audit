@@ -51,8 +51,6 @@ class AuthService:
         user = await self.user_repository.find_user_by_token(token)
         if user:
             user.verify_email()
-            print("verification camp", user.isVerified)
-            print(f"User {user.username} email verified.")
             await self.user_repository.update(user.id, user)
             return True
         return False

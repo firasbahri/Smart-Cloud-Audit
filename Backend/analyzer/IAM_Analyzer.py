@@ -7,6 +7,14 @@ logger = logging.getLogger(__name__)
 
 
 class IAMAnalyzer:
+    def analyze(self, users: list, groups: list) -> list:
+        vulnerabilities = []
+        vulnerabilities.extend(self.check_user_permissions(users))
+        vulnerabilities.extend(self.check_mfa(users))
+        vulnerabilities.extend(self.check_inactive_users(users))
+        vulnerabilities.extend(self.check_group_permissions(groups))
+        return vulnerabilities
+
     def check_user_permissions(self, users):
         vulnerabilities = []
         for user in users:

@@ -139,7 +139,7 @@ const totalResources = computed(() => {
 const hasResources = computed(() => totalResources.value > 0)
 
 const activeAccountLabel = computed(() => {
-	const accountFromResult = cloudAccountsStore.selectedAccount?.name || cloudAccountsStore.selectAccount?.id
+	const accountFromResult = cloudAccountsStore.selectedAccount?.name 
 	if (accountFromResult) return String(accountFromResult)
 	if (scanStore.id) return String(scanStore.id)
 	return 'Sin cuenta seleccionada'

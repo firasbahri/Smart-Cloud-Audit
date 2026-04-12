@@ -1,7 +1,12 @@
 from celery import Celery
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 
 celery_app = Celery('smart_audit',
-                    broker="amqp://guest:guest@localhost:5672//",
+                    broker=os.getenv("RABBITMQ_URL"),
                     include=['celery_worker.tasks'])
 
 

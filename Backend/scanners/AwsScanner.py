@@ -295,6 +295,18 @@ class AwsScanner(IScanner):
                         instance['volumes'] = list_volumes
                     except ClientError:
                         instance['volumes'] = None
+    
+                    try:
+                        sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
+                        if sg_ids:
+                            sg_details = ec2.describe_security_groups(GroupIds=sg_ids)
+                            instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
+                        else:
+                            instance['SecurityGroupsDetails'] = []
+                    except ClientError:
+                        instance['SecurityGroupsDetails'] = []
+
+                    instance['public_ip'] = instance.get('PublicIpAddress', None)
 
             return instances['Reservations']
     

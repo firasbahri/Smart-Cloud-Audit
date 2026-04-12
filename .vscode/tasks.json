@@ -14,7 +14,8 @@
       ],
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "group": "smartaudit"
       },
       "problemMatcher": []
     },
@@ -22,12 +23,7 @@
       "label": "Backend API",
       "type": "process",
       "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
-      "args": [
-        "-m",
-        "uvicorn",
-        "main:app",
-        "--reload"
-      ],
+      "args": ["-m", "uvicorn", "main:app", "--reload"],
       "options": {
         "cwd": "${workspaceFolder}/Backend"
       },
@@ -35,18 +31,15 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "group": "smartaudit-backend"
+        "group": "smartaudit"
       },
       "problemMatcher": []
     },
     {
-      "label": "Worker RabbitMQ",
+      "label": "Celery Worker",
       "type": "process",
       "command": "${workspaceFolder}/Backend/venv/Scripts/python.exe",
-      "args": [
-        "-m",
-        "rabbitMq.worker"
-      ],
+      "args": ["-m", "celery", "-A", "celery_worker.celery_app", "worker", "--pool=solo", "--loglevel=info"],
       "options": {
         "cwd": "${workspaceFolder}/Backend"
       },
@@ -54,7 +47,7 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "group": "smartaudit-worker"
+        "group": "smartaudit"
       },
       "problemMatcher": []
     },
@@ -62,10 +55,7 @@
       "label": "Frontend Vite",
       "type": "process",
       "command": "npm.cmd",
-      "args": [
-        "run",
-        "dev"
-      ],
+      "args": ["run", "dev"],
       "options": {
         "cwd": "${workspaceFolder}/Frontend/smart-audit-frontend"
       },
@@ -73,47 +63,22 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "group": "smartaudit-frontend"
+        "group": "smartaudit"
       },
-      "problemMatcher": []
-    },
-    {
-      "label": "Start SmartAudit (3 terminales)",
-      "dependsOn": [
-        "Backend API",
-        "Worker RabbitMQ",
-        "Frontend Vite"
-      ],
-      "dependsOrder": "parallel",
       "problemMatcher": []
     },
     {
       "label": "SmartAudit: Arrancar Todo",
       "dependsOn": [
         "Ensure RabbitMQ",
-        "Start SmartAudit (3 terminales)"
+        "Backend API",
+        "Celery Worker",
+        "Frontend Vite"
       ],
       "dependsOrder": "sequence",
       "group": {
         "kind": "build",
         "isDefault": true
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "SmartAudit: Parar Todo",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like '*SmartAudit*' -and ( $_.CommandLine -like '*main:app*--reload*' -or $_.CommandLine -like '*rabbitMq.worker*' -or $_.CommandLine -like '*npm*run*dev*' -or $_.CommandLine -like '*vite*' ) }; if (-not $procs) { Write-Host 'No habia procesos SmartAudit activos.'; exit 0 }; foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue; Write-Host ('Detenido PID ' + $p.ProcessId) }"
-      ],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
       },
       "problemMatcher": []
     }

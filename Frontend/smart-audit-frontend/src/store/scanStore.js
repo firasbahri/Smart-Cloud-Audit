@@ -2,14 +2,18 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useScanStore = defineStore('scan', () => {
-  
+
   const id = ref('')
   const scanResult = ref(null)
   const scanProgressByAccount = ref({})
   const scanningAccounts = ref({})
   const scanIdByAccount = ref({})
-  const scanCreatedAt=ref(null)
-  
+  const scanCreatedAt = ref(null)
+  const pendingNotifications = ref([])
+
+  // Map no reactivo, solo gestión interna de conexiones SSE
+  const eventSources = new Map()
+
   const setScanData = (scanId, data) => {
     id.value = scanId
     scanResult.value = data
@@ -53,42 +57,99 @@ export const useScanStore = defineStore('scan', () => {
     scanCreatedAt.value = null
   }
 
-  const loadScanDataForAccount = async (account) => {
-    const accountId = account?.id || account?.account_id || account
+  const pushNotification = (notification) => {
+    pendingNotifications.value.push({ ...notification, _id: Date.now() + Math.random() })
+  }
 
-    if (!accountId) {
-      clearData()
-      return null
-    }
+  const consumeNotifications = () => {
+    const copy = [...pendingNotifications.value]
+    pendingNotifications.value = []
+    return copy
+  }
+
+  const startSSE = (scanId, accountId) => {
+    if (eventSources.has(accountId)) return
+
+    startAccountScan(accountId, scanId)
 
     const token = localStorage.getItem('token')
-    if (!token) {
-      clearData()
-      return null
+    const url = `http://localhost:8000/cloud/scan_progress_sse/${scanId}?token=${token}`
+    const es = new EventSource(url)
+    eventSources.set(accountId, es)
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        const progress = Number(data.progress ?? 0)
+        setAccountScanProgress(accountId, progress)
+
+        if (data.results) setScanData(accountId, data.results)
+
+        if (data.status === 'completed') {
+          es.close()
+          eventSources.delete(accountId)
+          completeAccountScan(accountId)
+          pushNotification({
+            severity: 'success',
+            summary: 'Escaneo Completo',
+            detail: 'El escaneo de la cuenta ha finalizado correctamente',
+            life: 4000
+          })
+        }
+
+        if (data.status === 'failed') {
+          es.close()
+          eventSources.delete(accountId)
+          failAccountScan(accountId)
+          pushNotification({
+            severity: 'error',
+            summary: 'Escaneo fallido',
+            detail: data.errors || 'Ocurrió un error durante el escaneo',
+            life: 4000
+          })
+        }
+      } catch (e) {}
     }
 
-    const endpoint = `http://localhost:8000/cloud/get_scan_result/${accountId}`
-    try {
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+    es.onerror = () => {
+      es.close()
+      eventSources.delete(accountId)
+      failAccountScan(accountId)
+      pushNotification({
+        severity: 'error',
+        summary: 'Error de conexión',
+        detail: 'Se perdió la conexión con el servidor durante el escaneo',
+        life: 4000
       })
+    }
+  }
 
+  const stopSSE = (accountId) => {
+    const es = eventSources.get(accountId)
+    if (es) {
+      es.close()
+      eventSources.delete(accountId)
+    }
+  }
+
+  const loadScanDataForAccount = async (account) => {
+    const accountId = account?.id || account?.account_id || account
+    if (!accountId) { clearData(); return null }
+
+    const token = localStorage.getItem('token')
+    if (!token) { clearData(); return null }
+
+    try {
+      const response = await fetch(`http://localhost:8000/cloud/get_scan_result/${accountId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Error al cargar resultados de escaneo')
-      }
+      if (!response.ok) throw new Error(data.detail || 'Error al cargar resultados')
 
       const scanId = data.scan_id || ''
-      const result = data.results || data.resources || null
-      if (!scanId) {
-        clearData()
-        return null
-      }
+      if (!scanId) { clearData(); return null }
 
-      setScanData(scanId, result)
+      setScanData(scanId, data.results || data.resources || null)
       scanIdByAccount.value[accountId] = scanId
       scanCreatedAt.value = data.created_at || null
       return data
@@ -99,7 +160,6 @@ export const useScanStore = defineStore('scan', () => {
     }
   }
 
-
   return {
     id,
     scanResult,
@@ -107,13 +167,17 @@ export const useScanStore = defineStore('scan', () => {
     scanningAccounts,
     scanIdByAccount,
     scanCreatedAt,
+    pendingNotifications,
     setScanData,
     startAccountScan,
     setAccountScanProgress,
     completeAccountScan,
     failAccountScan,
     clearAccountScan,
-    clearData,  
+    clearData,
+    startSSE,
+    stopSSE,
+    consumeNotifications,
     loadScanDataForAccount
   }
 })

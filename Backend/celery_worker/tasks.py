@@ -1,13 +1,17 @@
 import logging
 from celery_worker.celery_app import celery_app
+from dotenv import load_dotenv
+import os
 from pymongo import MongoClient
 from controllers.scan_Controller import ScanController
 
 
+load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(filename)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)  
 
-mongo_client = MongoClient("mongodb://localhost:27017/")
+
+mongo_client = MongoClient(os.getenv("MONGODB_URL"))
 db = mongo_client["testdb"]
 
 @celery_app.task(name="scan_cloud_account")

@@ -107,6 +107,7 @@ class AWSFactory:
     def create_security_groups(securityGroupsRaw):
         security_groups = []
         for sg in securityGroupsRaw:
+            logger.info(f"Creating security group ,{sg} ")
             rules_created = AWSFactory.create_rules(sg.get('IpPermissions', []))
             security_group = SecurityGroup(
                 id=sg['GroupId'],
@@ -127,8 +128,9 @@ class AWSFactory:
                     region=i.get('Placement', {}).get('AvailabilityZone', ''),
                 date=i.get('LaunchTime'),
                 instance_type=i.get('InstanceType', ''),
+                public_ip=i.get('PublicIpAddress', None),
                 state=i.get('State', {}).get('Name', ''),
-                security_groups=AWSFactory.create_security_groups(i.get('SecurityGroups', [])), 
+                security_groups=AWSFactory.create_security_groups(i.get('SecurityGroupsDetails', [])),
                 volumes=i.get('volumes')
             )
             instances.append(instance)
@@ -143,7 +145,7 @@ class AWSFactory:
               protocol=r.get('IpProtocol', ''),
               from_port=r.get('FromPort'),
               to_port=r.get('ToPort'),
-              ip_ranges=r.get('IpRanges', [])
+              ip_ranges=[ip.get('CidrIp', '') for ip in r.get('IpRanges', [])]
             )
           rules.append(rule)
       return rules

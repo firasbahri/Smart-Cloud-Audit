@@ -144,6 +144,7 @@ class JSONDeserializer:
             region=raw.get("region", ""),
             date=JSONDeserializer.parse_datetime(raw.get("date")),
             instance_type=raw.get("instance_type", ""),
+            public_ip=raw.get("public_ip", None),
             state=raw.get("state", ""),
             security_groups=security_groups,
             volumes=raw.get("volumes"),

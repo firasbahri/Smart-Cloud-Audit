@@ -33,8 +33,8 @@ class CloudAuditService:
         auditID=str(uuid4())
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
         auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id)
-        await self.audit_repository.create(auditResult)
-        logger.info(f"Found {len(vulnerabilities)} vulnerabilities in scan {scan_id} for user {user_id}")
+        insterdId=await self.audit_repository.create(auditResult)
+        logger.info(f"Created audit result with id {insterdId} for scan {scan_id} and user {user_id}")
         return auditResult
         
     async def get_last_audit_result(self, account_id: str, user_id: str):

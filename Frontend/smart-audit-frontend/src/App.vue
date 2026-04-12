@@ -1,8 +1,10 @@
 <template>
   <router-view></router-view>
+  <ScanProgressToast />
 </template>
 
 <script setup>
+import ScanProgressToast from './components/ScanProgressToast.vue'
 </script>
 
 <style>
@@ -61,4 +63,3 @@ pre {
   font-size: 0.9rem;
 }
 </style>
-

@@ -382,7 +382,6 @@ const scanStore = useScanStore()
 const isLoadingAccounts = ref(true)
 const shouldShowLoading = ref(false)
 let loadingIndicatorTimer = null
-const eventSources= new Map()
 
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
@@ -421,7 +420,6 @@ onMounted(async () => {
 
   try {
     await cloudAccountsStore.loadAccounts()
-    restoreActivePollings()
   } finally {
     isLoadingAccounts.value = false
     shouldShowLoading.value = false
@@ -437,11 +435,6 @@ onUnmounted(() => {
     clearTimeout(loadingIndicatorTimer)
     loadingIndicatorTimer = null
   }
-
-  for (const es of eventSources.values()) {
-    es.close()
-  }
-  eventSources.clear()
 })
 
 const menuItems = ref([
@@ -563,13 +556,6 @@ const shouldShowProgressBar = (accountId) => {
   return progress > 0 && progress <= 100
 }
 
-const restoreActivePollings = () => {
-  Object.entries(scanStore.scanIdByAccount).forEach(([accountId, scanId]) => {
-    if (scanStore.scanningAccounts[accountId] && scanId) {
-      startSSEScan(scanId, accountId)
-    }
-  })
-}
 
 const addAccount = async () => {
   if (!validateForm()) return
@@ -624,70 +610,6 @@ const addAccount = async () => {
   closeDialog()
 }
 
-const startSSEScan = (scanId, accountId) => {
-
-  if (eventSources.has(accountId)) {
-    return
-  }
-
-  scanStore.startAccountScan(accountId, scanId)
-
-
-  const token = localStorage.getItem('token')
-  const url = `http://localhost:8000/cloud/scan_progress_sse/${scanId}?token=${token}`
-  const es = new EventSource(url)
-  eventSources.set(accountId, es)
-
-  es.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      const progress = Number(data.progress ?? 0)
-      scanStore.setAccountScanProgress(accountId, progress)
-
-      if (data.results) {
-        scanStore.setScanData(accountId, data.results)
-      }
-
-      if (data.status === 'completed') {
-        es.close()
-        eventSources.delete(accountId)
-        scanStore.completeAccountScan(accountId)
-        toast.add({
-          severity: 'success',
-          summary: 'Escaneo Completo',
-          detail: 'El escaneo de la cuenta ha finalizado',
-          life: 3000
-        })
-      }
-
-      if (data.status === 'failed') {
-        es.close()
-        eventSources.delete(accountId)
-        scanStore.failAccountScan(accountId)
-        toast.add({
-          severity: 'error',
-          summary: 'Escaneo fallido',
-          detail: data.errors || 'Ocurrió un error durante el escaneo',
-          life: 3000
-        })
-      }
-    } catch (e) {}
-  }
-
-  es.onerror = () => {
-    es.close()
-    eventSources.delete(accountId)
-    scanStore.failAccountScan(accountId)
-    toast.add({
-      severity: 'error',
-      summary: 'Error de conexión',
-      detail: 'Se perdió la conexión con el servidor',
-      life: 3000
-    })
-  }
-
-  eventSources.set(accountId, es)
-}
 
 const startScan = async (account) => {
   if (account.provider === 'AWS') {
@@ -710,7 +632,7 @@ const startScan = async (account) => {
 
       const scanId = data.scan_id
       scanStore.id = scanId
-      startSSEScan(scanId, String(account.id))
+      scanStore.startSSE(scanId, String(account.id))
     } catch (error) {
       scanStore.failAccountScan(String(account.id))
       toast.add({
