@@ -9,6 +9,7 @@ class EC2Analyzer:
         vulnerabilities = []
         vulnerabilities.extend(self.check_public_ip(instances))
         vulnerabilities.extend(self.check_security_groups(instances))
+        vulnerabilities.extend(self.check_ebs_encryption(instances))
         return vulnerabilities
 
     def check_public_ip(self, instances: list) -> list:
@@ -64,3 +65,22 @@ class EC2Analyzer:
                                     origin="Static Analysis",
                                 ))
         return Vulnerabilities  
+
+
+    def check_ebs_encryption(self,instances: list)-> list:
+        vulnerabilities = []
+        for instance in instances:
+            for volume in instance.volumes:
+                if volume["Encrypted"] == False:
+                    vulnerabilities.append(Vulnerability(
+                        id=f"ec2_{instance.id}_ebs_{volume['VolumeId']}_unencrypted",
+                        name="EC2 Instance with Unencrypted EBS Volume",
+                        description=(
+                            f"The EC2 instance '{instance.id}' has an attached EBS volume '{volume['VolumeId']}' that is not encrypted, which can lead to data exposure if the volume is compromised."
+                        ),
+                        severity="Medium",
+                        resource_id=instance.id,
+                        resource_type="EC2 Instance",
+                        origin="Static Analysis",
+                    ))
+        return vulnerabilities

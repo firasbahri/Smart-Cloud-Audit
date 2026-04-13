@@ -1,10 +1,13 @@
 import resend
 import os
+from logging import getLogger
+logger=getLogger(__name__)
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
 async def send_email(email: str, token: str):
     server_host = os.getenv("SERVER_HOST")
+    logger.info(f"server_host: {server_host}")
     link = f"{server_host}/auth/verify-email?token={token}"
     body = f"""
         <h2>SmartAudit - Verificación de Email</h2>

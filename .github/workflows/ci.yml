@@ -23,8 +23,11 @@ jobs:
       - name : install dependencies
         run :  pip install -r Backend/requirements.txt
 
-      - name : run tests
+      - name : run basic tests
         run :  pytest Backend/tests
+
+      - name : run ec2 analyzer tests
+        run :  pytest Backend/tests/test_ec2_analyzer.py
 
       - name : security scan
         run : |
