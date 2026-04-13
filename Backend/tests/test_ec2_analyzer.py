@@ -17,5 +17,5 @@ def test_check_ebs_encryption():
     instances = [instance1, instance2, instance3]
     vulnerabilities = analyzer.check_ebs_encryption(instances)
     assert len(vulnerabilities) == 2
-    assert vulnerabilities[0].id == "ec2_i-1234567890abcdef0"
+    assert vulnerabilities[0].id == f"ec2_{instance1.id}_ebs_{instance1.volumes[0]['VolumeId']}_unencrypted"
     assert vulnerabilities[0].name == "EC2 Instance with Unencrypted EBS Volume"
