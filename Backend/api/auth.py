@@ -1,4 +1,5 @@
-
+from dotenv import load_dotenv
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from services.auth_service import AuthService
@@ -8,7 +9,7 @@ import logging
 logger=logging.getLogger(__name__)
 auth_service = AuthService()
 router = APIRouter()
-
+load_dotenv
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserRegisterRequest):
@@ -34,11 +35,12 @@ async def login(user: UserLoginRequest):
 
 @router.get("/verify-email")
 async def verify_email(token: str):
+    baseUrl=os.getenv("BASE_URL")
     logger.info(f"Verificando email con token: {token}")
     try:
         result = await auth_service.verify_email(token)
         if result:
-            return RedirectResponse(url="http://localhost:3000/login?verified=true")
+            return RedirectResponse(url=f"{baseUrl}/login?verified=true")
         else:
             raise HTTPException(status_code=400, detail="Token de verificación inválido")
     except ValueError as e:
