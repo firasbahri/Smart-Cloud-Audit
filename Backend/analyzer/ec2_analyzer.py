@@ -71,6 +71,7 @@ class EC2Analyzer:
         vulnerabilities = []
         for instance in instances:
             for volume in instance.volumes:
+                logger.info(f"volumes of instance {instance.id}: {volume}")
                 if volume["Encrypted"] == False:
                     vulnerabilities.append(Vulnerability(
                         id=f"ec2_{instance.id}_ebs_{volume['VolumeId']}_unencrypted",

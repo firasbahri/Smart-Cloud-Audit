@@ -290,7 +290,7 @@ class AwsScanner(IScanner):
                         for v in volumes['Volumes']:
                             list_volumes.append({
                                 "VolumeId": v['VolumeId'],
-                                "encryption": v['Encrypted']
+                                "Encrypted": v['Encrypted']
                             })
                         instance['volumes'] = list_volumes
                     except ClientError:
