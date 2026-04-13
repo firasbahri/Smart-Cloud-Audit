@@ -13,7 +13,8 @@ conf=ConnectionConfig(
 )
 
 async def send_email(email: EmailStr, token: str):
-    link= f"http://127.0.0.1:8000/auth/verify-email?token={token}"
+    server_host=os.getenv("SERVER_HOST")
+    link= f"{server_host}/auth/verify-email?token={token}"
     body = f"Please click the following link to verify your email: <a href='{link}'>Verify Email</a>"
     subject="SmartAudit - Email Verification"
     message = MessageSchema(
