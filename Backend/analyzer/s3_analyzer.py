@@ -24,7 +24,7 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} has a public access policy and is publicly accessible.",
                         severity="Critical",
                         resource_id=bucket.id,
-                        service=bucket.service,
+                        service="S3",
                         region=bucket.region,
                     )
                 )
@@ -36,7 +36,7 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} has a public access policy but is not publicly accessible due to bucket settings.",
                         severity="Medium",
                         resource_id=bucket.id,
-                        service=bucket.service,
+                        service="S3",
                         region=bucket.region,
                     )
                 )
@@ -48,7 +48,7 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} is publicly accessible but does not have a public access policy.",
                         severity="Medium",
                         resource_id=bucket.id,
-                        service=bucket.service,
+                        service="S3",
                         region=bucket.region,
                     )
                 )
