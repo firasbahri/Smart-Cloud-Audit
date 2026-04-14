@@ -24,8 +24,8 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} has a public access policy and is publicly accessible.",
                         severity="Critical",
                         resource_id=bucket.id,
-                        service="S3",
-                        region=bucket.region,
+                        resource_type="S3",
+                        origin="Static Analysis",
                     )
                 )
             elif self.isPublicBucketPolicy(bucket.bucket_policy):
@@ -36,8 +36,8 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} has a public access policy but is not publicly accessible due to bucket settings.",
                         severity="Medium",
                         resource_id=bucket.id,
-                        service="S3",
-                        region=bucket.region,
+                        resource_type="S3",
+                        origin="Static Analysis",
                     )
                 )
             elif self.isPublicAccess(bucket):
@@ -48,8 +48,8 @@ class S3Analyzer:
                         description=f"The S3 bucket {bucket.name} is publicly accessible but does not have a public access policy.",
                         severity="Medium",
                         resource_id=bucket.id,
-                        service="S3",
-                        region=bucket.region,
+                        resource_type="S3",
+                        origin="Static Analysis",
                     )
                 )
         return vulnerabilities

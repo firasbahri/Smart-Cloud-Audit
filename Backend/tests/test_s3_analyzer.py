@@ -36,19 +36,19 @@ def test_bucket_public_policy_only():
 
 def test_bucket_public_access_and_policy():
     analyzer= S3Analyzer()
-    bucket = make_bucket("bucket-4", "TestBucket4", {"Statement": [{"Effect": "Allow", "Principal": "*", "Action": "*", "Resource": "*"}]}, [{ "BlockPublicAcls": False,
+    bucket = make_bucket("bucket-4", "TestBucket4", {"Statement": [{"Effect": "Allow", "Principal": "*", "Action": "*", "Resource": "*"}]}, { "BlockPublicAcls": False,
     "IgnorePublicAcls": False,
     "BlockPublicPolicy": False,
-    "RestrictPublicBuckets": False}])
+    "RestrictPublicBuckets": False})
     result = analyzer.check_public_access([bucket])
     assert len(result) == 1
     assert result[0].id == f"s3_{bucket.id}_public_access_policy_and_public_access"
     assert result[0].severity == "Critical"
 
-    bucket2= make_bucket("bucket-5", "TestBucket5", {"Statement": [{"Effect": "Allow", "Principal": {"AWS": "*"}, "Action": "*", "Resource": "*"}]}, [{ "BlockPublicAcls": False,
+    bucket2= make_bucket("bucket-5", "TestBucket5", {"Statement": [{"Effect": "Allow", "Principal": {"AWS": "*"}, "Action": "*", "Resource": "*"}]}, { "BlockPublicAcls": False,
     "IgnorePublicAcls": False,
     "BlockPublicPolicy": True,
-    "RestrictPublicBuckets": False}])
+    "RestrictPublicBuckets": False})
     result2 = analyzer.check_public_access([bucket2])
     assert len(result2) == 1
     assert result2[0].id == f"s3_{bucket2.id}_public_access_policy_and_public_access"
@@ -56,10 +56,10 @@ def test_bucket_public_access_and_policy():
 
 def test_bucket_no_vulnerabilities():
     analyzer = S3Analyzer()
-    bucket = make_bucket("bucket-6", "TestBucket6", {"Statement": [{"Effect": "Deny", "Principal": "*", "Action": "*", "Resource": "*"}]}, [{ "BlockPublicAcls": True,
+    bucket = make_bucket("bucket-6", "TestBucket6", {"Statement": [{"Effect": "Deny", "Principal": "*", "Action": "*", "Resource": "*"}]}, { "BlockPublicAcls": True,
     "IgnorePublicAcls": True,
     "BlockPublicPolicy": True,
-    "RestrictPublicBuckets": True}])
+    "RestrictPublicBuckets": True})
     result = analyzer.check_public_access([bucket])
     assert len(result) == 0
 
