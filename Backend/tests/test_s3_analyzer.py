@@ -26,13 +26,13 @@ def test_bucket_public_policy_only():
     bucket = make_bucket("bucket-2", "TestBucket2", {"Statement": [{"Effect": "Allow", "Principal": "*", "Action": "*", "Resource": "*"}]}, [])
     result = analyzer.check_public_access([bucket])
     assert len(result) == 1
-    assert result[0].id == f"s3_{bucket.id}_public_policy_only"
+    assert result[0].id == f"s3_{bucket.id}_public_access_policy_and_public_access"
 
     bucket_no_public_access = make_bucket("bucket-3", "TestBucket3", {"Statement": [{"Effect": "Allow", "Principal": {"AWS": "*"}, "Action": "*", "Resource": "*"}]}, [])
     result_no_public_access = analyzer.check_public_access([bucket_no_public_access])
     assert len(result_no_public_access) == 1
-    assert result_no_public_access[0].id == f"s3_{bucket_no_public_access.id}_public_policy_only"
-    assert result_no_public_access[0].severity == "Medium"
+    assert result_no_public_access[0].id == f"s3_{bucket_no_public_access.id}_public_access_policy_and_public_access"
+    assert result_no_public_access[0].severity == "Critical"
 
 def test_bucket_public_access_and_policy():
     analyzer= S3Analyzer()
