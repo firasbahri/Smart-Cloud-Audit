@@ -32,6 +32,8 @@ jobs:
       - name: run role analyzer tests
         run: pytest Backend/tests/test_role_analyzer.py
 
+      - name: run s3 analyzer tests
+        run: pytest Backend/tests/test_s3_analyzer.py
       - name : security scan
         run : |
           pip install bandit

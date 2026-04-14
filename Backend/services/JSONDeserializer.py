@@ -149,7 +149,7 @@ class JSONDeserializer:
             state=raw.get("state", ""),
             security_groups=security_groups,
             volumes=raw.get("volumes"),
-            tags=raw.get("tags", [])
+            tags=raw.get("tags", []),
         )
 
     @staticmethod
