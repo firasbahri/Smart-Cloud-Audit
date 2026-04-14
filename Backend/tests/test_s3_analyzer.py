@@ -1,4 +1,4 @@
-from unittest import MagicMock
+from unittest.mock import MagicMock
 from analyzer.s3_analyzer import S3Analyzer
 
 
