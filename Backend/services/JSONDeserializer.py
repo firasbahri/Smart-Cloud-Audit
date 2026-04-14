@@ -84,6 +84,7 @@ class JSONDeserializer:
             assume_role_policy=raw.get("assume_role_policy"),
             managed_policies=raw.get("managed_policies", []),
             inline_policies=raw.get("inline_policies", []),
+            trusted_entities=raw.get("trusted_entities", []),
         )
 
     @staticmethod
@@ -148,6 +149,7 @@ class JSONDeserializer:
             state=raw.get("state", ""),
             security_groups=security_groups,
             volumes=raw.get("volumes"),
+            tags=raw.get("tags", [])
         )
 
     @staticmethod

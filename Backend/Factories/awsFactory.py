@@ -141,7 +141,8 @@ class AWSFactory:
                 public_ip=i.get('PublicIpAddress', None),
                 state=i.get('State', {}).get('Name', ''),
                 security_groups=AWSFactory.create_security_groups(i.get('SecurityGroupsDetails', [])),
-                volumes=i.get('volumes')
+                volumes=i.get('volumes'),
+                tags=i.get('Tags', [])
             )
             instances.append(instance)
         return instances

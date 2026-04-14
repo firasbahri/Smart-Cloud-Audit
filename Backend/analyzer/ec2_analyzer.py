@@ -10,6 +10,7 @@ class EC2Analyzer:
         vulnerabilities.extend(self.check_public_ip(instances))
         vulnerabilities.extend(self.check_security_groups(instances))
         vulnerabilities.extend(self.check_ebs_encryption(instances))
+        vulnerabilities.extend(self.check_tags(instances))
         return vulnerabilities
 
     def check_public_ip(self, instances: list) -> list:
@@ -64,7 +65,8 @@ class EC2Analyzer:
                                     resource_type="EC2 Instance",
                                     origin="Static Analysis",
                                 ))
-        return Vulnerabilities  
+        return Vulnerabilities 
+ 
 
 
     def check_ebs_encryption(self,instances: list)-> list:
@@ -84,4 +86,25 @@ class EC2Analyzer:
                         resource_type="EC2 Instance",
                         origin="Static Analysis",
                     ))
+        return vulnerabilities
+    
+
+    def check_tags(self,instances: list)-> list:
+        vulnerabilities = []
+        REQUIRED_TAGS = ["Name", "Environment", "Owner"]
+        for instance in instances:
+            tags_keys = [tag['Key'] for tag in instance.tags]
+            missing_tags = [tag for tag in REQUIRED_TAGS if tag not in tags_keys]
+            if missing_tags:
+                vulnerabilities.append(Vulnerability(
+                    id=f"ec2_{instance.id}_missing_tags",
+                    name="EC2 Instance Missing Tags",
+                    description=(
+                        f"The EC2 instance '{instance.id}' does not have all required tags, which can make it difficult to manage and identify resources effectively."
+                    ),
+                    severity="Low",
+                    resource_id=instance.id,
+                    resource_type="EC2 Instance",
+                    origin="Static Analysis",
+                ))
         return vulnerabilities
