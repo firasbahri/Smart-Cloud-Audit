@@ -7,12 +7,13 @@ logger = logging.getLogger(__name__)
 
 
 class IAMAnalyzer:
-    def analyze(self, users: list, groups: list) -> list:
+    def analyze(self, users: list, groups: list, roles: list) -> list:
         vulnerabilities = []
         vulnerabilities.extend(self.check_user_permissions(users))
         vulnerabilities.extend(self.check_mfa(users))
         vulnerabilities.extend(self.check_inactive_users(users))
         vulnerabilities.extend(self.check_group_permissions(groups))
+        vulnerabilities.extend(self.check_role_permissions(roles))
         return vulnerabilities
 
     def check_user_permissions(self, users):
@@ -161,6 +162,73 @@ class IAMAnalyzer:
         logger.info("check_inactive_users processed")
         return vulnerabilities
 
+
+    def check_role_permissions(self, roles):
+        vulnerabilities = []
+        for role in roles:
+            if self.isAdmin(role.managed_policies):
+                if role.trusted_entities:
+                    logger.info(f"Role {role.name} has AdministratorAccess managed policy and trusted entities: {role.trusted_entities}")
+                    vulnerabilities.append(Vulnerability(
+                        id=f"iam_role_{role.id}_managed_admin_trusted",
+                        name="IAM Role with AdministratorAccess Managed Policy and Trusted Entities",
+                        description=(
+                            f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached and is trusted by entities {role.trusted_entities}, "
+                            "granting full access to all AWS services and resources to those entities."
+                        ),
+                        severity="Critical",
+                        resource_id=role.id,
+                        resource_type="IAM Role",
+                        origin="Static Analysis",
+                    ))
+                else:
+                    vulnerabilities.append(Vulnerability(
+                        id=f"iam_role_{role.id}_managed_admin",
+                        name="IAM Role with AdministratorAccess Managed Policy",
+                        description=(
+                            f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached, "
+                
+                        ),
+                        severity="Medium",
+                        resource_id=role.id,
+                        resource_type="IAM Role",
+                        origin="Static Analysis",
+                    ))
+               
+
+            wildCardPolicies= self.hasWildcardPermissions(role.inline_policies)
+            if wildCardPolicies:
+                for pName in wildCardPolicies:
+                    logger.info(f"Role {role.name} has inline policy {pName} with wildcard permissions")
+                    if role.trusted_entities:
+                        logger.info(f"Role {role.name} with inline policy {pName} has trusted entities: {role.trusted_entities}")
+                        vulnerabilities.append(Vulnerability(
+                            id=f"iam_role_{role.id}_inline_{pName}_wildcard_trusted",
+                            name=f"IAM Role with Inline Policy {pName} Wildcard Permissions and Trusted Entities",
+                            description=(
+                                f"The IAM role '{role.name}' has an inline policy '{pName}' that allows wildcard permissions and is trusted by entities {role.trusted_entities}, "
+                                "which can lead to excessive privileges and potential security risks for those entities."
+                            ),
+                            severity="Critical",
+                            resource_id=role.id,
+                            resource_type="IAM Role",
+                            origin="Static Analysis",
+                        ))
+                    else:
+                        vulnerabilities.append(Vulnerability(
+                            id=f"iam_role_{role.id}_inline_{pName}_wildcard",
+                            name=f"IAM Role with Inline Policy {pName} Wildcard Permissions",
+                            description=(
+                                f"The IAM role '{role.name}' has an inline policy '{pName}' that allows wildcard permissions, "
+                                "which can lead to excessive privileges and potential security risks."
+                            ),
+                            severity="High",
+                            resource_id=role.id,
+                            resource_type="IAM Role",
+                            origin="Static Analysis",
+                        ))
+                
+        return vulnerabilities
     def isAdmin(self, policies: list) -> bool:
         logger.info(f"Checking policies: {policies}")
         for policy in policies:

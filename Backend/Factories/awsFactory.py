@@ -90,6 +90,15 @@ class AWSFactory:
     def create_roles(rolesRaw):
         roles = []
         for r in rolesRaw:
+            inline_policies_normalized = []
+            for policy in r.get('InlinePolicies', []):
+                for statement in policy.get('PolicyDocument', {}).get('Statement', []):
+                    inline_policies_normalized.append({
+                        "policy_name": policy["PolicyName"],
+                        "actions": statement.get("Action") if isinstance(statement.get("Action"), list) else [statement.get("Action")],
+                        "resources": statement.get("Resource") if isinstance(statement.get("Resource"), list) else [statement.get("Resource")],
+                        "effect": statement.get("Effect")
+                    })
             role = IAMRole(
                 id=r.get('RoleId', ''),
                 name=r.get('RoleName', ''),
@@ -97,12 +106,13 @@ class AWSFactory:
                 region='global',
                 Creation_date=r.get('CreateDate',''),
                 assume_role_policy=r.get('AssumeRolePolicyDocument'),
-                managed_policies=r.get('AttachedManagedPolicies', []),
-                inline_policies=r.get('InlinePolicies', [])
+                managed_policies=[{"policy_name": p["PolicyName"]} for p in r.get('AttachedManagedPolicies', [])],
+                inline_policies=inline_policies_normalized,
+                trusted_entities=extract_trusted_entities(r.get('TrustPolicy', {}))
             )
             roles.append(role)
         return roles
-    
+
     @staticmethod
     def create_security_groups(securityGroupsRaw):
         security_groups = []
@@ -168,3 +178,22 @@ class AWSFactory:
             )
             buckets.append(bucket)
         return buckets
+    
+
+def extract_trusted_entities(trust_policy):
+    trusted_entities = []
+    for statement in trust_policy.get('Statement', []):
+        principal = statement.get('Principal', {})
+        if 'AWS' in principal:
+            aws_principals = principal['AWS']
+            if isinstance(aws_principals, str):
+                trusted_entities.append(aws_principals)
+            elif isinstance(aws_principals, list):
+                trusted_entities.extend(aws_principals)
+        if 'Service' in principal:
+            service_principals = principal['Service']
+            if isinstance(service_principals, str):
+                trusted_entities.append(service_principals)
+            elif isinstance(service_principals, list):
+                trusted_entities.extend(service_principals)
+    return trusted_entities

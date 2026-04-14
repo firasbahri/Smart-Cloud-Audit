@@ -19,9 +19,10 @@ class AWSAnalyzer(IAnalyzer):
         groups = resources.get("groups", [])
         instances = resources.get("ec2", [])
         buckets = resources.get("s3", [])
+        roles = resources.get("roles", [])
 
         try:
-            vulnerabilities.extend(self.iamAnalyzer.analyze(users, groups))
+            vulnerabilities.extend(self.iamAnalyzer.analyze(users, groups, roles))
             vulnerabilities.extend(self.ec2Analyzer.analyze(instances))
             vulnerabilities.extend(self.s3Analyzer.analyze(buckets))
 

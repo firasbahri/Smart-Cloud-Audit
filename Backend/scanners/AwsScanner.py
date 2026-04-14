@@ -211,6 +211,21 @@ class AwsScanner(IScanner):
                 except ClientError:
                     r['AttachedManagedPolicies'] = []
 
+                try:
+                    inlinePolicies = iam.list_role_policies(RoleName=r['RoleName'])['PolicyNames']
+                    r['InlinePolicies'] = []
+                    for policy_name in inlinePolicies:
+                        policy_document = iam.get_role_policy(RoleName=r['RoleName'], PolicyName=policy_name)['PolicyDocument']
+                        logger.info(f"Policy document for role {r['RoleName']} and policy {policy_name}: {policy_document}")
+                        r['InlinePolicies'].append({
+                            "PolicyName": policy_name,
+                            "PolicyDocument": policy_document
+                        })
+                except ClientError:
+                    r['InlinePolicies'] = []
+
+                r['TrustPolicy'] = r.get('AssumeRolePolicyDocument', {}) 
+
             return roles['Roles']
         except ClientError as e:
             error_code = e.response['Error']['Code']
