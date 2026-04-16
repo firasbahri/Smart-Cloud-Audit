@@ -6,6 +6,7 @@ from .IScanner import IScanner
 from Factories.awsFactory import AWSFactory
 from fastapi import HTTPException
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +268,8 @@ class AwsScanner(IScanner):
 
                 try:
                     policies = s3.get_bucket_policy(Bucket=b['Name'])
-                    b['Policies'] = policies.get('Policy', None)
+                    policies_str=policies.get('Policy', None)
+                    b['Policies'] = json.loads(policies_str) if policies_str else None
                 except ClientError:
                     b['Policies'] = None
 

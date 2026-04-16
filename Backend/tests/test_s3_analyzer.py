@@ -4,12 +4,14 @@ from analyzer.s3_analyzer import S3Analyzer
 
 
 
-def make_bucket(id, name, bucket_policy, public_access):
+def make_bucket(id, name, bucket_policy, public_access, versioning=None, encryption=None):
     bucket = MagicMock()
     bucket.id = id
     bucket.name = name
     bucket.bucket_policy = bucket_policy
     bucket.public_access = public_access
+    bucket.versioning = versioning
+    bucket.encryption = encryption
     return bucket
 
 def test_bucket_public_access_only():
@@ -63,3 +65,17 @@ def test_bucket_no_vulnerabilities():
     result = analyzer.check_public_access([bucket])
     assert len(result) == 0
 
+
+def test_bucket_versioning_and_encryption():
+    analyzer = S3Analyzer()
+    bucket = make_bucket("bucket-7", "TestBucket7", {"Statement": []}, [], versioning="Disabled", encryption=False)
+    print(f"Bucket versioning: {bucket.versioning}, encryption: {bucket.encryption}")
+    result = analyzer.check_versioning([bucket])
+    assert len(result) == 1
+    assert result[0].id == f"s3_{bucket.id}_versioning_disabled"
+    assert result[0].severity == "Low"
+
+    result = analyzer.check_encryption([bucket])
+    assert len(result) == 1
+    assert result[0].id == f"s3_{bucket.id}_encryption_disabled"
+    assert result[0].severity == "Medium"

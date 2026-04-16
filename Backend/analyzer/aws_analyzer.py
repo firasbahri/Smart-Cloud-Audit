@@ -18,7 +18,7 @@ class AWSAnalyzer(IAnalyzer):
         users = resources.get("users", [])
         groups = resources.get("groups", [])
         instances = resources.get("ec2", [])
-        buckets = resources.get("s3", [])
+        buckets = resources.get("buckets", [])
         roles = resources.get("roles", [])
 
         try:
