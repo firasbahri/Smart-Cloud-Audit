@@ -127,21 +127,20 @@ class AWSFactory:
         return security_groups
 
     @staticmethod
-    def create_ec2(ReservationRaw):
+    def create_ec2(instancesRaw):
         instances = []
-        for r in ReservationRaw:
-            for i in r['Instances']:
-                instance = EC2(
-                    id=i.get('InstanceId', ''),
-                    name=i.get('InstanceType', ''),
-                    service='EC2',
-                    region=i.get('Placement', {}).get('AvailabilityZone', ''),
+        for i in instancesRaw:
+            instance = EC2(
+                id=i.get('InstanceId', ''),
+                name=i.get('InstanceType', ''),
+                service='EC2',
+                region=i.get('Placement', {}).get('AvailabilityZone', ''),
                 date=i.get('LaunchTime'),
                 instance_type=i.get('InstanceType', ''),
                 public_ip=i.get('PublicIpAddress', None),
                 state=i.get('State', {}).get('Name', ''),
                 security_groups=AWSFactory.create_security_groups(i.get('SecurityGroupsDetails', [])),
-                volumes=i.get('volumes'),
+                volumes=i.get('volumes') or [],
                 tags=i.get('Tags', [])
             )
             instances.append(instance)

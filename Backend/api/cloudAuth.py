@@ -14,8 +14,9 @@ async def cloud_auth( cloudAddRequest : CloudAddRequest,user_id: str = Depends(g
     arn = cloudAddRequest.arn
     name=cloudAddRequest.name
     provider=cloudAddRequest.provider
-    description=cloudAddRequest.description    
-    id=await CloudService.register_aws(arn, user_id, name, description,provider)
+    description=cloudAddRequest.description  
+    regions=cloudAddRequest.regions  
+    id=await CloudService.register_aws(arn, user_id, name, description,provider, regions)
     logger.info(f"Cloud account registered with id: {id}")
     return {"message": "Cloud account registered successfully", "id": str(id)}
 
@@ -35,8 +36,9 @@ async def updateCloudData(cloudUpdateRequest : CloudUpdateRequest, user_id: str 
     id = cloudUpdateRequest.id
     name=cloudUpdateRequest.name
     description=cloudUpdateRequest.description
+    regions=cloudUpdateRequest.regions
 
-    result = await CloudService.update_cloud_data(id, user_id, name, description)
+    result = await CloudService.update_cloud_data(id, user_id, name, description, regions)
     logger.info(f"Cloud data updated for id: {id}")
     return {"success": bool(result)}
 

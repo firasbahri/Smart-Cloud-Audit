@@ -19,11 +19,13 @@ class CloudAddRequest(BaseModel):
   arn: str
   provider : str
   description: str
+  regions: list
 
 class CloudUpdateRequest(BaseModel):
   id: str
   name: Optional[str] = None
   description: Optional[str] = None
+  regions: Optional[list] = None
 
 class CloudDeleteRequest(BaseModel):
   id: str

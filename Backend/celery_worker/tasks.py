@@ -15,9 +15,9 @@ mongo_client = MongoClient(os.getenv("MONGODB_URL"),tls=True,tlsAllowInvalidCert
 db = mongo_client["testdb"]
 
 @celery_app.task(name="scan_cloud_account")
-def scan_cloud_account(scan_id,arn,provider):
+def scan_cloud_account(scan_id,arn,provider,regions):
     logger.info(f"starting scan for scan_id:{scan_id}")
-    scanController= ScanController(arn,provider)
+    scanController= ScanController(arn,provider,regions)
     collection = db["scans"]
     try:
         scanController.connect()

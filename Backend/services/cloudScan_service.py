@@ -44,7 +44,7 @@ class CloudScanService:
       )
 
       scanId= await self.scan_repository.create(scanResult)
-      scan_cloud_account.delay(scan_id, arn, provider)
+      scan_cloud_account.delay(scan_id, arn, provider, cloud.regions)
       return scanResult
 
 

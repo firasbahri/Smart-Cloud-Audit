@@ -61,7 +61,7 @@ class AwsScanner(IScanner):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error inesperado al conectar: {str(e)}")
 
-    def scan_resource(self, resource):
+    def scan_resource(self, resource,regions):
         if resource == "users":
             users=self.scan_users()
             logger.info(f"Scanned users: {users}")
@@ -76,7 +76,7 @@ class AwsScanner(IScanner):
             buckets=self.scan_s3()
             return AWSFactory.create_buckets(buckets)
         elif resource == "ec2":
-            ec2_instances=self.scan_ec2()
+            ec2_instances=self.scan_ec2(regions)
             return AWSFactory.create_ec2(ec2_instances)
         else:
             logger.error(f"Resource type {resource} not supported for scanning")
@@ -291,41 +291,46 @@ class AwsScanner(IScanner):
         except Exception as e:
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
     
-    def scan_ec2(self):
+    def scan_ec2(self,regions):
         
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
             
-            ec2 = self.session.client('ec2', region_name='us-east-1')
-            instances = ec2.describe_instances()
-            for reservation in instances['Reservations']:
-                for instance in reservation['Instances']:
-                    try:
-                        volumes = ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
-                        list_volumes = []
-                        for v in volumes['Volumes']:
-                            list_volumes.append({
-                                "VolumeId": v['VolumeId'],
-                                "Encrypted": v['Encrypted']
-                            })
-                        instance['volumes'] = list_volumes
-                    except ClientError:
-                        instance['volumes'] = None
+            all_instances = []
+            for r in regions:
     
-                    try:
-                        sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
-                        if sg_ids:
-                            sg_details = ec2.describe_security_groups(GroupIds=sg_ids)
-                            instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
-                        else:
+                logger.info(f"Scanning EC2 instances in region: {r}")
+                regional_ec2 = self.session.client('ec2', region_name=r)
+                instances = regional_ec2.describe_instances()
+                for reservation in instances['Reservations']:
+                    for instance in reservation['Instances']:
+                        try:
+                            volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
+                            list_volumes = []
+                            for v in volumes['Volumes']:
+                                list_volumes.append({
+                                    "volume_id": v['VolumeId'],
+                                    "encrypted": v['Encrypted']
+                                })
+                            instance['volumes'] = list_volumes
+                        except ClientError:
+                            instance['volumes'] = None
+        
+                        try:
+                            sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
+                            if sg_ids:
+                                sg_details = regional_ec2.describe_security_groups(GroupIds=sg_ids)
+                                instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
+                            else:
+                                instance['SecurityGroupsDetails'] = []
+                        except ClientError:
                             instance['SecurityGroupsDetails'] = []
-                    except ClientError:
-                        instance['SecurityGroupsDetails'] = []
 
-                    instance['public_ip'] = instance.get('PublicIpAddress', None)
+                        instance['public_ip'] = instance.get('PublicIpAddress', None)
+                        all_instances.append(instance)  
 
-            return instances['Reservations']
+            return all_instances
     
         except ClientError as e:
             error_code = e.response['Error']['Code']

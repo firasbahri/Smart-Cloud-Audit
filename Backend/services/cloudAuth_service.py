@@ -15,17 +15,17 @@ class CloudAuthService:
         
 
 
-    async def register_aws(self,arn: str,user_id: str,name: str, description: str,provider: str):
+    async def register_aws(self,arn: str,user_id: str,name: str, description: str,provider: str,regions: list):
         user= await self.user_repository.findById(user_id)
 
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
         
         try:
-            scan_controller = ScanController(arn,provider)
+            scan_controller = ScanController(arn,provider,regions)
             account_id = scan_controller.connect()       
             creation_date = DateTime.now(timezone.utc).isoformat()
-            cloud_data=Cloud(name,provider,arn,account_id,user_id,description,creation_date)
+            cloud_data=Cloud(name,provider,arn,account_id,user_id,regions,description,creation_date)
             id=await self.cloud_repository.create(cloud_data)
         except HTTPException :
             raise
@@ -52,7 +52,7 @@ class CloudAuthService:
 
         return cloudsDataSerializado
 
-    async def update_cloud_data(self, id: str,user_id: str,name: str, description: str,):
+    async def update_cloud_data(self, id: str,user_id: str,name: str, description: str, regions: list):
 
         user = await self.user_repository.findById(user_id)
         if not user:

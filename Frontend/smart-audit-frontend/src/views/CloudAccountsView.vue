@@ -214,6 +214,30 @@
           </div>
 
           <div class="flex flex-column gap-2">
+            <label for="regions" class="font-semibold">Regiones AWS</label>
+            <MultiSelect
+              id="regions"
+              v-model="newAccount.regions"
+              :options="AWS_REGIONS"
+              optionLabel="label"
+              optionValue="value"
+              optionGroupLabel="label"
+              optionGroupChildren="items"
+              placeholder="Selecciona las regiones a escanear"
+              display="chip"
+              filter
+              filterPlaceholder="Buscar región..."
+              class="w-full"
+              :invalid="errors.regions"
+            />
+            <small v-if="errors.regions" class="text-red-500">{{ errors.regions }}</small>
+            <small class="text-500">
+              <InfoIcon :size="14" class="mr-1" />
+              Selecciona las regiones donde tienes recursos EC2 desplegados
+            </small>
+          </div>
+
+          <div class="flex flex-column gap-2">
             <label for="description" class="font-semibold">Descripción (Opcional)</label>
             <Textarea
               id="description"
@@ -374,7 +398,66 @@ import Divider from 'primevue/divider'
 import Menu from 'primevue/menu'
 import Toast from 'primevue/toast'
 import ProgressBar from 'primevue/progressbar'
+import MultiSelect from 'primevue/multiselect'
 import { buildApiUrl } from '../utils/api'
+
+const AWS_REGIONS = [
+  {
+    label: '🇺🇸 Estados Unidos',
+    items: [
+      { label: 'us-east-1 — N. Virginia', value: 'us-east-1' },
+      { label: 'us-east-2 — Ohio', value: 'us-east-2' },
+      { label: 'us-west-1 — N. California', value: 'us-west-1' },
+      { label: 'us-west-2 — Oregon', value: 'us-west-2' },
+    ]
+  },
+  {
+    label: '🇪🇺 Europa',
+    items: [
+      { label: 'eu-west-1 — Irlanda', value: 'eu-west-1' },
+      { label: 'eu-west-2 — Londres', value: 'eu-west-2' },
+      { label: 'eu-west-3 — París', value: 'eu-west-3' },
+      { label: 'eu-central-1 — Frankfurt', value: 'eu-central-1' },
+      { label: 'eu-central-2 — Zúrich', value: 'eu-central-2' },
+      { label: 'eu-north-1 — Estocolmo', value: 'eu-north-1' },
+      { label: 'eu-south-1 — Milán', value: 'eu-south-1' },
+      { label: 'eu-south-2 — España', value: 'eu-south-2' },
+    ]
+  },
+  {
+    label: '🌏 Asia Pacífico',
+    items: [
+      { label: 'ap-southeast-1 — Singapur', value: 'ap-southeast-1' },
+      { label: 'ap-southeast-2 — Sídney', value: 'ap-southeast-2' },
+      { label: 'ap-southeast-3 — Yakarta', value: 'ap-southeast-3' },
+      { label: 'ap-southeast-4 — Melbourne', value: 'ap-southeast-4' },
+      { label: 'ap-northeast-1 — Tokio', value: 'ap-northeast-1' },
+      { label: 'ap-northeast-2 — Seúl', value: 'ap-northeast-2' },
+      { label: 'ap-northeast-3 — Osaka', value: 'ap-northeast-3' },
+      { label: 'ap-south-1 — Bombay', value: 'ap-south-1' },
+      { label: 'ap-south-2 — Hyderabad', value: 'ap-south-2' },
+      { label: 'ap-east-1 — Hong Kong', value: 'ap-east-1' },
+    ]
+  },
+  {
+    label: '🌎 América',
+    items: [
+      { label: 'ca-central-1 — Canadá Central', value: 'ca-central-1' },
+      { label: 'ca-west-1 — Canadá Oeste', value: 'ca-west-1' },
+      { label: 'sa-east-1 — São Paulo', value: 'sa-east-1' },
+      { label: 'mx-central-1 — México', value: 'mx-central-1' },
+    ]
+  },
+  {
+    label: '🌍 Oriente Medio y África',
+    items: [
+      { label: 'me-south-1 — Baréin', value: 'me-south-1' },
+      { label: 'me-central-1 — EAU', value: 'me-central-1' },
+      { label: 'il-central-1 — Israel', value: 'il-central-1' },
+      { label: 'af-south-1 — Ciudad del Cabo', value: 'af-south-1' },
+    ]
+  },
+]
 
 const toast = useToast()
 const cloudAccountsStore = useCloudAccountsStore()
@@ -396,7 +479,8 @@ const menu = ref()
 const newAccount = reactive({
   name: '',
   arn: '',
-  description: ''
+  description: '',
+  regions: []
 })
 
 const editAccount = reactive({
@@ -409,7 +493,8 @@ const editAccount = reactive({
 
 const errors = reactive({
   name: '',
-  arn: ''
+  arn: '',
+  regions: ''
 })
 
 onMounted(async () => {
@@ -513,6 +598,7 @@ const openDetails = (account) => {
 const validateForm = () => {
   errors.name = ''
   errors.arn = ''
+  errors.regions = ''
   let isValid = true
 
   if (!newAccount.name.trim()) {
@@ -528,6 +614,11 @@ const validateForm = () => {
     isValid = false
   }
 
+  if (!newAccount.regions.length) {
+    errors.regions = 'Selecciona al menos una región'
+    isValid = false
+  }
+
   return isValid
 }
 
@@ -537,8 +628,10 @@ const closeDialog = () => {
   newAccount.name = ''
   newAccount.arn = ''
   newAccount.description = ''
+  newAccount.regions = []
   errors.name = ''
   errors.arn = ''
+  errors.regions = ''
 }
 
 const isAccountScanning = (accountId) => {
@@ -574,7 +667,8 @@ const addAccount = async () => {
         name: newAccount.name,
         provider: selectedProvider.value,
         arn: newAccount.arn,
-        description: newAccount.description
+        description: newAccount.description,
+        regions: newAccount.regions
       })
     })
 
