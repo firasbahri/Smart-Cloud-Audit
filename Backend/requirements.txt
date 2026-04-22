@@ -11,4 +11,4 @@ pytest
 celery
 pymongo
 resend
-google
+google-genai
