@@ -11,3 +11,4 @@ pytest
 celery
 pymongo
 resend
+google.generativeai

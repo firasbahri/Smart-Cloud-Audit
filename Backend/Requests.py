@@ -31,3 +31,11 @@ class CloudDeleteRequest(BaseModel):
 class cloudAuditRequest(BaseModel):
   scan_id: str  
 
+
+class CloudAIAuditRequest(BaseModel):
+  audit_id: str
+  scan_id: str
+  user_context: dict
+
+
+

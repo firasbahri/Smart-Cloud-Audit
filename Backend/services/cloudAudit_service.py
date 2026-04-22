@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from analyzer.IAM_Analyzer import IAMAnalyzer
 from analyzer.aws_analyzer import AWSAnalyzer
+from analyzer.gemini_analyzer import  GeminiAnalyzer
 from Repositories.ScanRepository import ScanRepository
 from Repositories.auditRepository import AuditRepository
 from Model.auditResult import AuditResult
@@ -43,3 +44,27 @@ class CloudAuditService:
             logger.error(f"No audit results found for account {account_id} and user {user_id}")
             raise HTTPException(status_code=404, detail="No audit results found for this account")
         return result
+    
+
+
+    async def ai_audit_cloud_resources(self,audit_id: str, scan_id: str, user_id: str,user_context: dict):
+
+        scanResult=await self.scan_repository.findById(scan_id)
+        auditResult= await self.audit_repository.findById(audit_id)
+        if not scanResult:
+            logger.error(f"Scan with id {scan_id} not found for user {user_id}")
+            raise HTTPException(status_code=404, detail="Scan not found")
+        if not auditResult:
+            logger.error(f"Audit result with id {audit_id} not found for user {user_id}")
+            raise HTTPException(status_code=404, detail="Audit result not found")
+        resources=scanResult.resources
+        vulnerabilities=auditResult.vulnerabilities
+        geminiAnalyzer=GeminiAnalyzer()
+
+        response_vulnerabilities=geminiAnalyzer.analyze(resources, vulnerabilities, user_context)
+        auditID=str(uuid4())
+        auditAiResult= AuditResult(id=auditID, vulnerabilities=JSONSerializer.serializeList(response_vulnerabilities), accountID=scanResult.cloudAccount_id,userID=user_id)
+        return auditAiResult
+        
+
+        return await self.static_audit_cloud_resources(scan_id, user_id)

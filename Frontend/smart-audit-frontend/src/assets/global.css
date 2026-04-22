@@ -1,0 +1,12 @@
+/* AI Audit Drawer - global because PrimeVue renders it in a portal outside the component */
+.p-drawer .p-drawer-content {
+	background: #1a0a10 !important;
+}
+.p-drawer .p-drawer-header {
+	background: #220d14 !important;
+	border-bottom: 1px solid rgba(244, 63, 94, 0.2);
+}
+.p-drawer .p-drawer-footer {
+	background: #220d14 !important;
+	border-top: 1px solid rgba(244, 63, 94, 0.15);
+}

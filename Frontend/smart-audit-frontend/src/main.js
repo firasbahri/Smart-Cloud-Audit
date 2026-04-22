@@ -7,6 +7,7 @@ import Aura from '@primeuix/themes/aura'
 import { ToastService } from 'primevue'
 import 'primeicons/primeicons.css'
 import 'primeflex/primeflex.css'
+import './assets/global.css'
 
 const pinia = createPinia()
 const app = createApp(App)

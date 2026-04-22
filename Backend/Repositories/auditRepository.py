@@ -30,7 +30,19 @@ class AuditRepository(IRepository):
         return auditResult
 
     async def findById(self, audit_id):
-        pass
+        result = await self.collection.find_one({"id": audit_id})
+        if not result:
+            return None
+        
+        auditResult = AuditResult(
+            id=str(result.get("id")),
+            vulnerabilities=result.get("vulnerabilities", []),
+            accountID=result.get("accountID"),
+            userID=result.get("userID"),
+        )
+        creaed_at = result.get("created_at")
+        auditResult.created_at = creaed_at.isoformat() if hasattr(creaed_at, 'isoformat') else creaed_at
+        return auditResult
     
     async def update(self, audit_id, audit_result):
         pass
