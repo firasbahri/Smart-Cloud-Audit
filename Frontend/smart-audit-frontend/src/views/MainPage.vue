@@ -56,12 +56,27 @@
         </li>
       </ul>
 
-      <Button
-        class="logout-btn"
-        label="Desconectar"
-        icon="pi pi-sign-out"
-        @click="logout"
-      />
+      <div ref="userMenuRef" class="user-footer">
+        <Transition name="user-menu">
+          <div v-if="userMenuOpen" class="user-menu">
+            <div class="user-menu-item">
+              <User :size="13" /> Mi perfil
+            </div>
+            <div class="user-menu-divider" />
+            <div class="user-menu-item danger" @click.stop="logout">
+              <LogOut :size="13" /> Cerrar sesión
+            </div>
+          </div>
+        </Transition>
+        <div class="user-row" @click.stop="userMenuOpen = !userMenuOpen">
+          <div class="user-avatar">{{ userInitial }}</div>
+          <div class="user-info">
+            <span class="user-name">{{ storedUsername }}</span>
+          </div>
+          <ChevronUp v-if="userMenuOpen" :size="14" class="user-chevron" />
+          <ChevronDown v-else :size="14" class="user-chevron" />
+        </div>
+      </div>
     </nav>
 
     <main class="content flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
@@ -85,13 +100,12 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { computed,onMounted,watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useScanStore } from '../store/scanStore';
 import { useAuditStore } from '@/store/auditStore';
 import { useCloudAccountsStore } from '../store/cloudAccountsStore';
-import Button from 'primevue/button';
 import Select from 'primevue/select';
-import { Cloud, LayoutDashboard, Package, Search, Settings } from 'lucide-vue-next';
+import { Cloud, ChevronDown, ChevronUp, LayoutDashboard, LogOut, Package, Search, Settings, User } from 'lucide-vue-next';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
 
 const router = useRouter();
@@ -99,6 +113,17 @@ const scanStore = useScanStore();
 const auditStore = useAuditStore();
 const cloudAccountsStore = useCloudAccountsStore();
 let isLoggingOut = false;
+
+const userMenuOpen = ref(false)
+const userMenuRef = ref(null)
+const storedUsername = computed(() => localStorage.getItem('username') || 'Usuario')
+const userInitial = computed(() => storedUsername.value.charAt(0).toUpperCase())
+
+const handleDocumentClick = (e) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(e.target)) {
+    userMenuOpen.value = false
+  }
+}
 
 const getAccountKey = (account) => String(
   account?.id ?? account?.account_id ?? account?.identifier ?? account?.name ?? ''
@@ -156,7 +181,12 @@ watch(() => cloudAccountsStore.selectedAccount, async(account) => {
   }
 }, { immediate: true });
  
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
+
 onMounted(async () => {
+  document.addEventListener('click', handleDocumentClick)
   cloudAccountsStore.loadSelectedAccount();
   await cloudAccountsStore.loadAccounts();
 
@@ -410,29 +440,113 @@ const logout = () => {
   50% { opacity: 0.3; }
 }
 
-.logout-btn.p-button {
-  margin: 1.5rem;
-  width: calc(100% - 3rem);
-  padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
+.user-footer {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(34, 197, 94, 0.15);
+  position: relative;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-  animation: slideIn 0.5s ease-out 0.5s both;
+  transition: background 0.15s;
 }
 
-.logout-btn.p-button:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+.user-row:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.logout-btn.p-button:active {
-  transform: translateY(0);
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1.5px solid #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #c9d1d9;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-chevron {
+  color: #4d5566;
+  flex-shrink: 0;
+}
+
+.user-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 12px;
+  right: 12px;
+  background: #1c2128;
+  border: 1px solid #2d333b;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #768390;
+  transition: background 0.1s;
+}
+
+.user-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6edf3;
+}
+
+.user-menu-item.danger {
+  color: #f85149;
+}
+
+.user-menu-item.danger:hover {
+  background: rgba(248, 81, 73, 0.12);
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: #2d333b;
+  margin: 4px 0;
+}
+
+.user-menu-enter-active,
+.user-menu-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.user-menu-enter-from,
+.user-menu-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .menu-hint {

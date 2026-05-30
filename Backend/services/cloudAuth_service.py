@@ -66,9 +66,12 @@ class CloudAuthService:
             existedCloud.name = name
         if description:
             existedCloud.description = description
+        if regions:
+            existedCloud.regions = regions
 
         try:
-            await self.cloud_repository.update(existedCloud)
+           
+            await self.cloud_repository.update(existedCloud.id,existedCloud)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

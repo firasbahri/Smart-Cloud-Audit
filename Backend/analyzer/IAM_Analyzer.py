@@ -31,7 +31,6 @@ class IAMAnalyzer:
                     severity="Critical",
                     resource_id=user.id,
                     resource_type="IAM User",
-                    origin="Static Analysis",
                 ))
 
             wildCardPolicies= self.hasWildcardPermissions(user.inline_policies)
@@ -48,7 +47,6 @@ class IAMAnalyzer:
                         severity="Critical",
                         resource_id=user.id,
                         resource_type="IAM User",
-                        origin="Static Analysis",
                     ))
               
         return vulnerabilities
@@ -70,7 +68,6 @@ class IAMAnalyzer:
                     severity="Critical",
                     resource_id=group.id,
                     resource_type="IAM Group",
-                    origin="Static Analysis",
                 ))
             wildCardPolicies= self.hasWildcardPermissions(group.inline_policies)
             if wildCardPolicies:
@@ -86,7 +83,6 @@ class IAMAnalyzer:
                     severity="Critical",
                     resource_id=group.id,
                     resource_type="IAM Group",
-                    origin="Static Analysis",
                 ))
 
         return vulnerabilities
@@ -108,7 +104,6 @@ class IAMAnalyzer:
                         severity="Medium",
                         resource_id=user.id,
                         resource_type="IAM User",
-                        origin="Static Analysis",
                     )
                 )
         return vulnerabilities
@@ -155,7 +150,6 @@ class IAMAnalyzer:
                         severity="Low",
                         resource_id=user.id,
                         resource_type="IAM User",
-                        origin="Static Analysis",
                     )
                 )
 
@@ -170,30 +164,28 @@ class IAMAnalyzer:
                 if role.trusted_entities:
                     logger.info(f"Role {role.name} has AdministratorAccess managed policy and trusted entities: {role.trusted_entities}")
                     vulnerabilities.append(Vulnerability(
-                        id=f"iam_role_{role.id}_managed_admin_trusted",
-                        name="IAM Role with AdministratorAccess Managed Policy and Trusted Entities",
-                        description=(
-                            f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached and is trusted by entities {role.trusted_entities}, "
-                            "granting full access to all AWS services and resources to those entities."
-                        ),
-                        severity="Critical",
-                        resource_id=role.id,
-                        resource_type="IAM Role",
-                        origin="Static Analysis",
-                    ))
+                            id=f"iam_role_{role.id}_managed_admin_trusted",
+                            name="IAM Role with AdministratorAccess Managed Policy and Trusted Entities",
+                            description=(
+                                f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached and is trusted by entities {role.trusted_entities}, "
+                                "granting full access to all AWS services and resources to those entities."
+                            ),
+                            severity="Critical",
+                            resource_id=role.id,
+                            resource_type="IAM Role",
+                        ))
                 else:
-                    vulnerabilities.append(Vulnerability(
-                        id=f"iam_role_{role.id}_managed_admin",
-                        name="IAM Role with AdministratorAccess Managed Policy",
-                        description=(
-                            f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached, "
+                        vulnerabilities.append(Vulnerability(
+                            id=f"iam_role_{role.id}_managed_admin",
+                            name="IAM Role with AdministratorAccess Managed Policy",
+                            description=(
+                                f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached, "
                 
-                        ),
-                        severity="Medium",
-                        resource_id=role.id,
-                        resource_type="IAM Role",
-                        origin="Static Analysis",
-                    ))
+                            ),
+                            severity="Medium",
+                            resource_id=role.id,
+                            resource_type="IAM Role",
+                        ))
                
 
             wildCardPolicies= self.hasWildcardPermissions(role.inline_policies)
@@ -212,7 +204,6 @@ class IAMAnalyzer:
                             severity="Critical",
                             resource_id=role.id,
                             resource_type="IAM Role",
-                            origin="Static Analysis",
                         ))
                     else:
                         vulnerabilities.append(Vulnerability(
@@ -225,7 +216,6 @@ class IAMAnalyzer:
                             severity="High",
                             resource_id=role.id,
                             resource_type="IAM Role",
-                            origin="Static Analysis",
                         ))
                 
         return vulnerabilities

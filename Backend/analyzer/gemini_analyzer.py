@@ -57,6 +57,11 @@ YOUR TASKS:
 1. Analyze the static vulnerabilities in the company context — add business impact where relevant.
 2. Identify additional vulnerabilities not detected by static analysis (contextual, logical, or configuration-based).
 3. Identify attack chains between resources (e.g., public S3 bucket + overpermissioned IAM role = lateral movement path).
+4. For each vulnerability, explain the business impact using the company context 
+   provided — mention specifically how it affects THIS company (startup, developers, 
+   client data, etc.)
+5. Prioritize vulnerabilities based on the company context — a startup with client 
+   data has different risk tolerance than an enterprise.
 
 SEVERITY CRITERIA:
 - Critical: immediate exploitation risk, data exfiltration possible, no authentication required
@@ -104,7 +109,6 @@ If no additional vulnerabilities are found beyond the static analysis, return an
             severity=item.get("severity"),
             resource_id=item.get("resource_id"),
             resource_type=item.get("resource_type"),
-            origin=item.get("origin")
           )
         )
       return vulnerabilities

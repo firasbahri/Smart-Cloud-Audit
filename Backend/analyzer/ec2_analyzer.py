@@ -27,7 +27,6 @@ class EC2Analyzer:
                     severity="Medium",
                     resource_id=instance.id,
                     resource_type="EC2 Instance",
-                    origin="Static Analysis",
                 ))
         return vulnerabilities
 
@@ -49,7 +48,6 @@ class EC2Analyzer:
                                     severity="High",
                                     resource_id=instance.id,
                                     resource_type="EC2 Instance",
-                                    origin="Static Analysis",
                                 ))
                     if rule.protocol == "tcp" and rule.from_port == 3389 and rule.to_port == 3389:
                         for ip_range in rule.ip_ranges:
@@ -63,7 +61,6 @@ class EC2Analyzer:
                                     severity="High",
                                     resource_id=instance.id,
                                     resource_type="EC2 Instance",
-                                    origin="Static Analysis",
                                 ))
         return Vulnerabilities 
  
@@ -74,17 +71,16 @@ class EC2Analyzer:
         for instance in instances:
             for volume in instance.volumes:
                 logger.info(f"volumes of instance {instance.id}: {volume}")
-                if volume["Encrypted"] == False:
+                if volume["encrypted"] == False:
                     vulnerabilities.append(Vulnerability(
-                        id=f"ec2_{instance.id}_ebs_{volume['VolumeId']}_unencrypted",
+                        id=f"ec2_{instance.id}_ebs_{volume['volume_id']}_unencrypted",
                         name="EC2 Instance with Unencrypted EBS Volume",
                         description=(
-                            f"The EC2 instance '{instance.id}' has an attached EBS volume '{volume['VolumeId']}' that is not encrypted, which can lead to data exposure if the volume is compromised."
+                            f"The EC2 instance '{instance.id}' has an attached EBS volume '{volume['volume_id']}' that is not encrypted, which can lead to data exposure if the volume is compromised."
                         ),
                         severity="Medium",
                         resource_id=instance.id,
                         resource_type="EC2 Instance",
-                        origin="Static Analysis",
                     ))
         return vulnerabilities
     
@@ -105,6 +101,5 @@ class EC2Analyzer:
                     severity="Low",
                     resource_id=instance.id,
                     resource_type="EC2 Instance",
-                    origin="Static Analysis",
                 ))
         return vulnerabilities

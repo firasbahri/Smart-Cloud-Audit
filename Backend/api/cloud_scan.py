@@ -27,6 +27,7 @@ async def get_scan_status(scan_id: str, user_id: str = Depends(get_user_id_from_
     return ScanStatusResponse(
         status=str(result.status),
         progress=int(result.progress or 0),
+        created_at=result.created_at,
         results=result.resources,
         errors=result.errors
     )
@@ -50,11 +51,16 @@ async def scan_progress_sse(scan_id: str, user_id: str = Depends(get_user_id_fro
     logger.info(f"Getting scan progress for scan_id: {scan_id} and user_id: {user_id}")
     async def event_generator():
         while True:
-            result = await cloud_scan_service.get_scan_status(scan_id, user_id)
+            try:
+                result = await cloud_scan_service.get_scan_status(scan_id, user_id)
+            except HTTPException as e:
+                yield f"data: {json.dumps({'error': e.detail, 'status': 'failed'})}\n\n"
+                break
             data=json.dumps({
                 "status": str(result.status),
                 "progress": int(result.progress or 0),
                 "results": result.resources,
+                "created_at": result.created_at,
                 "errors": result.errors
             })
             yield f"data: {data}\n\n"
@@ -63,6 +69,6 @@ async def scan_progress_sse(scan_id: str, user_id: str = Depends(get_user_id_fro
             await asyncio.sleep(2)
 
     return StreamingResponse(
-        event_generator(), 
+        event_generator(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

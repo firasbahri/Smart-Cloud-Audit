@@ -9,6 +9,7 @@ from services.JSONSerializer import JSONSerializer
 from services.JSONDeserializer import JSONDeserializer
 from datetime import datetime as dateTime, timezone
 from controllers.auditController import AuditController
+from enums import AuditOrigin
 from uuid import uuid4
 import logging
 
@@ -33,7 +34,7 @@ class CloudAuditService:
         vulnerabilities=auditController.staticAudit(deserializedResources)
         auditID=str(uuid4())
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
-        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id)
+        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id,resources=resources, origin=AuditOrigin.Static.value)
         insterdId=await self.audit_repository.create(auditResult)
         logger.info(f"Created audit result with id {insterdId} for scan {scan_id} and user {user_id}")
         return auditResult
@@ -63,7 +64,8 @@ class CloudAuditService:
 
         response_vulnerabilities=geminiAnalyzer.analyze(resources, vulnerabilities, user_context)
         auditID=str(uuid4())
-        auditAiResult= AuditResult(id=auditID, vulnerabilities=JSONSerializer.serializeList(response_vulnerabilities), accountID=scanResult.cloudAccount_id,userID=user_id)
+        auditAiResult= AuditResult(id=auditID, vulnerabilities=JSONSerializer.serializeList(response_vulnerabilities), accountID=scanResult.cloudAccount_id,userID=user_id,resources=resources,origin=AuditOrigin.AI.value, userContext=user_context )
+        insertedId=await self.audit_repository.create(auditAiResult)
         return auditAiResult
         
 

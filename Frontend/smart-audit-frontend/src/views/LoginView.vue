@@ -146,6 +146,7 @@ const onFormSubmit = async(e) => {
       
       console.log("token es  ",data.token)
       localStorage.setItem('token', data.token);
+      localStorage.setItem('username', e.values.username);
 
       setTimeout(() => {
         router.push('/app/cloud-accounts');

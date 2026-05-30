@@ -74,6 +74,7 @@ class CloudRepository(IRepository):
 
     async def update(self, cloud_id, cloud: Cloud):
         cloud_dict = cloud.__dict__
+        print(cloud_dict)
         result = await self.collection.update_one(
             {"_id": ObjectId(cloud_id)}, {"$set": cloud_dict}
         )

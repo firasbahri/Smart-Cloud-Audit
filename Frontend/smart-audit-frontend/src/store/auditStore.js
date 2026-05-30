@@ -32,6 +32,7 @@ export const useAuditStore = defineStore("audit", () => {
   };
 
   const loadAuditDataForAccount = async (account) => {
+    
     const accountId = account?.id || account?.account_id || account;
     if (!accountId) {
       clearData();
@@ -61,6 +62,8 @@ export const useAuditStore = defineStore("audit", () => {
       const result = data.vulnerabilities || data.results || [];
       const auditID = data.audit_id || "";
       const createdAt = data.created_at || null;  
+
+      console.log('Datos de auditoría cargados para la cuenta:', accountId, result);
 
       setAudits(auditID, result);
       auditCreatedAt.value = createdAt;

@@ -298,6 +298,9 @@ class AwsScanner(IScanner):
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
             
             all_instances = []
+            if regions == None or len(regions) == 0:
+                ec2 = self.session.client('ec2')
+                regions=[region['RegionName'] for region in ec2.describe_regions()['Regions']]
             for r in regions:
     
                 logger.info(f"Scanning EC2 instances in region: {r}")

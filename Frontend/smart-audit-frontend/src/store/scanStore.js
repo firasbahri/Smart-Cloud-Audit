@@ -4,21 +4,28 @@ import { buildApiSseUrl, buildApiUrl } from '../utils/api'
 
 export const useScanStore = defineStore('scan', () => {
 
-  const id = ref('')
-  const scanResult = ref(null)
+  const scanResultIdByAccount = ref({})
+  const scanResultByAccount = ref({})
   const scanProgressByAccount = ref({})
   const scanningAccounts = ref({})
   const scanIdByAccount = ref({})
-  const scanCreatedAt = ref(null)
+  const scanCreatedAtByAccount = ref({})
   const pendingNotifications = ref([])
+  const resourceContextsByAccount = ref({})
 
   // Map no reactivo, solo gestión interna de conexiones SSE
   const eventSources = new Map()
 
-  const setScanData = (scanId, data) => {
-    id.value = scanId
-    scanResult.value = data
-    scanCreatedAt.value = data.created_at || null
+  const setScanData = (accountId, scanId, dataResult, createdAt) => {
+    scanResultIdByAccount.value[accountId] = scanId
+    scanResultByAccount.value[accountId] = dataResult
+    scanCreatedAtByAccount.value[accountId] = createdAt
+    console.log('Datos de escaneo actualizados para la cuenta:', accountId, {
+      scanId,
+      createdAt: createdAt,
+      result: dataResult
+    })
+  
   }
 
   const startAccountScan = (accountId, scanId) => {
@@ -49,13 +56,36 @@ export const useScanStore = defineStore('scan', () => {
     delete scanIdByAccount.value[accountId]
   }
 
+  const loadContextsForAccount = (accountId) => {
+    if (!accountId || resourceContextsByAccount.value[accountId]) return
+    try {
+      const stored = localStorage.getItem(`sa_ctx_${accountId}`)
+      resourceContextsByAccount.value[accountId] = stored ? JSON.parse(stored) : {}
+    } catch {
+      resourceContextsByAccount.value[accountId] = {}
+    }
+  }
+
+  const setResourceContext = (accountId, resourceId, context) => {
+    if (!accountId) return
+    if (!resourceContextsByAccount.value[accountId]) resourceContextsByAccount.value[accountId] = {}
+    const trimmed = context.trim()
+    if (trimmed) {
+      resourceContextsByAccount.value[accountId][resourceId] = trimmed
+    } else {
+      delete resourceContextsByAccount.value[accountId][resourceId]
+    }
+    localStorage.setItem(`sa_ctx_${accountId}`, JSON.stringify(resourceContextsByAccount.value[accountId]))
+  }
+
   const clearData = () => {
-    id.value = ''
-    scanResult.value = null
+    scanCreatedAtByAccount.value = {}
+    scanResultIdByAccount.value = {}
+    scanResultByAccount.value = {}
     scanProgressByAccount.value = {}
     scanningAccounts.value = {}
     scanIdByAccount.value = {}
-    scanCreatedAt.value = null
+    scanCreatedAtByAccount.value = {}
   }
 
   const pushNotification = (notification) => {
@@ -84,7 +114,7 @@ export const useScanStore = defineStore('scan', () => {
         const progress = Number(data.progress ?? 0)
         setAccountScanProgress(accountId, progress)
 
-        if (data.results) setScanData(accountId, data.results)
+        if (data.results) setScanData(accountId, scanId, data.results,data.created_at)
 
         if (data.status === 'completed') {
           es.close()
@@ -139,7 +169,7 @@ export const useScanStore = defineStore('scan', () => {
 
     const token = localStorage.getItem('token')
     if (!token) { clearData(); return null }
-
+    if (scanIdByAccount.value[accountId]) return 
     try {
       const response = await fetch(buildApiUrl(`/cloud/get_scan_result/${accountId}`), {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -150,9 +180,8 @@ export const useScanStore = defineStore('scan', () => {
       const scanId = data.scan_id || ''
       if (!scanId) { clearData(); return null }
 
-      setScanData(scanId, data.results || data.resources || null)
-      scanIdByAccount.value[accountId] = scanId
-      scanCreatedAt.value = data.created_at || null
+      setScanData(accountId, scanId, data.results ,data.created_at)
+      console.log('Datos de escaneo cargados para la cuenta:', accountId, data)
       return data
     } catch (error) {
       console.error('Error cargando datos de escaneo:', error)
@@ -161,14 +190,26 @@ export const useScanStore = defineStore('scan', () => {
     }
   }
 
+  const esScanReciente=(accountId)=> {
+    console.log('Verificando si el escaneo es reciente...')
+    console.log('Valor de scanCreatedAt:', scanCreatedAtByAccount.value[accountId])
+    if (!scanCreatedAtByAccount.value[accountId]) return false
+    const hours = (new Date() - new Date(scanCreatedAtByAccount.value[accountId])) / (1000 * 60 * 60)
+    console.log('Horas desde el último escaneo:', hours)
+    console.log('Fecha de creación del escaneo:', scanCreatedAtByAccount.value[accountId])
+    return hours < 24
+  }
+  
+
   return {
-    id,
-    scanResult,
+    scanResultIdByAccount,
+    scanResultByAccount,
+    scanCreatedAtByAccount,
     scanProgressByAccount,
     scanningAccounts,
     scanIdByAccount,
-    scanCreatedAt,
     pendingNotifications,
+    resourceContextsByAccount,
     setScanData,
     startAccountScan,
     setAccountScanProgress,
@@ -179,6 +220,9 @@ export const useScanStore = defineStore('scan', () => {
     startSSE,
     stopSSE,
     consumeNotifications,
-    loadScanDataForAccount
+    loadScanDataForAccount,
+    loadContextsForAccount,
+    setResourceContext,
+    esScanReciente
   }
 })

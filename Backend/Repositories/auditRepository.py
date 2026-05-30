@@ -24,6 +24,8 @@ class AuditRepository(IRepository):
             vulnerabilities=result.get("vulnerabilities", []),
             accountID=result.get("accountID"),
             userID=result.get("userID"),
+            resources=result.get("resources", []),
+            origin=result.get("origin")
         )
         created_at = result.get("created_at")
         auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
@@ -39,6 +41,8 @@ class AuditRepository(IRepository):
             vulnerabilities=result.get("vulnerabilities", []),
             accountID=result.get("accountID"),
             userID=result.get("userID"),
+            resources=result.get("resources", []),
+            origin=result.get("origin")
         )
         creaed_at = result.get("created_at")
         auditResult.created_at = creaed_at.isoformat() if hasattr(creaed_at, 'isoformat') else creaed_at

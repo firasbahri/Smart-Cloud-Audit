@@ -31,7 +31,6 @@ class S3Analyzer:
                         severity="Critical",
                         resource_id=bucket.id,
                         resource_type="S3",
-                        origin="Static Analysis",
                     )
                 )
             elif self.isPublicBucketPolicy(bucket.bucket_policy):
@@ -43,7 +42,6 @@ class S3Analyzer:
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
-                        origin="Static Analysis",
                     )
                 )
             elif self.isPublicAccess(bucket.public_access):
@@ -55,7 +53,6 @@ class S3Analyzer:
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
-                        origin="Static Analysis",
                     )
                 )
        
@@ -76,7 +73,6 @@ class S3Analyzer:
                         severity="Low",
                         resource_id=bucket.id,
                         resource_type="S3",
-                        origin="Static Analysis",
                     )
                 )
         return Vulnerabilities
@@ -95,7 +91,6 @@ class S3Analyzer:
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
-                        origin="Static Analysis",
                     )
                 )
         return Vulnerabilities

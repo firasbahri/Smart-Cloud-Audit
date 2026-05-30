@@ -214,8 +214,17 @@
           </div>
 
           <div class="flex flex-column gap-2">
-            <label for="regions" class="font-semibold">Regiones AWS</label>
+            <div class="region-label-row">
+              <label for="regions" class="font-semibold">Regiones AWS</label>
+              <label class="auto-detect-toggle">
+                <input type="checkbox" v-model="autoDetectRegions" @change="autoDetectRegions && (newAccount.regions = [])" />
+                <span class="toggle-track"><span class="toggle-thumb" /></span>
+                <span class="toggle-label">Detectar automáticamente</span>
+              </label>
+            </div>
+
             <MultiSelect
+              v-if="!autoDetectRegions"
               id="regions"
               v-model="newAccount.regions"
               :options="AWS_REGIONS"
@@ -230,8 +239,13 @@
               class="w-full"
               :invalid="errors.regions"
             />
-            <small v-if="errors.regions" class="text-red-500">{{ errors.regions }}</small>
-            <small class="text-500">
+            <small v-if="errors.regions && !autoDetectRegions" class="text-red-500">{{ errors.regions }}</small>
+
+            <div v-if="autoDetectRegions" class="auto-detect-warn">
+              <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
+              <span>El scanner recorrerá todas las regiones de AWS (~30). El escaneo inicial será considerablemente más lento. Se recomienda seleccionar solo las regiones donde tienes recursos.</span>
+            </div>
+            <small v-else class="text-500">
               <InfoIcon :size="14" class="mr-1" />
               Selecciona las regiones donde tienes recursos EC2 desplegados
             </small>
@@ -245,6 +259,10 @@
               rows="2"
               placeholder="Describe el propósito de esta cuenta..."
             />
+            <div class="ai-ctx-hint-box">
+              <i class="pi pi-sparkles" style="font-size: 0.75rem; color: #a78bfa" />
+              <span>Esta descripción se usará automáticamente como contexto empresarial en el <strong>Análisis IA</strong>. Cuanto más detallada, mejores resultados.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -252,11 +270,31 @@
       <template #footer>
         <Button label="Cancelar" icon="pi pi-times" text @click="closeDialog" />
         <Button
-          label="Conectar Cuenta"
-          icon="pi pi-check"
+          :label="isConnecting ? 'Conectando...' : 'Conectar Cuenta'"
+          :icon="isConnecting ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
+          :loading="isConnecting"
+          :disabled="isConnecting || !selectedProvider || !newAccount.name || !newAccount.arn"
           @click="addAccount"
-          :disabled="!selectedProvider || !newAccount.name || !newAccount.arn"
         />
+      </template>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="showScanConfirmDialog"
+      modal
+      header="Scan reciente detectado"
+      :style="{ width: '28rem' }"
+    >
+      <div class="flex align-items-center gap-3 mb-3">
+        <i class="pi pi-exclamation-triangle text-yellow-500" style="font-size: 2rem" />
+        <p class="m-0">
+          Ya tienes un escaneo de menos de <strong>24 horas</strong> para esta cuenta.
+          ¿Quieres lanzar uno nuevo igualmente?
+        </p>
+      </div>
+      <template #footer>
+        <Button label="Cancelar" icon="pi pi-times" text @click="cancelScan" />
+        <Button label="Sí, escanear" icon="pi pi-refresh" severity="warning" @click="confirmScan" />
       </template>
     </Dialog>
 
@@ -373,7 +411,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
 import { useScanStore } from '../store/scanStore'
@@ -475,6 +513,9 @@ const selectedProvider = ref(null)
 const selectedAccount = ref(null)
 const menu = ref()
 
+
+const autoDetectRegions = ref(false)
+const isConnecting = ref(false)
 
 const newAccount = reactive({
   name: '',
@@ -614,7 +655,7 @@ const validateForm = () => {
     isValid = false
   }
 
-  if (!newAccount.regions.length) {
+  if (!autoDetectRegions.value && !newAccount.regions.length) {
     errors.regions = 'Selecciona al menos una región'
     isValid = false
   }
@@ -629,6 +670,7 @@ const closeDialog = () => {
   newAccount.arn = ''
   newAccount.description = ''
   newAccount.regions = []
+  autoDetectRegions.value = false
   errors.name = ''
   errors.arn = ''
   errors.regions = ''
@@ -654,6 +696,7 @@ const shouldShowProgressBar = (accountId) => {
 const addAccount = async () => {
   if (!validateForm()) return
 
+  isConnecting.value = true
   try {
     const token = localStorage.getItem('token')
     const API_URL = buildApiUrl('/cloud/register_cloud')
@@ -700,14 +743,41 @@ const addAccount = async () => {
       life: 3000
     })
     return
+  } finally {
+    isConnecting.value = false
   }
 
   closeDialog()
 }
 
 
-const startScan = async (account) => {
+const showScanConfirmDialog = ref(false)
+const pendingScanAccount = ref(null)
+
+const startScan = (account) => {
+  cloudAccountsStore.selectAccount(account)
+  if (scanStore.esScanReciente(account.id)) {
+    pendingScanAccount.value = account
+    showScanConfirmDialog.value = true
+    return
+  }
+  executeScan(account)
+}
+
+const confirmScan = () => {
+  showScanConfirmDialog.value = false
+  executeScan(pendingScanAccount.value)
+  pendingScanAccount.value = null
+}
+
+const cancelScan = () => {
+  showScanConfirmDialog.value = false
+  pendingScanAccount.value = null
+}
+
+const executeScan = async (account) => {
   if (account.provider === 'AWS') {
+    
     const token = localStorage.getItem('token')
     try {
       const URL = buildApiUrl('/cloud/start_scan')
@@ -717,30 +787,19 @@ const startScan = async (account) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          id: account.id
-        })
+        body: JSON.stringify({ id: account.id })
       })
 
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'No se pudo iniciar el escaneo')
 
       const scanId = data.scan_id
-      scanStore.id = scanId
       scanStore.startSSE(scanId, String(account.id))
     } catch (error) {
       scanStore.failAccountScan(String(account.id))
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: error.message,
-        life: 3000
-      })
-      return
+      toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 3000 })
     }
   }
-
-  cloudAccountsStore.selectAccount(account)
 }
 
 const confirmDelete = () => {
@@ -844,6 +903,8 @@ const saveEdit = async () => {
 
   showEditDialog.value = false
 }
+
+
 </script>
 
 <style scoped>
@@ -956,5 +1017,77 @@ const saveEdit = async () => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.ai-ctx-hint-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: rgba(167, 139, 250, 0.06);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: #c4b5fd;
+  line-height: 1.45;
+}
+
+.ai-ctx-hint-box strong { color: #a78bfa; }
+
+/* ── Region toggle ── */
+.region-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auto-detect-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-detect-toggle input { display: none; }
+
+.toggle-track {
+  width: 32px;
+  height: 18px;
+  background: #2d333b;
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.auto-detect-toggle input:checked ~ .toggle-track { background: #22c55e; }
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.auto-detect-toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(14px); }
+
+.toggle-label { font-size: 0.8rem; color: #768390; font-weight: 400; }
+
+.auto-detect-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: rgba(227, 179, 65, 0.07);
+  border: 1px solid rgba(227, 179, 65, 0.3);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: #e3b341;
+  line-height: 1.45;
 }
 </style>

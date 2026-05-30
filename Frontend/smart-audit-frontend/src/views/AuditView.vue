@@ -15,16 +15,61 @@
 						<span class="account-label">Cuenta a auditar</span>
 						<span class="account-value">{{ activeAccountLabel }}</span>
 					</div>
-					<Button
-						label="Static Audit"
-						icon="pi pi-search"
-						:loading="isLoadingStatic"
-						:disabled="isLoadingAny || !canRunAudit"
-						@click="runStaticAudit"
-					/>
+					<div class="audit-controls">
+						<div class="audit-mode-toggle">
+							<button
+								:class="['toggle-btn', 'static-btn', { active: auditMode === 'static' }]"
+								@click="auditMode = 'static'"
+							>
+								<i class="pi pi-search" /> Estático
+							</button>
+							<button
+								:class="['toggle-btn', 'ai-btn', { active: auditMode === 'ai' }]"
+								@click="auditMode = 'ai'"
+							>
+								<i class="pi pi-sparkles" /> Análisis IA
+							</button>
+						</div>
+						<Button
+							:label="auditMode === 'ai' ? 'Ejecutar IA' : 'Ejecutar'"
+							:icon="auditMode === 'ai' ? 'pi pi-sparkles' : 'pi pi-search'"
+							:loading="isLoadingAny"
+							:disabled="isLoadingAny || !canRunAudit"
+							:style="auditMode === 'ai' ? { background: '#7c3aed', borderColor: '#7c3aed', color: '#fff' } : {}"
+							@click="auditMode === 'ai' ? submitAiAudit() : runStaticAudit()"
+						/>
+					</div>
 				</div>
 			</template>
 		</Card>
+
+		<!-- AI context summary panel -->
+		<div v-if="auditMode === 'ai'" class="ctx-panel mb-4">
+			<div class="ctx-panel-header">
+				<div class="ctx-panel-title">
+					<i class="pi pi-sparkles" style="color:#a78bfa" />
+					<span>Contexto IA activo</span>
+					<span class="ctx-sections-badge">{{ filledSections }}/{{ totalSections }} secciones</span>
+				</div>
+				<button class="ctx-edit-link" @click="router.push('/app/inventory')">Editar contexto →</button>
+			</div>
+			<p v-if="cloudAccountsStore.selectedAccount?.description" class="ctx-business">
+				<strong>Negocio:</strong> {{ cloudAccountsStore.selectedAccount.description }}
+			</p>
+			<p v-else class="ctx-business ctx-empty-hint">Sin descripción de negocio — añádela al editar la cuenta.</p>
+			<div class="ctx-pills">
+				<span
+					v-for="g in contextGroups"
+					:key="g.key"
+					:class="['ctx-pill', `pill-${g.status}`]"
+				>
+					<span v-if="g.status === 'full'">✓ </span>{{ g.label }}
+					<span v-if="g.status === 'full'"> · {{ g.filled }}</span>
+					<span v-else-if="g.status === 'partial'"> · {{ g.filled }}/{{ g.total }}</span>
+					<span v-else> · sin contexto</span>
+				</span>
+			</div>
+		</div>
 
 		<Message v-if="!hasResources" severity="warn" :closable="false" class="mb-4">
 			No hay recursos para auditar en la cuenta seleccionada.
@@ -32,185 +77,73 @@
 
 		<Card v-if="hasResources" class="vuln-card">
 			<template #content>
-				<Tabs v-model:value="activeTab">
-					<TabList>
-						<Tab value="static">
+				<div class="results-bar">
+					<div :class="['seg-ctrl', `mode-${activeTab}`]">
+						<button :class="['seg-btn', { active: activeTab === 'static' }]" @click="activeTab = 'static'">
 							Estático
-							<span v-if="staticVulnerabilities.length" class="tab-badge">{{ staticVulnerabilities.length }}</span>
-						</Tab>
-						<Tab v-if="aiVulnerabilities.length > 0" value="ai">
-							IA
-							<span class="tab-badge ai-badge">{{ aiVulnerabilities.length }}</span>
-						</Tab>
-					</TabList>
+							<span v-if="staticVulnerabilities.length" class="seg-badge">{{ staticVulnerabilities.length }}</span>
+						</button>
+						<button
+							v-if="aiVulnerabilities.length > 0"
+							:class="['seg-btn', { active: activeTab === 'ai' }]"
+							@click="activeTab = 'ai'"
+						>
+							<i class="pi pi-sparkles" style="font-size: 0.68rem" /> IA
+							<span class="seg-badge">{{ aiVulnerabilities.length }}</span>
+						</button>
+					</div>
+					<div class="filter-right">
+						<small class="text-muted">{{ currentTotal }} hallazgos</small>
+						<select v-model="selectedSeverity" class="sev-select">
+							<option v-for="opt in severityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+						</select>
+					</div>
+				</div>
 
-					<TabPanels>
-						<TabPanel value="static">
-							<div class="vuln-filter flex justify-content-between align-items-center mt-3 mb-3">
-								<small class="text-muted">Total: {{ staticVulnerabilities.length }}</small>
-								<Select v-model="selectedSeverity" :options="severityOptions" optionLabel="label" optionValue="value" class="w-14rem" />
+				<div v-if="pagedVulns.length" class="vuln-list flex flex-column gap-3">
+					<div
+						v-for="vuln in pagedVulns"
+						:key="vuln.id"
+						:class="['vuln-item', { 'ai-vuln-item': activeTab === 'ai' }]"
+					>
+						<div class="vuln-top flex align-items-center justify-content-between gap-2">
+							<strong :class="{ 'ai-vuln-id': activeTab === 'ai' }">{{ vuln.id }}</strong>
+							<div class="flex gap-2">
+								<Tag :value="vuln.severity" :severity="mapSeverity(vuln.severity)" rounded />
+								<Tag v-if="activeTab === 'static'" :value="vuln.origin" severity="secondary" rounded />
 							</div>
-							<div v-if="filteredStatic.length" class="vuln-list flex flex-column gap-3">
-								<div v-for="vuln in filteredStatic" :key="vuln.id" class="vuln-item">
-									<div class="vuln-top flex align-items-center justify-content-between gap-2">
-										<strong>{{ vuln.id }}</strong>
-										<div class="flex gap-2">
-											<Tag :value="vuln.severity" :severity="mapSeverity(vuln.severity)" rounded />
-											<Tag :value="vuln.origin" severity="secondary" rounded />
-										</div>
-									</div>
-									<p class="vuln-description">{{ vuln.description }}</p>
-									<div class="vuln-meta"><span><strong>Resource ID:</strong> {{ vuln.resource_id }}</span></div>
-								</div>
-							</div>
-							<Message v-else severity="info" :closable="false">No hay vulnerabilidades para la severidad seleccionada.</Message>
-						</TabPanel>
+						</div>
+						<p class="vuln-description">{{ vuln.description }}</p>
+						<div :class="['vuln-meta', { 'ai-vuln-meta': activeTab === 'ai' }]">
+							<span><strong>Resource ID:</strong> {{ vuln.resource_id }}</span>
+						</div>
+					</div>
+				</div>
+				<Message v-else-if="activeFiltered.length === 0 && currentTotal > 0" severity="info" :closable="false" class="mt-3">No hay vulnerabilidades para la severidad seleccionada.</Message>
 
-						<TabPanel value="ai">
-							<div class="vuln-filter flex justify-content-between align-items-center mt-3 mb-3">
-								<small class="text-muted">Total: {{ aiVulnerabilities.length }}</small>
-								<Select v-model="selectedSeverity" :options="severityOptions" optionLabel="label" optionValue="value" class="w-14rem" />
-							</div>
-							<div v-if="filteredAi.length" class="vuln-list flex flex-column gap-3">
-								<div v-for="vuln in filteredAi" :key="vuln.id" class="vuln-item">
-									<div class="vuln-top flex align-items-center justify-content-between gap-2">
-										<strong>{{ vuln.id }}</strong>
-										<div class="flex gap-2">
-											<Tag :value="vuln.severity" :severity="mapSeverity(vuln.severity)" rounded />
-											<Tag :value="vuln.origin" severity="secondary" rounded />
-										</div>
-									</div>
-									<p class="vuln-description">{{ vuln.description }}</p>
-									<div class="vuln-meta"><span><strong>Resource ID:</strong> {{ vuln.resource_id }}</span></div>
-								</div>
-							</div>
-							<Message v-else severity="info" :closable="false">No hay vulnerabilidades para la severidad seleccionada.</Message>
-						</TabPanel>
-					</TabPanels>
-				</Tabs>
-
-				<div v-if="staticVulnerabilities.length > 0" class="ai-button-wrap mt-4">
-					<Button
-						label="Audit con IA"
-						icon="pi pi-sparkles"
-						severity="contrast"
-						:disabled="isLoadingAny"
-						@click="openAiDrawer"
-					/>
+				<div v-if="totalPages > 1" class="paginator">
+					<button class="pag-btn" :disabled="currentPage === 1" @click="currentPage--">
+						<i class="pi pi-chevron-left" style="font-size:0.75rem" />
+					</button>
+					<template v-for="p in pageNumbers" :key="p">
+						<span v-if="p === '...'" class="pag-ellipsis">…</span>
+						<button v-else :class="['pag-btn', 'pag-num', { active: currentPage === p }]" @click="currentPage = p">{{ p }}</button>
+					</template>
+					<button class="pag-btn" :disabled="currentPage === totalPages" @click="currentPage++">
+						<i class="pi pi-chevron-right" style="font-size:0.75rem" />
+					</button>
+					<span class="pag-info">{{ pageInfo }}</span>
 				</div>
 			</template>
 		</Card>
 
-		<!-- AI Drawer -->
-		<Drawer v-model:visible="drawerOpen" position="right" :style="{ width: '460px' }">
-			<template #header>
-				<div class="flex align-items-center gap-2">
-					<i class="pi pi-sparkles" style="color: #fb7185; font-size: 1.1rem" />
-					<span class="font-bold" style="color: #e6edf3; font-size: 1rem">
-						{{ drawerPhase === 'results' ? 'Resultados del Análisis IA' : 'Contexto para Análisis IA' }}
-					</span>
-					<span v-if="drawerPhase === 'results'" class="res-count ml-1">{{ drawerResults.length }}</span>
-				</div>
-			</template>
-
-			<!-- PHASE: form -->
-			<div v-if="drawerPhase === 'form'" class="flex flex-column gap-4 p-1">
-				<div class="flex flex-column gap-2">
-					<label class="ctx-label">Descripción de la empresa / servicio</label>
-					<small class="ctx-hint">Ayuda a la IA a entender el propósito de la cuenta y priorizar riesgos.</small>
-					<Textarea
-						v-model="companyContext"
-						:rows="4"
-						placeholder="Ej: Startup fintech que procesa pagos online. Los buckets S3 almacenan facturas de clientes..."
-						class="ctx-textarea"
-						autoResize
-					/>
-				</div>
-
-				<div class="flex flex-column gap-2">
-					<label class="ctx-label">Contexto por recurso <span class="ctx-optional">(opcional)</span></label>
-					<small class="ctx-hint">Describe para qué se usa cada recurso. Deja vacío si no es relevante.</small>
-					<Accordion class="resource-accordion" :value="openAccordionPanels" multiple>
-						<AccordionPanel v-for="group in resourceGroups" :key="group.key" :value="group.key">
-							<AccordionHeader>
-								<div class="flex align-items-center gap-2 w-full">
-									<i :class="['pi', group.icon]" style="color: #8b949e" />
-									<span>{{ group.label }}</span>
-									<span class="res-count">{{ group.items.length }}</span>
-								</div>
-							</AccordionHeader>
-							<AccordionContent>
-								<div class="flex flex-column gap-2 pt-1">
-									<div v-for="item in group.items" :key="item.id" class="res-row">
-										<span class="res-id" :title="item.id">{{ item.label }}</span>
-										<InputText
-											v-model="resourceContextMap[item.id]"
-											placeholder="Descripción opcional..."
-											class="res-input"
-											size="small"
-										/>
-									</div>
-								</div>
-							</AccordionContent>
-						</AccordionPanel>
-					</Accordion>
-				</div>
-			</div>
-
-			<!-- PHASE: loading -->
-			<div v-else-if="drawerPhase === 'loading'" class="flex flex-column align-items-center justify-content-center gap-4" style="height: 60%">
-				<i class="pi pi-spin pi-spinner" style="font-size: 2.5rem; color: #fb7185" />
-				<span style="color: #8b949e; font-size: 0.95rem">Analizando con IA...</span>
-				<small style="color: #64748b; text-align: center; max-width: 260px">
-					Gemini está revisando los recursos y el contexto proporcionado
-				</small>
-			</div>
-
-			<!-- PHASE: results -->
-			<div v-else-if="drawerPhase === 'results'" class="flex flex-column gap-3 p-1">
-				<div class="results-summary flex gap-3">
-					<div v-for="s in resultSummary" :key="s.label" class="summary-pill">
-						<span class="summary-count" :style="{ color: s.color }">{{ s.count }}</span>
-						<span class="summary-label">{{ s.label }}</span>
-					</div>
-				</div>
-
-				<div class="flex flex-column gap-2">
-					<div v-for="vuln in drawerResults" :key="vuln.id" class="drawer-vuln-item">
-						<div class="flex align-items-center justify-content-between gap-2 mb-1">
-							<strong style="color: #e6edf3; font-size: 0.82rem">{{ vuln.id }}</strong>
-							<Tag :value="vuln.severity" :severity="mapSeverity(vuln.severity)" rounded />
-						</div>
-						<p class="drawer-vuln-desc">{{ vuln.description }}</p>
-						<span class="drawer-vuln-res">{{ vuln.resource_id }}</span>
-					</div>
-				</div>
-			</div>
-
-			<template #footer>
-				<!-- footer form -->
-				<div v-if="drawerPhase === 'form'" class="flex justify-content-end gap-2">
-					<Button label="Cancelar" severity="secondary" text @click="drawerOpen = false" />
-					<Button
-						label="Ejecutar Análisis IA"
-						icon="pi pi-sparkles"
-						@click="submitAiAudit"
-					/>
-				</div>
-
-				<!-- footer results -->
-				<div v-else-if="drawerPhase === 'results'" class="flex justify-content-between align-items-center">
-					<Button label="Nuevo análisis" icon="pi pi-refresh" severity="secondary" text @click="drawerPhase = 'form'" />
-					<Button label="Ver en pestaña IA" icon="pi pi-arrow-right" iconPos="right" @click="goToAiTab" />
-				</div>
-			</template>
-		</Drawer>
 	</div>
 </template>
 
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { useRouter } from 'vue-router'
 import { useScanStore } from '../store/scanStore'
 import { useAuditStore } from '../store/auditStore'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
@@ -218,40 +151,25 @@ import { buildApiUrl } from '../utils/api'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
-import Select from 'primevue/select'
 import Tag from 'primevue/tag'
-import Tabs from 'primevue/tabs'
-import Tab from 'primevue/tab'
-import TabList from 'primevue/tablist'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import Drawer from 'primevue/drawer'
-import Textarea from 'primevue/textarea'
-import InputText from 'primevue/inputtext'
-import Accordion from 'primevue/accordion'
-import AccordionPanel from 'primevue/accordionpanel'
-import AccordionHeader from 'primevue/accordionheader'
-import AccordionContent from 'primevue/accordioncontent'
 
 const scanStore = useScanStore()
 const cloudAccountsStore = useCloudAccountsStore()
 const auditStore = useAuditStore()
 const toast = useToast()
+const router = useRouter()
 
-const staticVulnerabilities = ref([])
+const staticVulnerabilities = computed(() =>
+	Array.isArray(auditStore.auditResult)
+		? auditStore.auditResult.map((item, i) => normalizeVulnerability(item, i, 'static'))
+		: []
+)
 const aiVulnerabilities = ref([])
 const activeTab = ref('static')
 const selectedSeverity = ref('ALL')
 const isLoadingStatic = ref(false)
 const isLoadingAi = ref(false)
-
-// Drawer state
-const drawerOpen = ref(false)
-const drawerPhase = ref('form') // 'form' | 'loading' | 'results'
-const drawerResults = ref([])
-const companyContext = ref('')
-const resourceContextMap = reactive({})
-const openAccordionPanels = ref([])
+const auditMode = ref('static')
 
 const severityOptions = [
 	{ label: 'Todas', value: 'ALL' },
@@ -261,7 +179,8 @@ const severityOptions = [
 	{ label: 'Low', value: 'LOW' },
 ]
 
-const resources = computed(() => scanStore.scanResult || {})
+const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
+const resources = computed(() => scanStore.scanResultByAccount[accountId.value] || {})
 
 const totalResources = computed(() =>
 	['users', 'groups', 'roles', 'buckets', 'ec2']
@@ -271,20 +190,43 @@ const totalResources = computed(() =>
 const hasResources = computed(() => totalResources.value > 0)
 
 const activeAccountLabel = computed(() =>
-	cloudAccountsStore.selectedAccount?.name || scanStore.id || 'Sin cuenta seleccionada'
+	cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada'
 )
 
 const resolvedScanId = computed(() => {
-	if (!scanStore.id) return null
-	const idValue = String(scanStore.id)
-	if (scanStore.scanIdByAccount?.[idValue]) return scanStore.scanIdByAccount[idValue]
-	const values = Object.values(scanStore.scanIdByAccount || {})
-	if (values.length === 1) return values[0]
-	return idValue
+	if (!accountId.value) return null
+	return scanStore.scanResultIdByAccount[accountId.value] || null
 })
 
 const canRunAudit = computed(() => Boolean(resolvedScanId.value) && hasResources.value)
 const isLoadingAny = computed(() => isLoadingStatic.value || isLoadingAi.value)
+const currentTotal = computed(() => activeTab.value === 'ai' ? aiVulnerabilities.value.length : staticVulnerabilities.value.length)
+
+const contextGroups = computed(() => {
+	const contexts = scanStore.resourceContextsByAccount[accountId.value] || {}
+	const res = resources.value
+	return [
+		{ key: 'user',   label: 'IAM Users', items: (res.users   || []).map(r => `user:${r.name}`) },
+		{ key: 'group',  label: 'IAM Groups', items: (res.groups  || []).map(r => `group:${r.name}`) },
+		{ key: 'role',   label: 'IAM Roles',  items: (res.roles   || []).map(r => `role:${r.name}`) },
+		{ key: 'ec2',    label: 'EC2',        items: (res.ec2     || []).map(r => `ec2:${r.id}`) },
+		{ key: 'bucket', label: 'S3',         items: (res.buckets || []).map(r => `bucket:${r.name}`) },
+	]
+		.filter(g => g.items.length > 0)
+		.map(g => {
+			const total = g.items.length
+			const filled = g.items.filter(id => contexts[id]).length
+			const status = filled === 0 ? 'empty' : filled === total ? 'full' : 'partial'
+			return { key: g.key, label: g.label, total, filled, status }
+		})
+})
+
+const filledSections = computed(() => {
+	const hasCompany = !!cloudAccountsStore.selectedAccount?.description?.trim()
+	return (hasCompany ? 1 : 0) + contextGroups.value.filter(g => g.filled > 0).length
+})
+
+const totalSections = computed(() => 1 + contextGroups.value.length)
 
 const filteredStatic = computed(() => {
 	if (selectedSeverity.value === 'ALL') return staticVulnerabilities.value
@@ -296,26 +238,35 @@ const filteredAi = computed(() => {
 	return aiVulnerabilities.value.filter(v => String(v.severity || '').toUpperCase() === selectedSeverity.value)
 })
 
-const resourceGroups = computed(() => {
-	const res = resources.value
-	return [
-		{ key: 'users', label: 'IAM Users', icon: 'pi-users', items: (res.users || []).map(r => ({ id: r.arn || r.username || r.name || String(r), label: r.username || r.name || r.arn || 'User' })) },
-		{ key: 'groups', label: 'IAM Groups', icon: 'pi-sitemap', items: (res.groups || []).map(r => ({ id: r.arn || r.group_name || r.name || String(r), label: r.group_name || r.name || r.arn || 'Group' })) },
-		{ key: 'roles', label: 'IAM Roles', icon: 'pi-id-card', items: (res.roles || []).map(r => ({ id: r.arn || r.role_name || r.name || String(r), label: r.role_name || r.name || r.arn || 'Role' })) },
-		{ key: 'ec2', label: 'EC2 Instances', icon: 'pi-server', items: (res.ec2 || []).map(r => ({ id: r.instance_id || r.id || String(r), label: r.instance_id || r.id || 'Instance' })) },
-		{ key: 'buckets', label: 'S3 Buckets', icon: 'pi-database', items: (res.buckets || []).map(r => ({ id: r.name || r.bucket_name || String(r), label: r.name || r.bucket_name || 'Bucket' })) },
-	].filter(g => g.items.length > 0)
+const PAGE_SIZE = 10
+const currentPage = ref(1)
+
+const activeFiltered = computed(() => activeTab.value === 'ai' ? filteredAi.value : filteredStatic.value)
+const totalPages = computed(() => Math.max(1, Math.ceil(activeFiltered.value.length / PAGE_SIZE)))
+
+const pagedVulns = computed(() => {
+	const start = (currentPage.value - 1) * PAGE_SIZE
+	return activeFiltered.value.slice(start, start + PAGE_SIZE)
 })
 
-const resultSummary = computed(() => {
-	const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 }
-	drawerResults.value.forEach(v => { counts[v.severity] = (counts[v.severity] || 0) + 1 })
-	return [
-		{ label: 'Critical', count: counts.CRITICAL, color: '#ef4444' },
-		{ label: 'High', count: counts.HIGH, color: '#f97316' },
-		{ label: 'Medium', count: counts.MEDIUM, color: '#eab308' },
-		{ label: 'Low', count: counts.LOW, color: '#22c55e' },
-	].filter(s => s.count > 0)
+const pageNumbers = computed(() => {
+	const total = totalPages.value
+	const cur = currentPage.value
+	if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+	const pages = [1]
+	if (cur > 3) pages.push('...')
+	for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) pages.push(i)
+	if (cur < total - 2) pages.push('...')
+	pages.push(total)
+	return pages
+})
+
+const pageInfo = computed(() => {
+	const total = activeFiltered.value.length
+	if (!total) return ''
+	const start = (currentPage.value - 1) * PAGE_SIZE + 1
+	const end = Math.min(currentPage.value * PAGE_SIZE, total)
+	return `${start}–${end} de ${total}`
 })
 
 const mapSeverity = (severity) => {
@@ -334,24 +285,13 @@ const normalizeVulnerability = (item, index, mode) => ({
 	origin: item?.origin || (mode === 'ai' ? 'AI Analysis' : 'Static Analysis')
 })
 
-onMounted(() => {
-	const existing = Array.isArray(auditStore.auditResult) ? auditStore.auditResult : []
-	if (existing.length > 0) {
-		staticVulnerabilities.value = existing.map((item, i) => normalizeVulnerability(item, i, 'static'))
-	}
+watch(accountId, () => {
+	aiVulnerabilities.value = []
+	activeTab.value = 'static'
+	currentPage.value = 1
 })
 
-const openAiDrawer = () => {
-	drawerPhase.value = 'form'
-	drawerResults.value = []
-	openAccordionPanels.value = resourceGroups.value.map(g => g.key)
-	drawerOpen.value = true
-}
-
-const goToAiTab = () => {
-	activeTab.value = 'ai'
-	drawerOpen.value = false
-}
+watch([activeTab, selectedSeverity], () => { currentPage.value = 1 })
 
 const runStaticAudit = async () => {
 	const token = localStorage.getItem('token')
@@ -372,7 +312,6 @@ const runStaticAudit = async () => {
 		const normalized = (Array.isArray(data?.vulnerabilities) ? data.vulnerabilities : [])
 			.map((item, i) => normalizeVulnerability(item, i, 'static'))
 
-		staticVulnerabilities.value = normalized
 		auditStore.setAudits(data?.audit_id || '', normalized)
 		activeTab.value = 'static'
 		toast.add({ severity: 'success', summary: 'Auditoria completada', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
@@ -394,11 +333,10 @@ const submitAiAudit = async () => {
 	}
 
 	const userContext = {
-		company: companyContext.value.trim(),
-		resources: Object.fromEntries(Object.entries(resourceContextMap).filter(([, v]) => v && v.trim()))
+		company: cloudAccountsStore.selectedAccount?.description?.trim() || '',
+		resources: scanStore.resourceContextsByAccount[accountId.value] || {}
 	}
 
-	drawerPhase.value = 'loading'
 	isLoadingAi.value = true
 
 	try {
@@ -414,10 +352,9 @@ const submitAiAudit = async () => {
 			.map((item, i) => normalizeVulnerability(item, i, 'ai'))
 
 		aiVulnerabilities.value = normalized
-		drawerResults.value = normalized
-		drawerPhase.value = 'results'
+		activeTab.value = 'ai'
+		toast.add({ severity: 'success', summary: 'Análisis IA completado', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
 	} catch (error) {
-		drawerPhase.value = 'form'
 		toast.add({ severity: 'error', summary: 'Error en análisis IA', detail: error.message, life: 3500 })
 	} finally {
 		isLoadingAi.value = false
@@ -440,65 +377,251 @@ const submitAiAudit = async () => {
 .account-card, .vuln-card { background: #161b22; border: 1px solid rgba(34, 197, 94, 0.12); border-radius: 14px; }
 
 :deep(.p-card .p-card-content) { padding: 0.85rem; }
-:deep(.p-tabs) { background: transparent; }
-:deep(.p-tablist) { background: #0d1117 !important; border-bottom: 1px solid rgba(34, 197, 94, 0.12); }
-:deep(.p-tab) { background: transparent !important; color: #8b949e !important; border: none !important; }
-:deep(.p-tab:hover) { color: #e6edf3 !important; background: rgba(255,255,255,0.04) !important; }
-:deep(.p-tab[aria-selected="true"]) { color: #22c55e !important; border-bottom: 2px solid #22c55e !important; }
-:deep(.p-tabpanels) { background: transparent !important; padding: 0; }
-:deep(.p-tabpanel) { background: transparent !important; padding: 0; }
 
 .account-label { color: #8b949e; font-size: 0.875rem; }
 .account-value { color: #e6edf3; font-weight: 600; font-size: 1.1rem; }
 
-.tab-badge {
-	display: inline-flex; align-items: center; justify-content: center;
-	background: rgba(34, 197, 94, 0.15); color: #22c55e;
-	border-radius: 999px; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.45rem; margin-left: 0.4rem;
+/* ── Results bar ── */
+.results-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.5rem 0 0.75rem;
+	gap: 1rem;
 }
-.ai-badge { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
 
-.ai-button-wrap { display: flex; justify-content: flex-end; border-top: 1px solid rgba(34, 197, 94, 0.1); padding-top: 1rem; }
+.seg-ctrl {
+	display: inline-flex;
+	border: 1px solid #2d333b;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #0d1117;
+}
 
-.vuln-filter { gap: 0.75rem; }
+.seg-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 14px;
+	background: transparent;
+	border: none;
+	border-right: 1px solid #2d333b;
+	color: #768390;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: color 0.15s, background 0.15s;
+	font-family: inherit;
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: #e6edf3; }
+
+/* green when static mode is active */
+.seg-ctrl.mode-static .seg-btn.active {
+	background: rgba(34, 197, 94, 0.1);
+	color: #22c55e;
+}
+/* purple when ai mode is active */
+.seg-ctrl.mode-ai .seg-btn.active {
+	background: rgba(167, 139, 250, 0.12);
+	color: #a78bfa;
+}
+
+.seg-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255,255,255,0.07);
+	color: inherit;
+	border-radius: 999px;
+	font-size: 0.65rem;
+	font-weight: 700;
+	padding: 0.05rem 0.4rem;
+	min-width: 18px;
+}
+
+/* ── Filter right ── */
+.filter-right {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.sev-select {
+	background: #1c2128;
+	border: 1px solid #2d333b;
+	color: #e6edf3;
+	border-radius: 7px;
+	padding: 5px 10px;
+	font-size: 12px;
+	font-family: inherit;
+	cursor: pointer;
+	outline: none;
+	appearance: auto;
+}
+.sev-select option {
+	background: #1c2128;
+	color: #e6edf3;
+}
+.sev-select:hover { border-color: #4d5566; }
+
+.audit-controls { display: flex; align-items: center; gap: 0.5rem; }
+
+.audit-mode-toggle {
+	display: flex;
+	border: 1px solid #2d333b;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #161b22;
+}
+
+.toggle-btn {
+	flex: 1;
+	padding: 9px 14px;
+	background: transparent;
+	border: none;
+	color: #768390;
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	transition: all 0.15s;
+	border-right: 1px solid #2d333b;
+	white-space: nowrap;
+}
+
+.toggle-btn:last-child { border-right: none; }
+.toggle-btn:hover { background: #1c2128; color: #e6edf3; }
+.toggle-btn.static-btn.active { background: #1c2128; color: #22c55e; }
+.toggle-btn.ai-btn.active { background: #1c2128; color: #a78bfa; }
+
 .text-muted { color: #94a3b8; }
+.vuln-list { margin-top: 0.5rem; }
 .vuln-item { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 0.7rem; background: rgba(2, 6, 23, 0.45); }
 .vuln-description { margin: 0.65rem 0; color: #cbd5e1; }
 .vuln-meta { color: #94a3b8; font-size: 0.9rem; }
 
-/* Drawer - background via global.css */
-.ctx-label { color: #c9d1d9; font-size: 0.875rem; font-weight: 600; }
-.ctx-hint { color: #64748b; font-size: 0.78rem; margin-top: -0.25rem; }
-.ctx-optional { color: #475569; font-weight: 400; }
+.ai-vuln-item { border-color: rgba(167, 139, 250, 0.25); background: rgba(88, 28, 135, 0.08); }
+.ai-vuln-id { color: #c4b5fd; }
+.ai-vuln-meta { color: #a78bfa; }
 
-.ctx-textarea {
-	width: 100%;
-	background: #2a0f18;
-	border-color: rgba(244, 63, 94, 0.25);
-	color: #e6edf3;
-	border-radius: 8px;
-	font-size: 0.875rem;
-	resize: none;
+/* ── Context summary panel ── */
+.ctx-panel {
+	background: #161b22;
+	border: 1px solid rgba(167, 139, 250, 0.2);
+	border-radius: 14px;
+	padding: 0.9rem 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
 }
-.ctx-textarea:focus { border-color: #f43f5e; box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.15); }
 
-:deep(.resource-accordion .p-accordionpanel) { border: 1px solid rgba(244, 63, 94, 0.12); border-radius: 8px; margin-bottom: 0.5rem; overflow: hidden; }
-:deep(.resource-accordion .p-accordionheader) { background: #220d14; color: #c9d1d9; padding: 0.6rem 0.85rem; font-size: 0.875rem; border: none; }
-:deep(.resource-accordion .p-accordionheader:hover) { background: #2a0f18; }
-:deep(.resource-accordion .p-accordioncontent-content) { background: #1a0a10; padding: 0.5rem 0.85rem 0.75rem; }
+.ctx-panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
 
-.res-count { margin-left: auto; background: rgba(244, 63, 94, 0.15); color: #fb7185; border-radius: 999px; font-size: 0.7rem; font-weight: 700; padding: 0.05rem 0.4rem; }
-.res-row { display: flex; flex-direction: column; gap: 0.3rem; }
-.res-id { color: #8b949e; font-size: 0.78rem; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.res-input { width: 100%; background: #161b22 !important; border-color: rgba(148, 163, 184, 0.15) !important; color: #e6edf3 !important; font-size: 0.8rem; }
+.ctx-panel-title {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #c4b5fd;
+}
 
-/* Results phase */
-.results-summary { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.25rem; }
-.summary-pill { display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.4rem 0.9rem; min-width: 60px; }
-.summary-count { font-size: 1.3rem; font-weight: 700; line-height: 1; }
-.summary-label { font-size: 0.7rem; color: #64748b; margin-top: 0.2rem; }
+.ctx-sections-badge {
+	background: rgba(167, 139, 250, 0.15);
+	color: #a78bfa;
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	padding: 0.1rem 0.5rem;
+}
 
-.drawer-vuln-item { border: 1px solid rgba(244, 63, 94, 0.12); border-radius: 8px; padding: 0.65rem 0.8rem; background: rgba(42, 15, 24, 0.5); }
-.drawer-vuln-desc { margin: 0.35rem 0 0.3rem; color: #cbd5e1; font-size: 0.83rem; line-height: 1.45; }
-.drawer-vuln-res { color: #64748b; font-size: 0.75rem; font-family: monospace; }
+.ctx-edit-link {
+	background: transparent;
+	border: none;
+	color: #768390;
+	font-size: 0.8rem;
+	cursor: pointer;
+	font-family: inherit;
+	transition: color 0.15s;
+	padding: 0;
+}
+.ctx-edit-link:hover { color: #a78bfa; }
+
+.ctx-business {
+	margin: 0;
+	font-size: 0.82rem;
+	color: #c9d1d9;
+	line-height: 1.5;
+}
+.ctx-empty-hint { color: #4d5566; font-style: italic; }
+
+.ctx-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.ctx-pill {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	padding: 3px 10px;
+	border-radius: 999px;
+	border: 1px solid;
+	white-space: nowrap;
+}
+
+.pill-full    { background: rgba(63, 185, 80, 0.1);  border-color: rgba(63, 185, 80, 0.35);  color: #3fb950; }
+.pill-partial { background: rgba(227, 179, 65, 0.1); border-color: rgba(227, 179, 65, 0.35); color: #e3b341; }
+.pill-empty   { background: rgba(255,255,255,0.03);  border-color: #2d333b;                  color: #4d5566; }
+
+/* ── Paginator ── */
+.paginator {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	padding: 1rem 0 0.25rem;
+}
+
+.pag-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 30px;
+	height: 30px;
+	padding: 0 6px;
+	background: transparent;
+	border: 1px solid #2d333b;
+	border-radius: 7px;
+	color: #768390;
+	font-size: 12px;
+	font-family: inherit;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+.pag-btn:hover:not(:disabled):not(.active) { background: #1c2128; color: #e6edf3; border-color: #4d5566; }
+.pag-btn:disabled { opacity: 0.3; cursor: default; }
+.pag-btn.active { background: #1c2128; border-color: #4d5566; color: #e6edf3; font-weight: 600; }
+
+.seg-ctrl.mode-static ~ * .pag-btn.active,
+.pag-btn.pag-num.active { border-color: #4d5566; }
+
+.pag-ellipsis { color: #4d5566; font-size: 12px; padding: 0 4px; line-height: 30px; }
+
+.pag-info {
+	margin-left: 8px;
+	font-size: 11px;
+	color: #4d5566;
+	white-space: nowrap;
+}
 </style>

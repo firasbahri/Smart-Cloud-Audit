@@ -143,7 +143,7 @@
           <Calendar :size="20" />
           <div class="flex-1">
             <strong>Último escaneo:</strong>
-            <span>{{ scanStore.scanCreatedAt ? new Date(scanStore.scanCreatedAt).toLocaleString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-' }}</span>
+            <span>{{ scanStore.scanCreatedAtByAccount[accountId] ? new Date(scanStore.scanCreatedAtByAccount[accountId]).toLocaleString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-' }}</span>
           </div>
         </div>
         <div class="info-item flex align-items-start gap-3 p-3 border-round-xl">
@@ -188,11 +188,14 @@ onMounted(async () => {
   }
 })
 
-const rolesCount = computed(() => scanStore.scanResult?.roles?.length || 0);
-const instancesCount = computed(() => scanStore.scanResult?.ec2?.length || 0);
-const bucketsCount = computed(() => scanStore.scanResult?.buckets?.length || 0);
-const usersCount = computed(() => scanStore.scanResult?.users?.length || 0);
-const groupsCount = computed(() => scanStore.scanResult?.groups?.length || 0);
+const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
+const scanResult = computed(() => scanStore.scanResultByAccount[accountId.value] || {})
+
+const rolesCount = computed(() => scanResult.value?.roles?.length || 0);
+const instancesCount = computed(() => scanResult.value?.ec2?.length || 0);
+const bucketsCount = computed(() => scanResult.value?.buckets?.length || 0);
+const usersCount = computed(() => scanResult.value?.users?.length || 0);
+const groupsCount = computed(() => scanResult.value?.groups?.length || 0);
 const issuesCount = computed(() => 0);
 </script>
 

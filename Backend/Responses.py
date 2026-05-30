@@ -14,6 +14,7 @@ class ScanResponse(BaseModel):
 class ScanStatusResponse(BaseModel):
     status: str
     progress: int
+    created_at: Optional[str] = None
     results: Optional[dict] = None
     errors: Optional[List[str]] = None
 
