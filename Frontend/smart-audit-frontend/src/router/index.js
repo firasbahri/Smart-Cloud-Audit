@@ -34,6 +34,7 @@ const router = createRouter({
         { path: 'dashboard', component: () => import('../views/DashboardView.vue') },
         { path: 'inventory', component: () => import('../views/InventoryView.vue') },
         { path: 'audit', component: () => import('../views/AuditView.vue') },
+        { path: 'my-audits', component: () => import('../views/MyAuditsView.vue') },
         { path: 'configuration', component: () => import('../views/ConfigurationView.vue') },
       ]
     }

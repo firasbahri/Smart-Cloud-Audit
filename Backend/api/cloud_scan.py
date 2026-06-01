@@ -1,6 +1,6 @@
 from fastapi import HTTPException, APIRouter, Depends,websockets,WebSocketDisconnect,Header,Query
 from fastapi.responses import  StreamingResponse
-from Requests import CloudDeleteRequest
+from Requests import CloudDeleteRequest, ContextRequest
 from dependencies import get_user_id_from_token, get_user_id_from_query_token
 from services.cloudScan_service import CloudScanService
 from Responses import ScanStatusResponse, ScanResultResponse, StartScanResponse
@@ -41,10 +41,19 @@ async def get_scan_result(accountID: str, user_id: str = Depends(get_user_id_fro
        results=result.resources,
        created_at=result.created_at,
        errors=result.errors,
+       context=result.userContext
        
    )
 
+@router.put("/update_context/{scan_id}")
+async def update_scan_context(scan_id:str,contextRequest:ContextRequest,user_id:str = Depends(get_user_id_from_token)):
+    result= await cloud_scan_service.update_scan_context(scan_id, contextRequest, user_id)
+    return result
 
+@router.get('/context_scan/{scan_id}')
+async def get_context_scan(scan_id: str, user_id: str = Depends(get_user_id_from_token)):
+    result = await cloud_scan_service.get_context_scan(scan_id, user_id)
+    return result
 
 @router.get("/scan_progress_sse/{scan_id}")
 async def scan_progress_sse(scan_id: str, user_id: str = Depends(get_user_id_from_query_token)):

@@ -3,6 +3,7 @@ from Repositories.ScanRepository import ScanRepository
 from Repositories.cloudRepository import CloudRepository
 from celery_worker.tasks import scan_cloud_account
 from Model.scanResult import ScanResult
+from Requests import ContextRequest
 from datetime import datetime as DateTime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -38,7 +39,7 @@ class CloudScanService:
           arn=arn,
           cloud_id=cloud.id,
           user_id=user_id,
-           creation_at=creation_date,
+          creation_at=creation_date,
           resources=resources
          
       )
@@ -62,3 +63,18 @@ class CloudScanService:
           raise HTTPException(status_code=404,detail="scan not found")
 
       return scanResult
+  
+  async def update_scan_context(self, scan_id:str, contextRequest:ContextRequest, user_id:str):
+        scanResult=await self.scan_repository.findById(scan_id)
+        if not scanResult:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        
+        if scanResult.user_id != user_id:
+            raise HTTPException(status_code=403, detail="no tiene permisos para modificar este scan")
+        
+        scanResult.userContext[contextRequest.resource_id]=contextRequest.context
+        result= await self.scan_repository.update(scan_id, {"userContext": scanResult.userContext})
+        return result
+  
+
+  

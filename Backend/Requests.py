@@ -41,3 +41,6 @@ class CloudAIAuditRequest(BaseModel):
 
 
 
+class ContextRequest(BaseModel):
+    resource_id:str
+    context : str

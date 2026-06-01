@@ -24,7 +24,7 @@ class ScanResultResponse(BaseModel):
     results: Optional[dict] = None
     created_at: Optional[str] = None
     errors: Optional[List[str]] = None
-
+    context: Optional[dict] = None
 
 class AuditResponse(BaseModel):
     audit_id: str

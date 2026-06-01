@@ -24,9 +24,9 @@ class ScanRepository(IRepository):
             return str(result.upserted_id)
         return scan_dict.get("scan_id")
 
-    async def update(self, cloud_id, user_id, scan_dict: dict):
+    async def update(self, scan_id: str, scan_dict: dict):
         result = await self.colls.update_one(
-            {"cloudAccount_id": cloud_id, "user_id": user_id},
+            {"scan_id" : scan_id},
             {"$set": scan_dict}
         )
         return result.modified_count > 0
@@ -42,10 +42,20 @@ class ScanRepository(IRepository):
                 creation_at=scan_response.get("created_at")
             )
             scan_result.resources = scan_response.get("resources", {})
+            scan_result.userContext = scan_response.get("userContext", {})
             scan_result.errors = scan_response.get("errors", [])
             scan_result.progress = scan_response.get("progress", 0)
             scan_result.status = scan_response.get("status", "Started")
             return scan_result
+        return None
+    
+
+    async def get_context(self, scan_id):
+        # 1 significa que incluye el campo userContext y 0 que excluye el campo _id porque id es un campo que MongoDB añade automáticamente y no es necesario en este caso
+        scan_response = await self.colls.find_one({"scan_id": scan_id}, {"userContext": 1, "_id": 0})
+        
+        if scan_response:
+            return scan_response.get("userContext", {})
         return None
     
     async def delete(self, scan_id):
@@ -65,6 +75,7 @@ class ScanRepository(IRepository):
                 creation_at=scan_response.get("created_at")
             )
             scan_result.resources = scan_response.get("resources", {})
+            scan_result.userContext = scan_response.get("userContext", {})  
             scan_result.errors = scan_response.get("errors", [])
             scan_result.progress = scan_response.get("progress", 0)
             scan_result.status = scan_response.get("status", "Started")

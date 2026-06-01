@@ -16,10 +16,11 @@ export const useScanStore = defineStore('scan', () => {
   // Map no reactivo, solo gestión interna de conexiones SSE
   const eventSources = new Map()
 
-  const setScanData = (accountId, scanId, dataResult, createdAt) => {
+  const setScanData = (accountId, scanId, dataResult, createdAt, context) => {
     scanResultIdByAccount.value[accountId] = scanId
     scanResultByAccount.value[accountId] = dataResult
     scanCreatedAtByAccount.value[accountId] = createdAt
+    resourceContextsByAccount.value[accountId] = context
     console.log('Datos de escaneo actualizados para la cuenta:', accountId, {
       scanId,
       createdAt: createdAt,
@@ -56,17 +57,14 @@ export const useScanStore = defineStore('scan', () => {
     delete scanIdByAccount.value[accountId]
   }
 
+
   const loadContextsForAccount = (accountId) => {
-    if (!accountId || resourceContextsByAccount.value[accountId]) return
-    try {
-      const stored = localStorage.getItem(`sa_ctx_${accountId}`)
-      resourceContextsByAccount.value[accountId] = stored ? JSON.parse(stored) : {}
-    } catch {
-      resourceContextsByAccount.value[accountId] = {}
-    }
+    if (!accountId) return
+    if (!resourceContextsByAccount.value[accountId]) resourceContextsByAccount.value[accountId] = {}
   }
 
   const setResourceContext = (accountId, resourceId, context) => {
+    const token = localStorage.getItem('token')
     if (!accountId) return
     if (!resourceContextsByAccount.value[accountId]) resourceContextsByAccount.value[accountId] = {}
     const trimmed = context.trim()
@@ -75,7 +73,18 @@ export const useScanStore = defineStore('scan', () => {
     } else {
       delete resourceContextsByAccount.value[accountId][resourceId]
     }
-    localStorage.setItem(`sa_ctx_${accountId}`, JSON.stringify(resourceContextsByAccount.value[accountId]))
+    const scan_id= scanResultIdByAccount.value[accountId]
+    console.log('Actualizando contexto para el recurso:', { accountId, resourceId, context: trimmed, scan_id })
+    if(scan_id){
+      fetch(buildApiUrl(`/cloud/update_context/${scan_id}`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resource_id: resourceId, context: context })
+      })
+    }
   }
 
   const clearData = () => {
@@ -180,7 +189,7 @@ export const useScanStore = defineStore('scan', () => {
       const scanId = data.scan_id || ''
       if (!scanId) { clearData(); return null }
 
-      setScanData(accountId, scanId, data.results ,data.created_at)
+      setScanData(accountId, scanId, data.results ,data.created_at, data.context)
       console.log('Datos de escaneo cargados para la cuenta:', accountId, data)
       return data
     } catch (error) {
@@ -221,6 +230,7 @@ export const useScanStore = defineStore('scan', () => {
     stopSSE,
     consumeNotifications,
     loadScanDataForAccount,
+    // loadContextsForAccount no longer reads from localStorage
     loadContextsForAccount,
     setResourceContext,
     esScanReciente

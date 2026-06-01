@@ -267,7 +267,6 @@ const aiCoverage = computed(() => ({
 }))
 
 watch(accountId, (id) => {
-  if (id) scanStore.loadContextsForAccount(id)
   selectedResource.value = null
   search.value = ''
   onlyMissing.value = false

@@ -42,6 +42,12 @@
             </router-link>
           </li>
           <li>
+            <router-link to="/app/my-audits" active-class="active">
+              <Search :size="20" />
+              <span>Mis Auditorías</span>
+            </router-link>
+          </li>
+          <li>
             <router-link to="/app/configuration" active-class="active">
               <Settings :size="20" />
               <span>Configuración</span>
