@@ -292,7 +292,7 @@ class AwsScanner(IScanner):
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
     
     def scan_ec2(self,regions):
-        
+    	logger.info(f"hola")    
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
