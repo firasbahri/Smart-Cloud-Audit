@@ -2,16 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Convert CRLF → LF before anything else
-RUN apt-get update && apt-get install -y --no-install-recommends dos2unix && rm -rf /var/lib/apt/lists/*
+# instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
+# instalar dependencias Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# copiar código
 COPY . .
-
-# Fix Windows line endings on all Python files
-RUN find /app -name "*.py" -exec dos2unix {} \;
 
 EXPOSE 8000
 
