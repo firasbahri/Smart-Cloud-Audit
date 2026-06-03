@@ -302,38 +302,40 @@ class AwsScanner(IScanner):
                 ec2 = self.session.client('ec2')
                 regions=[region['RegionName'] for region in ec2.describe_regions()['Regions']]
             for r in regions:
-    
-                logger.info(f"Scanning EC2 instances in region: {r}")
-                regional_ec2 = self.session.client('ec2', region_name=r)
-                instances = regional_ec2.describe_instances()
-                for reservation in instances['Reservations']:
-                    for instance in reservation['Instances']:
-                        try:
-                            logger.info(f"Processing instance {instance['InstanceId']} in region {r}")
-                            volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
-                            list_volumes = []
-                            for v in volumes['Volumes']:
-                                list_volumes.append({
-                                    "volume_id": v['VolumeId'],
-                                    "encrypted": v['Encrypted']
-                                })
-                            instance['volumes'] = list_volumes
-                        except ClientError:
-                            instance['volumes'] = None
-        
-                        try:
-                            sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
-                            if sg_ids:
-                                sg_details = regional_ec2.describe_security_groups(GroupIds=sg_ids)
-                                instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
-                            else:
+                try:
+                    logger.info(f"Scanning EC2 instances in region: {r}")
+                    regional_ec2 = self.session.client('ec2', region_name=r)
+                    instances = regional_ec2.describe_instances()
+                    for reservation in instances['Reservations']:
+                        for instance in reservation['Instances']:
+                            try:
+                                logger.info(f"Processing instance {instance['InstanceId']} in region {r}")
+                                volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
+                                list_volumes = []
+                                for v in volumes['Volumes']:
+                                    list_volumes.append({
+                                        "volume_id": v['VolumeId'],
+                                        "encrypted": v['Encrypted']
+                                    })
+                                instance['volumes'] = list_volumes
+                            except ClientError:
+                                instance['volumes'] = None
+            
+                            try:
+                                sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
+                                if sg_ids:
+                                    sg_details = regional_ec2.describe_security_groups(GroupIds=sg_ids)
+                                    instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
+                                else:
+                                    instance['SecurityGroupsDetails'] = []
+                            except ClientError:
                                 instance['SecurityGroupsDetails'] = []
-                        except ClientError:
-                            instance['SecurityGroupsDetails'] = []
 
-                        instance['public_ip'] = instance.get('PublicIpAddress', None)
-                        all_instances.append(instance)  
-
+                            instance['public_ip'] = instance.get('PublicIpAddress', None)
+                            all_instances.append(instance)  
+                except Exception as e:
+                    logger.error(f"Error scanning EC2 in region {r}: {str(e)}")
+                    continue
             return all_instances
     
         except ClientError as e:
