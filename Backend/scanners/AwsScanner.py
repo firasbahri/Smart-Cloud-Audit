@@ -291,16 +291,21 @@ class AwsScanner(IScanner):
         except Exception as e:
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
     
+<<<<<<< HEAD
     def scan_ec2(self,regions):
     	logger.info(f"hola")    
+=======
+    def scan_ec2(self, regions):
+
+>>>>>>> 6489436623ee2e0105a537af14b462a058f9179c
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
-            
+
             all_instances = []
             if regions == None or len(regions) == 0:
                 ec2 = self.session.client('ec2')
-                regions=[region['RegionName'] for region in ec2.describe_regions()['Regions']]
+                regions = [region['RegionName'] for region in ec2.describe_regions()['Regions']]
             for r in regions:
                 try:
                     logger.info(f"Scanning EC2 instances in region: {r}")
@@ -319,7 +324,7 @@ class AwsScanner(IScanner):
                                 instance['volumes'] = list_volumes
                             except ClientError:
                                 instance['volumes'] = None
-            
+
                             try:
                                 sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
                                 if sg_ids:
@@ -331,11 +336,11 @@ class AwsScanner(IScanner):
                                 instance['SecurityGroupsDetails'] = []
 
                             instance['public_ip'] = instance.get('PublicIpAddress', None)
-                            all_instances.append(instance)  
+                            all_instances.append(instance)
 
                 except Exception as e:
                     logger.error(f"Error scanning EC2 instances in region {r}: {str(e)}")
-                    continue  
+                    continue
 
             return all_instances
     
