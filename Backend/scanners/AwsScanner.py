@@ -309,7 +309,6 @@ class AwsScanner(IScanner):
                     for reservation in instances['Reservations']:
                         for instance in reservation['Instances']:
                             try:
-                                logger.info(f"Processing instance {instance['InstanceId']} in region {r}")
                                 volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
                                 list_volumes = []
                                 for v in volumes['Volumes']:
@@ -333,9 +332,11 @@ class AwsScanner(IScanner):
 
                             instance['public_ip'] = instance.get('PublicIpAddress', None)
                             all_instances.append(instance)  
+
                 except Exception as e:
-                    logger.error(f"Error scanning EC2 in region {r}: {str(e)}")
-                    continue
+                    logger.error(f"Error scanning EC2 instances in region {r}: {str(e)}")
+                    continue  
+
             return all_instances
     
         except ClientError as e:
