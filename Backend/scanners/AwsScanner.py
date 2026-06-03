@@ -37,7 +37,8 @@ class AwsScanner(IScanner):
             self.session = boto3.Session(
                 aws_access_key_id=credentials['AccessKeyId'],
                 aws_secret_access_key=credentials['SecretAccessKey'],
-                aws_session_token=credentials['SessionToken']
+                aws_session_token=credentials['SessionToken'],
+                region_name='us-east-1'
             )
             client_st = self.session.client('sts')
             identity = client_st.get_caller_identity()
@@ -291,13 +292,8 @@ class AwsScanner(IScanner):
         except Exception as e:
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
     
-<<<<<<< HEAD
-    def scan_ec2(self,regions):
-    	logger.info(f"hola")    
-=======
     def scan_ec2(self, regions):
 
->>>>>>> 6489436623ee2e0105a537af14b462a058f9179c
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
