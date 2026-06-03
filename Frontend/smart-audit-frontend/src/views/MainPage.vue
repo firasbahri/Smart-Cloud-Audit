@@ -43,7 +43,7 @@
           </li>
           <li>
             <router-link to="/app/my-audits" active-class="active">
-              <Search :size="20" />
+              <History :size="20" />
               <span>Mis Auditorías</span>
             </router-link>
           </li>
@@ -111,7 +111,7 @@ import { useScanStore } from '../store/scanStore';
 import { useAuditStore } from '@/store/auditStore';
 import { useCloudAccountsStore } from '../store/cloudAccountsStore';
 import Select from 'primevue/select';
-import { Cloud, ChevronDown, ChevronUp, LayoutDashboard, LogOut, Package, Search, Settings, User } from 'lucide-vue-next';
+import { Cloud, ChevronDown, ChevronUp, History, LayoutDashboard, LogOut, Package, Search, Settings, User } from 'lucide-vue-next';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
 
 const router = useRouter();

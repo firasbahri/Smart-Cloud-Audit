@@ -309,6 +309,7 @@ class AwsScanner(IScanner):
                 for reservation in instances['Reservations']:
                     for instance in reservation['Instances']:
                         try:
+                            logger.info(f"Processing instance {instance['InstanceId']} in region {r}")
                             volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
                             list_volumes = []
                             for v in volumes['Volumes']:

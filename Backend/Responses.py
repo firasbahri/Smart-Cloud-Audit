@@ -30,6 +30,7 @@ class AuditResponse(BaseModel):
     audit_id: str
     vulnerabilities: Optional[List[dict]] = None
     created_at: Optional[str] = None
+    counts: Optional[dict] = None
 
 
 class CloudRegisterResponse(BaseModel):

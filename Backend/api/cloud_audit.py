@@ -3,6 +3,7 @@ from dependencies import get_user_id_from_token
 from services.cloudAudit_service import CloudAuditService
 from Requests import cloudAuditRequest, CloudAIAuditRequest
 from Responses import AuditResponse
+from typing import List
 import logging
 
 logger= logging.getLogger(__name__)
@@ -35,3 +36,13 @@ async def get_last_audit_result(account_id: str, user_id: str = Depends(get_user
     return AuditResponse(audit_id=result.id, vulnerabilities=result.vulnerabilities, created_at=result.created_at)
 
 
+@router.get("/my-audits/{account_id}", response_model=List[AuditResponse])
+async def get_all_audit_results(account_id:str,user_id:str =Depends(get_user_id_from_token)):
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+    
+    logger.info(f"Fetching all audit results for account {account_id} and user {user_id}")
+    results=await cloudAuditService.get_all_audit_results(account_id, user_id)
+    return results

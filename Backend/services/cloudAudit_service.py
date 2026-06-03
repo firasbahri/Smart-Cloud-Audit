@@ -34,7 +34,12 @@ class CloudAuditService:
         vulnerabilities=auditController.staticAudit(deserializedResources)
         auditID=str(uuid4())
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
-        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id,resources=resources, origin=AuditOrigin.Static.value)
+        critical_count=sum(1 for v in vulnerabilities if v.severity.lower() == 'critical')
+        high_count=sum(1 for v in vulnerabilities if v.severity.lower() == 'high')
+        medium_count=sum(1 for v in vulnerabilities if v.severity.lower() == 'medium')
+        low_count=sum(1 for v in vulnerabilities if v.severity.lower() == 'low')
+        counts = {'critical': critical_count, 'high': high_count, 'medium': medium_count, 'low': low_count}
+        auditResult= AuditResult(id=auditID, vulnerabilities=vulnerabilities_serialized, accountID=accountId,userID=user_id,resources=resources, origin=AuditOrigin.Static.value, counts=counts)
         insterdId=await self.audit_repository.create(auditResult)
         logger.info(f"Created audit result with id {insterdId} for scan {scan_id} and user {user_id}")
         return auditResult
@@ -64,9 +69,22 @@ class CloudAuditService:
 
         response_vulnerabilities=geminiAnalyzer.analyze(resources, vulnerabilities, user_context)
         auditID=str(uuid4())
-        auditAiResult= AuditResult(id=auditID, vulnerabilities=JSONSerializer.serializeList(response_vulnerabilities), accountID=scanResult.cloudAccount_id,userID=user_id,resources=resources,origin=AuditOrigin.AI.value, userContext=user_context )
+        critical_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'critical')
+        high_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'high')
+        medium_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'medium')
+        low_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'low')
+        counts = {'critical': critical_count, 'high': high_count, 'medium': medium_count, 'low': low_count}
+
+        auditAiResult= AuditResult(id=auditID, vulnerabilities=JSONSerializer.serializeList(response_vulnerabilities), accountID=scanResult.cloudAccount_id,userID=user_id,resources=resources,origin=AuditOrigin.AI.value, counts=counts)
         insertedId=await self.audit_repository.create(auditAiResult)
         return auditAiResult
         
 
-        return await self.static_audit_cloud_resources(scan_id, user_id)
+    async def get_all_audit_results(self, account_id:str, user_id:str):
+        results=await self.audit_repository.findAuditsByAccountUser(account_id,user_id)
+        if not results:
+            logger.error(f"No audit results found for account {account_id} and user {user_id}")
+            raise HTTPException(status_code=404, detail="No audit results found for this account")
+        
+        return results
+        

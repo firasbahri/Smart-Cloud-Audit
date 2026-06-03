@@ -25,7 +25,8 @@ class AuditRepository(IRepository):
             accountID=result.get("accountID"),
             userID=result.get("userID"),
             resources=result.get("resources", []),
-            origin=result.get("origin")
+            origin=result.get("origin"),
+            counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}),
         )
         created_at = result.get("created_at")
         auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
@@ -42,12 +43,32 @@ class AuditRepository(IRepository):
             accountID=result.get("accountID"),
             userID=result.get("userID"),
             resources=result.get("resources", []),
-            origin=result.get("origin")
+            origin=result.get("origin"),
+            counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0})
         )
         creaed_at = result.get("created_at")
         auditResult.created_at = creaed_at.isoformat() if hasattr(creaed_at, 'isoformat') else creaed_at
         return auditResult
     
+
+    async def findAuditsByAccountUser(self, account_id, user_id):
+        cursor=self.collection.find({"accountID": account_id,"userID": user_id}).sort("created_at", -1)
+        results=[]
+        async for result in cursor:
+            auditResult = AuditResult(
+                id=str(result.get("id")),
+                vulnerabilities=result.get("vulnerabilities", []),
+                accountID=result.get("accountID"),
+                userID=result.get("userID"),
+                resources=result.get("resources", []),
+                origin=result.get("origin"),
+                counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0})
+            )
+            created_at = result.get("created_at")
+            auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
+            results.append(auditResult)
+        return results
+
     async def update(self, audit_id, audit_result):
         pass
     

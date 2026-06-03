@@ -1,249 +1,356 @@
 <template>
-	<section class="my-audits-view">
-		<header class="view-header">
-			<h1>Mis auditorías</h1>
-			<p>Selecciona una auditoría para ver su contenido.</p>
-		</header>
+  <div class="my-audits-view">
+    <div class="page-header">
+      <div class="title-group">
+        <div class="page-icon"><History :size="18" /></div>
+        <div>
+          <h2>Mis Auditorías</h2>
+          <p class="subtitle">Historial de auditorías · {{ activeAccountLabel }}</p>
+        </div>
+      </div>
+    </div>
 
-		<div class="layout">
-			<aside class="audits-list" aria-label="Listado de auditorías">
-				<button
-					v-for="audit in audits"
-					:key="audit.id"
-					class="audit-item"
-					:class="{ active: selectedAudit?.id === audit.id }"
-					@click="selectedAuditId = audit.id"
-				>
-					<div class="audit-item__title">{{ audit.title }}</div>
-					<div class="audit-item__meta">
-						<span>{{ audit.company }}</span>
-						<span class="dot">•</span>
-						<span>{{ audit.date }}</span>
-					</div>
-					<span class="status" :class="audit.status.toLowerCase()">{{ audit.status }}</span>
-				</button>
-			</aside>
+    <div v-if="loading" class="state-box">
+      <i class="pi pi-spin pi-spinner" style="font-size:1.6rem;color:#768390" />
+      <span>Cargando auditorías...</span>
+    </div>
 
-			<article class="audit-content" v-if="selectedAudit">
-				<h2>{{ selectedAudit.title }}</h2>
-				<div class="content-meta">
-					<p><strong>Empresa:</strong> {{ selectedAudit.company }}</p>
-					<p><strong>Fecha:</strong> {{ selectedAudit.date }}</p>
-					<p>
-						<strong>Estado:</strong>
-						<span class="status" :class="selectedAudit.status.toLowerCase()">{{ selectedAudit.status }}</span>
-					</p>
-				</div>
+    <div v-else-if="!audits.length" class="state-box">
+      <FileX :size="34" style="color:#4d5566" />
+      <span>No hay auditorías para esta cuenta</span>
+      <p>Ejecuta una desde <strong>Auditoría</strong></p>
+    </div>
 
-				<div class="content-section">
-					<h3>Resumen</h3>
-					<p>{{ selectedAudit.summary }}</p>
-				</div>
+    <div v-else class="layout">
+      <!-- ── Master list ── -->
+      <aside class="audits-list">
+        <button
+          v-for="audit in audits"
+          :key="audit.audit_id"
+          :class="['audit-item', { active: selectedAuditId === audit.audit_id }]"
+          @click="selectedAuditId = audit.audit_id"
+        >
+          <div class="audit-item__top">
+            <div class="audit-item__id">{{ shortId(audit.audit_id) }}</div>
+            <span :class="['origin-badge', audit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
+              {{ audit.origin === 'ai' ? '✦ IA' : 'Estático' }}
+            </span>
+          </div>
+          <div class="audit-item__date">{{ formatDate(audit.created_at) }}</div>
+          <div class="severity-strip">
+            <span class="sev-chip critical">C {{ audit.counts.critical }}</span>
+            <span class="sev-chip high">H {{ audit.counts.high }}</span>
+            <span class="sev-chip medium">M {{ audit.counts.medium }}</span>
+            <span class="sev-chip low">L {{ audit.counts.low }}</span>
+          </div>
+        </button>
+      </aside>
 
-				<div class="content-section">
-					<h3>Hallazgos</h3>
-					<ul>
-						<li v-for="(finding, index) in selectedAudit.findings" :key="index">{{ finding }}</li>
-					</ul>
-				</div>
-			</article>
+      <!-- ── Detail panel ── -->
+      <article v-if="selectedAudit" class="audit-detail">
+        <div class="detail-header">
+          <div>
+            <div class="detail-id">{{ shortId(selectedAudit.audit_id) }}</div>
+            <div class="detail-full-id">{{ selectedAudit.audit_id }}</div>
+            <div class="detail-date">{{ formatDate(selectedAudit.created_at) }}</div>
+          </div>
+          <span :class="['origin-badge', 'origin-badge--lg', selectedAudit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
+            {{ selectedAudit.origin === 'ai' ? '✦ Análisis IA' : '⚙ Estático' }}
+          </span>
+        </div>
 
-			<article class="audit-content empty" v-else>
-				<p>No hay auditorías disponibles.</p>
-			</article>
-		</div>
-	</section>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span class="summary-label">Total</span>
+            <strong>{{ totalVulns(selectedAudit) }}</strong>
+          </div>
+          <div class="summary-card danger">
+            <span class="summary-label">Críticos</span>
+            <strong>{{ selectedAudit.counts.critical }}</strong>
+          </div>
+          <div class="summary-card warn">
+            <span class="summary-label">Altos</span>
+            <strong>{{ selectedAudit.counts.high }}</strong>
+          </div>
+          <div class="summary-card info">
+            <span class="summary-label">Medios</span>
+            <strong>{{ selectedAudit.counts.medium }}</strong>
+          </div>
+          <div class="summary-card ok">
+            <span class="summary-label">Bajos</span>
+            <strong>{{ selectedAudit.counts.low }}</strong>
+          </div>
+        </div>
+
+        <div class="findings-section">
+          <div class="findings-header">
+            <span class="section-label">HALLAZGOS</span>
+            <span class="findings-count">{{ selectedAudit.vulnerabilities.length }}</span>
+          </div>
+          <div v-if="selectedAudit.vulnerabilities.length" class="finding-list">
+            <div
+              v-for="vuln in selectedAudit.vulnerabilities"
+              :key="vuln.id"
+              class="finding-item"
+            >
+              <span :class="['finding-sev', (vuln.severity || '').toLowerCase()]">
+                {{ vuln.severity }}
+              </span>
+              <div class="finding-body">
+                <div class="finding-name">{{ vuln.name || vuln.id }}</div>
+                <div class="finding-resource">{{ vuln.resource_id }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="no-findings">Sin hallazgos registrados.</div>
+        </div>
+      </article>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useToast } from 'primevue/usetoast'
+import { useCloudAccountsStore } from '../store/cloudAccountsStore'
+import { buildApiUrl } from '../utils/api'
+import { FileX, History } from 'lucide-vue-next'
 
-const audits = ref([
-	{
-		id: 1,
-		title: 'Auditoría de Seguridad Web',
-		company: 'TechNova S.L.',
-		date: '12/03/2026',
-		status: 'Completada',
-		summary:
-			'Se revisaron configuraciones críticas, autenticación y exposición de datos en aplicaciones web internas.',
-		findings: [
-			'Falta de cabeceras de seguridad en 2 servicios.',
-			'Política de contraseñas mejorable en el portal de administración.',
-			'Buenas prácticas generales en control de accesos.'
-		]
-	},
-	{
-		id: 2,
-		title: 'Auditoría de Cumplimiento RGPD',
-		company: 'Salamanca Data Group',
-		date: '04/04/2026',
-		status: 'En progreso',
-		summary:
-			'Evaluación de procesos de tratamiento de datos personales y mecanismos de consentimiento.',
-		findings: [
-			'Registro de actividades parcialmente actualizado.',
-			'Falta homogeneizar textos legales entre plataformas.',
-			'Plan de mejora en gestión de derechos ARSULIPO.'
-		]
-	},
-	{
-		id: 3,
-		title: 'Auditoría de Infraestructura',
-		company: 'InfraSys Europa',
-		date: '20/04/2026',
-		status: 'Pendiente',
-		summary:
-			'Análisis preliminar de redes, segmentación y configuración de servicios críticos.',
-		findings: [
-			'Pendiente validación de segmentación VLAN.',
-			'Inventario de activos en actualización.',
-			'Se requiere revisión de backups remotos.'
-		]
-	}
-])
+const cloudAccountsStore = useCloudAccountsStore()
+const toast = useToast()
 
-const selectedAuditId = ref(audits.value[0]?.id ?? null)
+const audits = ref([])
+const selectedAuditId = ref(null)
+const loading = ref(false)
 
-const selectedAudit = computed(() => audits.value.find((audit) => audit.id === selectedAuditId.value) ?? null)
+const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
+const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
+const selectedAudit = computed(() => audits.value.find(a => a.audit_id === selectedAuditId.value) ?? null)
+
+const computeCounts = (vulnerabilities = []) => {
+  const c = { critical: 0, high: 0, medium: 0, low: 0 }
+  for (const v of vulnerabilities) {
+    const s = (v.severity || '').toLowerCase()
+    if (s === 'critical') c.critical++
+    else if (s === 'high') c.high++
+    else if (s === 'medium') c.medium++
+    else if (s === 'low') c.low++
+  }
+  return c
+}
+
+const totalVulns = (audit) => Object.values(audit.counts).reduce((s, v) => s + v, 0)
+
+const shortId = (id = '') => {
+  if (!id) return '—'
+  return '#' + id.replace(/-/g, '').slice(0, 8).toUpperCase()
+}
+
+const formatDate = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+}
+
+const loadAudits = async () => {
+  if (!accountId.value) { audits.value = []; return }
+  const token = localStorage.getItem('token')
+  if (!token) return
+
+  loading.value = true
+  try {
+    const res = await fetch(buildApiUrl(`/cloud/my-audits/${accountId.value}`), {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (res.status === 404) { audits.value = []; return }
+    if (!res.ok) throw new Error('Error cargando auditorías')
+
+    const data = await res.json()
+    audits.value = (Array.isArray(data) ? data : []).map(a => ({
+      ...a,
+      vulnerabilities: a.vulnerabilities || [],
+      counts: a.counts || computeCounts(a.vulnerabilities),
+    }))
+    selectedAuditId.value = audits.value[0]?.audit_id ?? null
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
+    audits.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(accountId, () => {
+  audits.value = []
+  selectedAuditId.value = null
+  loadAudits()
+}, { immediate: true })
 </script>
 
 <style scoped>
 .my-audits-view {
-	padding: 1.5rem;
-	color: #1f2937;
+  animation: fadeIn 0.35s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.view-header h1 {
-	margin: 0;
-	font-size: 1.5rem;
-	color: #0f172a;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.view-header p {
-	margin: 0.35rem 0 1.2rem;
-	color: #64748b;
+/* ── Header ── */
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.title-group  { display: flex; align-items: center; gap: 12px; }
+
+.page-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #a78bfa; flex-shrink: 0;
 }
 
+.page-header h2 { font-size: 22px; font-weight: 700; color: #e6edf3; margin: 0 0 2px; letter-spacing: -0.4px; }
+.subtitle       { font-size: 12px; color: #768390; margin: 0; }
+
+/* ── State boxes ── */
+.state-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 64px 24px; color: #4d5566; font-size: 13px;
+  background: #161b22; border: 1px solid #2d333b; border-radius: 14px;
+}
+.state-box p  { margin: 0; font-size: 11px; color: #4d5566; }
+.state-box strong { color: #c4b5fd; }
+
+/* ── Layout ── */
 .layout {
-	display: grid;
-	grid-template-columns: 320px 1fr;
-	gap: 1rem;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
+/* ── Audit list ── */
 .audits-list {
-	background: #ffffff;
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	padding: 0.6rem;
-	max-height: 72vh;
-	overflow: auto;
+  background: #161b22;
+  border: 1px solid #2d333b;
+  border-radius: 14px;
+  padding: 8px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
 }
+
+.audits-list::-webkit-scrollbar { width: 4px; }
+.audits-list::-webkit-scrollbar-track { background: transparent; }
+.audits-list::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 2px; }
 
 .audit-item {
-	width: 100%;
-	text-align: left;
-	border: 1px solid #e2e8f0;
-	border-radius: 10px;
-	background: #f8fafc;
-	padding: 0.75rem;
-	margin-bottom: 0.6rem;
-	cursor: pointer;
-	transition: 0.2s ease;
+  width: 100%; text-align: left;
+  background: #0f141a; border: 1px solid #2d333b; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 6px; cursor: pointer; color: inherit;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+.audit-item:last-child { margin-bottom: 0; }
+.audit-item:hover { background: #111827; border-color: rgba(167,139,250,0.3); transform: translateY(-1px); }
+.audit-item.active { background: rgba(167,139,250,0.07); border-color: rgba(167,139,250,0.45); }
+
+.audit-item__top {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;
+}
+.audit-item__id   { font-family: 'Consolas','Monaco',monospace; font-size: 13px; font-weight: 700; color: #e6edf3; }
+.audit-item__date { font-size: 11px; color: #768390; margin-bottom: 8px; }
+
+/* ── Origin badge ── */
+.origin-badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 999px; border: 1px solid; white-space: nowrap;
+}
+.origin-badge--lg { font-size: 12px; padding: 4px 12px; }
+.origin-static { background: rgba(63,185,80,0.1);  border-color: rgba(63,185,80,0.3);  color: #3fb950; }
+.origin-ai     { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.3); color: #a78bfa; }
+
+/* ── Severity strip ── */
+.severity-strip { display: flex; gap: 5px; flex-wrap: wrap; }
+.sev-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 999px; border: 1px solid transparent;
+}
+.sev-chip.critical { background: rgba(248,81,73,0.12);  color: #f85149; border-color: rgba(248,81,73,0.25); }
+.sev-chip.high     { background: rgba(227,179,65,0.12); color: #e3b341; border-color: rgba(227,179,65,0.25); }
+.sev-chip.medium   { background: rgba(56,139,253,0.12); color: #388bfd; border-color: rgba(56,139,253,0.25); }
+.sev-chip.low      { background: rgba(63,185,80,0.12);  color: #3fb950; border-color: rgba(63,185,80,0.25); }
+
+/* ── Detail panel ── */
+.audit-detail {
+  background: #161b22; border: 1px solid #2d333b; border-radius: 14px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 16px;
+  max-height: calc(100vh - 160px); overflow-y: auto;
 }
 
-.audit-item:hover {
-	background: #eef2ff;
-	border-color: #c7d2fe;
-}
+.audit-detail::-webkit-scrollbar { width: 4px; }
+.audit-detail::-webkit-scrollbar-track { background: transparent; }
+.audit-detail::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 2px; }
 
-.audit-item.active {
-	background: #e0e7ff;
-	border-color: #6366f1;
+.detail-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
 }
+.detail-id      { font-family: 'Consolas','Monaco',monospace; font-size: 20px; font-weight: 700; color: #e6edf3; }
+.detail-full-id { font-family: 'Consolas','Monaco',monospace; font-size: 10px; color: #4d5566; margin: 2px 0 4px; }
+.detail-date    { font-size: 12px; color: #768390; }
 
-.audit-item__title {
-	font-weight: 600;
-	color: #0f172a;
+/* ── Summary grid ── */
+.summary-grid {
+  display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px;
 }
+.summary-card {
+  background: #0f141a; border: 1px solid #2d333b; border-radius: 10px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.summary-card strong { font-size: 1.4rem; font-weight: 700; color: #e6edf3; }
+.summary-label       { font-size: 10px; color: #768390; text-transform: uppercase; letter-spacing: 0.04em; }
+.summary-card.danger { border-color: rgba(248,81,73,0.2); }
+.summary-card.warn   { border-color: rgba(227,179,65,0.2); }
+.summary-card.info   { border-color: rgba(56,139,253,0.2); }
+.summary-card.ok     { border-color: rgba(63,185,80,0.2); }
 
-.audit-item__meta {
-	margin-top: 0.3rem;
-	font-size: 0.85rem;
-	color: #64748b;
-	display: flex;
-	align-items: center;
-	gap: 0.35rem;
+/* ── Findings ── */
+.findings-section {
+  background: #0f141a; border: 1px solid #2d333b; border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
 }
-
-.dot {
-	color: #94a3b8;
+.findings-header {
+  display: flex; align-items: center; justify-content: space-between;
 }
-
-.audit-content {
-	background: #ffffff;
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	padding: 1rem 1.25rem;
+.section-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: #4d5566; }
+.findings-count {
+  font-size: 11px; font-weight: 700; background: #1c2128;
+  border: 1px solid #2d333b; border-radius: 999px; padding: 1px 8px; color: #768390;
 }
-
-.audit-content h2 {
-	margin: 0 0 0.85rem;
-	color: #0f172a;
+.finding-list { display: flex; flex-direction: column; gap: 7px; }
+.finding-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 10px; border-radius: 9px;
+  background: #161b22; border: 1px solid #2d333b;
 }
-
-.content-meta p {
-	margin: 0.25rem 0;
-	color: #334155;
+.finding-sev {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 999px; min-width: 52px; text-align: center; flex-shrink: 0;
 }
-
-.content-section {
-	margin-top: 1rem;
-}
-
-.content-section h3 {
-	margin: 0 0 0.45rem;
-	color: #1e293b;
-}
-
-.content-section p,
-.content-section li {
-	color: #475569;
-}
-
-.status {
-	display: inline-block;
-	margin-top: 0.45rem;
-	font-size: 0.75rem;
-	font-weight: 600;
-	padding: 0.15rem 0.5rem;
-	border-radius: 999px;
-}
-
-.status.completada {
-	color: #166534;
-	background: #dcfce7;
-}
-
-.status.en\ progreso {
-	color: #854d0e;
-	background: #fef3c7;
-}
-
-.status.pendiente {
-	color: #1d4ed8;
-	background: #dbeafe;
-}
-
-.empty {
-	display: grid;
-	place-items: center;
-	color: #64748b;
-}
+.finding-sev.critical { background: rgba(248,81,73,0.12);  color: #f85149; }
+.finding-sev.high     { background: rgba(227,179,65,0.12); color: #e3b341; }
+.finding-sev.medium   { background: rgba(56,139,253,0.12); color: #388bfd; }
+.finding-sev.low      { background: rgba(63,185,80,0.12);  color: #3fb950; }
+.finding-body    { min-width: 0; flex: 1; }
+.finding-name    { font-size: 12px; font-weight: 600; color: #e6edf3; margin-bottom: 2px; }
+.finding-resource { font-size: 11px; color: #768390; font-family: 'Consolas','Monaco',monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.no-findings     { font-size: 12px; color: #4d5566; }
 
 @media (max-width: 900px) {
-	.layout {
-		grid-template-columns: 1fr;
-	}
+  .layout         { grid-template-columns: 1fr; }
+  .summary-grid   { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
 </style>
