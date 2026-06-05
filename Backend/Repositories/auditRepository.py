@@ -73,7 +73,7 @@ class AuditRepository(IRepository):
         pass
     
     async def delete(self, audit_id):
-        result= await self.collection.delete_one({"_id": audit_id})
+        result= await self.collection.delete_one({"id": audit_id})
         return result.deleted_count > 0
     
     async def deleteByAccountUser(self, accountID, userID):

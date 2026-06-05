@@ -32,9 +32,23 @@
         >
           <div class="audit-item__top">
             <div class="audit-item__id">{{ shortId(audit.audit_id) }}</div>
-            <span :class="['origin-badge', audit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
-              {{ audit.origin === 'ai' ? '✦ IA' : 'Estático' }}
-            </span>
+            <div class="audit-item__actions">
+              <span :class="['origin-badge', audit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
+                {{ audit.origin === 'ai' ? '✦ IA' : 'Estático' }}
+              </span>
+              <div class="kebab-wrap" @click.stop>
+                <button class="kebab-btn" @click.stop="toggleMenu(audit.audit_id)">⋮</button>
+                <div v-if="openMenuId === audit.audit_id" class="audit-menu">
+                  <button class="menu-item disabled" @click="openMenuId = null">
+                    <i class="pi pi-file-pdf" /> Exportar PDF
+                  </button>
+                  <div class="menu-divider" />
+                  <button class="menu-item danger" @click="requestDelete(audit.audit_id)">
+                    <i class="pi pi-trash" /> Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="audit-item__date">{{ formatDate(audit.created_at) }}</div>
           <div class="severity-strip">
@@ -54,9 +68,23 @@
             <div class="detail-full-id">{{ selectedAudit.audit_id }}</div>
             <div class="detail-date">{{ formatDate(selectedAudit.created_at) }}</div>
           </div>
-          <span :class="['origin-badge', 'origin-badge--lg', selectedAudit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
-            {{ selectedAudit.origin === 'ai' ? '✦ Análisis IA' : '⚙ Estático' }}
-          </span>
+          <div class="detail-header__right">
+            <span :class="['origin-badge', 'origin-badge--lg', selectedAudit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
+              {{ selectedAudit.origin === 'ai' ? '✦ Análisis IA' : '⚙ Estático' }}
+            </span>
+            <div class="kebab-wrap" @click.stop>
+              <button class="kebab-btn" @click.stop="toggleMenu('detail')">⋮</button>
+              <div v-if="openMenuId === 'detail'" class="audit-menu audit-menu--left">
+                <button class="menu-item disabled" @click="openMenuId = null">
+                  <i class="pi pi-file-pdf" /> Exportar PDF
+                </button>
+                <div class="menu-divider" />
+                <button class="menu-item danger" @click="requestDelete(selectedAudit.audit_id)">
+                  <i class="pi pi-trash" /> Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="summary-grid">
@@ -106,11 +134,23 @@
         </div>
       </article>
     </div>
+
+  
+    <div v-if="confirmDialog.visible" class="confirm-overlay" @click.self="confirmDialog.visible = false">
+      <div class="confirm-box">
+        <div class="confirm-title">¿Eliminar auditoría {{ shortId(confirmDialog.auditId) }}?</div>
+        <div class="confirm-body">Se borrarán todos sus hallazgos. Esta acción no se puede deshacer.</div>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="confirmDialog.visible = false">Cancelar</button>
+          <button class="btn-delete" @click="confirmDelete">Eliminar</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
 import { buildApiUrl } from '../utils/api'
@@ -122,6 +162,8 @@ const toast = useToast()
 const audits = ref([])
 const selectedAuditId = ref(null)
 const loading = ref(false)
+const openMenuId = ref(null)
+const confirmDialog = ref({ visible: false, auditId: null })
 
 const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
 const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
@@ -167,17 +209,58 @@ const loadAudits = async () => {
     if (!res.ok) throw new Error('Error cargando auditorías')
 
     const data = await res.json()
+    console.log('Raw audits data:', data) 
     audits.value = (Array.isArray(data) ? data : []).map(a => ({
       ...a,
       vulnerabilities: a.vulnerabilities || [],
       counts: a.counts || computeCounts(a.vulnerabilities),
+      origin: a.origin || 'static'
     }))
+
     selectedAuditId.value = audits.value[0]?.audit_id ?? null
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
     audits.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const toggleMenu = (id) => {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+
+const requestDelete = (auditId) => {
+  openMenuId.value = null
+  confirmDialog.value = { visible: true, auditId }
+}
+
+const confirmDelete = async () => {
+  const id = confirmDialog.value.auditId
+  confirmDialog.value.visible = false
+  await deleteAudit(id)
+}
+
+const handleOutsideClick = () => { openMenuId.value = null }
+onMounted(() => document.addEventListener('click', handleOutsideClick))
+onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
+
+const deleteAudit = async (auditId) => {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  try {
+    const res = await fetch(buildApiUrl(`/cloud/delete-audit/${auditId}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error('Error al eliminar')
+    audits.value = audits.value.filter(a => a.audit_id !== auditId)
+    if (selectedAuditId.value === auditId) {
+      selectedAuditId.value = audits.value[0]?.audit_id ?? null
+    }
+    toast.add({ severity: 'success', summary: 'Eliminada', life: 2000 })
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
   }
 }
 
@@ -348,6 +431,80 @@ watch(accountId, () => {
 .finding-name    { font-size: 12px; font-weight: 600; color: #e6edf3; margin-bottom: 2px; }
 .finding-resource { font-size: 11px; color: #768390; font-family: 'Consolas','Monaco',monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .no-findings     { font-size: 12px; color: #4d5566; }
+
+/* ── Kebab menu ── */
+.audit-item__actions { display: flex; align-items: center; gap: 6px; }
+.detail-header__right { display: flex; align-items: center; gap: 8px; }
+
+.kebab-wrap { position: relative; }
+
+.kebab-btn {
+  background: transparent; border: none; color: #4d5566;
+  font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 5px;
+  border-radius: 5px; transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+}
+.kebab-btn:hover { background: rgba(255,255,255,0.06); color: #e6edf3; }
+
+.audit-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 100;
+  background: #1c2128; border: 1px solid #2d333b; border-radius: 9px;
+  padding: 4px; min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  animation: menuIn 0.1s ease-out;
+}
+.audit-menu--left { right: auto; left: 0; }
+
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; border: none; background: transparent;
+  color: #c9d1d9; font-size: 12px; font-family: inherit;
+  border-radius: 6px; cursor: pointer; text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+.menu-item:hover         { background: rgba(255,255,255,0.05); color: #e6edf3; }
+.menu-item.danger        { color: #f85149; }
+.menu-item.danger:hover  { background: rgba(248,81,73,0.1); }
+.menu-item.disabled      { color: #4d5566; cursor: default; }
+.menu-item.disabled:hover { background: transparent; color: #4d5566; }
+
+.menu-divider { height: 1px; background: #2d333b; margin: 3px 4px; }
+
+/* ── Confirm dialog ── */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-box {
+  background: #161b22; border: 1px solid #2d333b; border-radius: 14px;
+  padding: 24px; width: 360px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: menuIn 0.15s ease-out;
+}
+.confirm-title { font-size: 15px; font-weight: 700; color: #e6edf3; }
+.confirm-body  { font-size: 13px; color: #8b949e; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.btn-cancel {
+  background: transparent; border: 1px solid #2d333b; color: #768390;
+  padding: 7px 16px; border-radius: 7px; font-size: 13px;
+  font-family: inherit; cursor: pointer; transition: border-color 0.12s, color 0.12s;
+}
+.btn-cancel:hover { border-color: #4d5566; color: #e6edf3; }
+
+.btn-delete {
+  background: #f85149; border: none; color: #fff;
+  padding: 7px 16px; border-radius: 7px; font-size: 13px;
+  font-family: inherit; font-weight: 600; cursor: pointer;
+  transition: background 0.12s;
+}
+.btn-delete:hover { background: #da3633; }
 
 @media (max-width: 900px) {
   .layout         { grid-template-columns: 1fr; }

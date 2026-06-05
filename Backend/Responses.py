@@ -31,6 +31,7 @@ class AuditResponse(BaseModel):
     vulnerabilities: Optional[List[dict]] = None
     created_at: Optional[str] = None
     counts: Optional[dict] = None
+    origin : Optional[str] = None
 
 
 class CloudRegisterResponse(BaseModel):

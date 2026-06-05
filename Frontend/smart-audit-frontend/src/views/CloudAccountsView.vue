@@ -875,6 +875,10 @@ const saveEdit = async () => {
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.detail)
+    cloudAccountsStore.updateAccount(editAccount.id, {
+      name: editAccount.name,
+      description: editAccount.description
+    })
   } catch (error) {
     toast.add({
       severity: 'error',

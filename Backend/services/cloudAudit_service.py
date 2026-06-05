@@ -87,4 +87,13 @@ class CloudAuditService:
             raise HTTPException(status_code=404, detail="No audit results found for this account")
         
         return results
-        
+    
+    async def delete_audit(self,audit_id,user_id):
+        auditResult= await self.audit_repository.findById(audit_id)
+        if not auditResult:
+            logger.error(f"Audit result with id {audit_id} not found for user {user_id}")
+            raise HTTPException(status_code=404, detail="Audit result not found")
+        if auditResult.userID != user_id:
+            logger.error(f"User {user_id} is not authorized to delete audit result with id {audit_id}")
+            raise HTTPException(status_code=403, detail="Not authorized to delete this audit result")
+        await self.audit_repository.delete(audit_id)
