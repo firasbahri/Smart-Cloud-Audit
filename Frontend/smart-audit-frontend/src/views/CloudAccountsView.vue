@@ -133,151 +133,172 @@
       </div>
     </div>
 
-    <Dialog
-      v-model:visible="showAddDialog"
-      modal
-      header="Añadir Cuenta de Nube"
-      :style="{ width: '50rem' }"
-      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
-    >
-      <div class="flex flex-column gap-4 py-3">
-        <p class="text-600 mb-3">Selecciona el proveedor de nube y proporciona las credenciales necesarias</p>
+    <!-- ── Custom Add Account Modal ── -->
+    <div v-if="showAddDialog" class="add-overlay" @click.self="closeDialog">
+      <div class="add-stage" :class="{ 'guide-open': showGuide }">
 
-        <div class="provider-selection grid">
-          <div class="col-12 md:col-4">
-            <Card
-              class="provider-option"
-              :class="{ selected: selectedProvider === 'AWS' }"
-              @click="selectedProvider = 'AWS'"
+        <!-- Form modal -->
+        <div class="add-modal">
+          <div class="add-modal__header">
+            <div class="add-modal__title-group">
+              <div class="add-modal__icon"><Cloud :size="15" /></div>
+              <div>
+                <div class="add-modal__title">Añadir Cuenta</div>
+                <div class="add-modal__sub">Conecta una cuenta AWS</div>
+              </div>
+            </div>
+            <button class="add-modal__close" @click="closeDialog">✕</button>
+          </div>
+
+          <div class="add-modal__body">
+            <!-- Name -->
+            <div class="af-field">
+              <label class="af-label">Nombre de la cuenta</label>
+              <input v-model="newAccount.name" class="af-input" :class="{ invalid: errors.name }" placeholder="ej. Producción AWS" />
+              <span v-if="errors.name" class="af-error">{{ errors.name }}</span>
+            </div>
+
+            <!-- Provider -->
+            <div class="af-field">
+              <label class="af-label">Proveedor</label>
+              <div class="prov-seg">
+                <button :class="['prov-btn', { active: selectedProvider === 'AWS' }]" @click="selectedProvider = 'AWS'">AWS</button>
+                <button class="prov-btn prov-btn--disabled" disabled title="Próximamente">Azure</button>
+                <button class="prov-btn prov-btn--disabled" disabled title="Próximamente">GCP</button>
+              </div>
+            </div>
+
+            <!-- Role ARN -->
+            <div class="af-field">
+              <div class="arn-label-row">
+                <div class="arn-label-left">
+                  <span class="af-label">Role ARN</span>
+                  <span class="req-pill">requerido</span>
+                </div>
+                <button class="guide-link" @click="showGuide = !showGuide">
+                  ¿Cómo lo consigo? {{ showGuide ? '←' : '→' }}
+                </button>
+              </div>
+              <input v-model="newAccount.arn" class="af-input af-input--mono" :class="{ invalid: errors.arn }" placeholder="arn:aws:iam::..." />
+              <span v-if="errors.arn" class="af-error">{{ errors.arn }}</span>
+            </div>
+
+            <!-- Regions -->
+            <div class="af-field">
+              <div class="region-label-row">
+                <label class="af-label">Regiones AWS</label>
+                <label class="auto-detect-toggle">
+                  <input type="checkbox" v-model="autoDetectRegions" @change="autoDetectRegions && (newAccount.regions = [])" />
+                  <span class="toggle-track"><span class="toggle-thumb" /></span>
+                  <span class="toggle-label">Auto-detectar</span>
+                </label>
+              </div>
+              <MultiSelect
+                v-if="!autoDetectRegions"
+                v-model="newAccount.regions"
+                :options="AWS_REGIONS"
+                optionLabel="label"
+                optionValue="value"
+                optionGroupLabel="label"
+                optionGroupChildren="items"
+                placeholder="Selecciona regiones..."
+                display="chip"
+                filter
+                filterPlaceholder="Buscar región..."
+                class="w-full"
+                panelClass="add-account-multiselect-panel"
+                :invalid="errors.regions"
+              />
+              <div v-if="autoDetectRegions" class="auto-detect-warn">
+                <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
+                <span>Recorrerá ~30 regiones. El escaneo inicial será más lento.</span>
+              </div>
+              <span v-if="errors.regions && !autoDetectRegions" class="af-error">{{ errors.regions }}</span>
+            </div>
+
+            <!-- Description -->
+            <div class="af-field">
+              <label class="af-label">Descripción <span class="af-optional">(opcional)</span></label>
+              <textarea v-model="newAccount.description" class="af-textarea" rows="2" placeholder="Describe el propósito de esta cuenta..." />
+              <div class="ai-ctx-hint-box">
+                <i class="pi pi-sparkles" style="font-size:0.75rem;color:#a78bfa" />
+                <span>Se usará como contexto en el <strong>Análisis IA</strong>.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-modal__footer">
+            <button class="af-btn-cancel" @click="closeDialog">Cancelar</button>
+            <button
+              class="af-btn-primary"
+              :disabled="isConnecting || !selectedProvider || !newAccount.name || !newAccount.arn"
+              @click="addAccount"
             >
-              <template #content>
-                <div class="flex flex-column align-items-center gap-3 cursor-pointer">
-                  <Aws :size="48" class="provider-aws" />
-                  <h4 class="m-0">AWS</h4>
-                  <Tag value="Disponible" severity="success" />
-                </div>
-              </template>
-            </Card>
-          </div>
-
-          <div class="col-12 md:col-4">
-            <Card class="provider-option disabled">
-              <template #content>
-                <div class="flex flex-column align-items-center gap-3">
-                  <CloudIcon :size="48" class="provider-azure text-400" />
-                  <h4 class="m-0 text-400">Azure</h4>
-                  <Tag value="Próximamente" severity="secondary" />
-                </div>
-              </template>
-            </Card>
-          </div>
-
-          <div class="col-12 md:col-4">
-            <Card class="provider-option disabled">
-              <template #content>
-                <div class="flex flex-column align-items-center gap-3">
-                  <CloudIcon :size="48" class="provider-gcp text-400" />
-                  <h4 class="m-0 text-400">Google Cloud</h4>
-                  <Tag value="Próximamente" severity="secondary" />
-                </div>
-              </template>
-            </Card>
+              <i v-if="isConnecting" class="pi pi-spin pi-spinner" style="font-size:0.8rem" />
+              {{ isConnecting ? 'Conectando...' : 'Conectar cuenta' }}
+            </button>
           </div>
         </div>
 
-        <div v-if="selectedProvider === 'AWS'" class="aws-form flex flex-column gap-4 mt-3">
-          <div class="flex flex-column gap-2">
-            <label for="accountName" class="font-semibold">Nombre de la Cuenta</label>
-            <InputText
-              id="accountName"
-              v-model="newAccount.name"
-              placeholder="Ej: Producción AWS"
-              :invalid="errors.name"
-            />
-            <small v-if="errors.name" class="text-red-500">{{ errors.name }}</small>
-          </div>
-
-          <div class="flex flex-column gap-2">
-            <label for="arn" class="font-semibold">ARN (Amazon Resource Name)</label>
-            <Textarea
-              id="arn"
-              v-model="newAccount.arn"
-              rows="3"
-              placeholder="arn:aws:iam::123456789012:role/RoleName"
-              :invalid="errors.arn"
-            />
-            <small v-if="errors.arn" class="text-red-500">{{ errors.arn }}</small>
-            <small class="text-500">
-              <InfoIcon :size="14" class="mr-1" />
-              El ARN debe tener permisos de lectura para los servicios que deseas auditar
-            </small>
-          </div>
-
-          <div class="flex flex-column gap-2">
-            <div class="region-label-row">
-              <label for="regions" class="font-semibold">Regiones AWS</label>
-              <label class="auto-detect-toggle">
-                <input type="checkbox" v-model="autoDetectRegions" @change="autoDetectRegions && (newAccount.regions = [])" />
-                <span class="toggle-track"><span class="toggle-thumb" /></span>
-                <span class="toggle-label">Detectar automáticamente</span>
-              </label>
+        <!-- ARN Guide Drawer -->
+        <div class="arn-guide" :class="{ open: showGuide }">
+          <div class="arn-guide__inner">
+            <div class="arn-guide__header">
+              <span class="arn-guide__title">Cómo obtener tu Role ARN</span>
+              <button class="add-modal__close" @click="showGuide = false">✕</button>
             </div>
 
-            <MultiSelect
-              v-if="!autoDetectRegions"
-              id="regions"
-              v-model="newAccount.regions"
-              :options="AWS_REGIONS"
-              optionLabel="label"
-              optionValue="value"
-              optionGroupLabel="label"
-              optionGroupChildren="items"
-              placeholder="Selecciona las regiones a escanear"
-              display="chip"
-              filter
-              filterPlaceholder="Buscar región..."
-              class="w-full"
-              :invalid="errors.regions"
-            />
-            <small v-if="errors.regions && !autoDetectRegions" class="text-red-500">{{ errors.regions }}</small>
-
-            <div v-if="autoDetectRegions" class="auto-detect-warn">
-              <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
-              <span>El scanner recorrerá todas las regiones de AWS (~30). El escaneo inicial será considerablemente más lento. Se recomienda seleccionar solo las regiones donde tienes recursos.</span>
+            <div class="guide-stepper">
+              <button
+                v-for="n in 5"
+                :key="n"
+                :class="['stepper-seg', { done: n <= guideStep }]"
+                @click="guideStep = n"
+                :title="`Paso ${n}`"
+              />
             </div>
-            <small v-else class="text-500">
-              <InfoIcon :size="14" class="mr-1" />
-              Selecciona las regiones donde tienes recursos EC2 desplegados
-            </small>
-          </div>
 
-          <div class="flex flex-column gap-2">
-            <label for="description" class="font-semibold">Descripción (Opcional)</label>
-            <Textarea
-              id="description"
-              v-model="newAccount.description"
-              rows="2"
-              placeholder="Describe el propósito de esta cuenta..."
-            />
-            <div class="ai-ctx-hint-box">
-              <i class="pi pi-sparkles" style="font-size: 0.75rem; color: #a78bfa" />
-              <span>Esta descripción se usará automáticamente como contexto empresarial en el <strong>Análisis IA</strong>. Cuanto más detallada, mejores resultados.</span>
+            <div class="guide-step">
+              <div class="guide-step__head">
+                <div class="step-circle">{{ guideStep }}</div>
+                <span class="step-title">{{ GUIDE_STEPS[guideStep - 1].title }}</span>
+                <span class="step-counter">{{ guideStep }}/5</span>
+              </div>
+
+              <p class="step-desc">{{ GUIDE_STEPS[guideStep - 1].description }}</p>
+
+              <div class="copy-box">
+                <span class="copy-value">{{ GUIDE_STEPS[guideStep - 1].copyValue }}</span>
+                <button class="copy-btn" @click="copyGuideStep(guideStep)">
+                  {{ copiedStep === guideStep ? '✓ Copiado' : '📋 Copiar' }}
+                </button>
+              </div>
+
+              <div class="step-img-wrap">
+                <img
+                  v-if="!failedGuideImages[guideStep - 1]"
+                  :src="`/assets/arn-guide/step-${guideStep}.png`"
+                  :alt="GUIDE_STEPS[guideStep - 1].title"
+                  class="step-img"
+                  @error="failedGuideImages[guideStep - 1] = true"
+                />
+                <div v-else class="step-img-placeholder">
+                  <i class="pi pi-image" style="font-size:1.4rem;color:#4d5566" />
+                  <span>{{ GUIDE_STEPS[guideStep - 1].placeholder }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="guide-nav">
+              <button class="af-btn-ghost" :disabled="guideStep === 1" @click="guideStep--">← Anterior</button>
+              <button v-if="guideStep < 5" class="af-btn-secondary" @click="guideStep++">Siguiente →</button>
+              <button v-else class="af-btn-primary af-btn-primary--sm" @click="showGuide = false">✓ Ya tengo mi ARN</button>
             </div>
           </div>
         </div>
+
       </div>
-
-      <template #footer>
-        <Button label="Cancelar" icon="pi pi-times" text @click="closeDialog" />
-        <Button
-          :label="isConnecting ? 'Conectando...' : 'Conectar Cuenta'"
-          :icon="isConnecting ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
-          :loading="isConnecting"
-          :disabled="isConnecting || !selectedProvider || !newAccount.name || !newAccount.arn"
-          @click="addAccount"
-        />
-      </template>
-    </Dialog>
+    </div>
 
     <Dialog
       v-model:visible="showScanConfirmDialog"
@@ -516,6 +537,53 @@ const menu = ref()
 
 const autoDetectRegions = ref(false)
 const isConnecting = ref(false)
+const showGuide = ref(false)
+const guideStep = ref(1)
+const copiedStep = ref(null)
+const failedGuideImages = ref([false, false, false, false, false])
+
+const SMART_AUDIT_ACCOUNT_ID = import.meta.env.VITE_SMART_AUDIT_ACCOUNT_ID || '453195924129'
+
+const GUIDE_STEPS = [
+  {
+    title: 'Crea un nuevo rol en IAM',
+    description: "En la consola de AWS ve a IAM → Roles → 'Create role' y selecciona el tipo de entidad de confianza 'AWS account'.",
+    copyValue: 'https://console.aws.amazon.com/iam/home#/roles',
+    placeholder: "IAM → Roles → 'Create role' → tipo de entidad 'AWS account'",
+  },
+  {
+    title: 'Autoriza la cuenta de Smart Audit',
+    description: "Marca 'Another AWS account' e introduce nuestro ID de cuenta. Esto nos permite leer tus recursos de forma segura.",
+    copyValue: SMART_AUDIT_ACCOUNT_ID,
+    placeholder: "Marcar 'Another AWS account' e introducir el ID de cuenta",
+  },
+  {
+    title: 'Asigna permisos de solo lectura',
+    description: "Busca y selecciona la política gestionada 'ReadOnlyAccess'. Smart Audit nunca modifica tus recursos — solo los lee.",
+    copyValue: 'ReadOnlyAccess',
+    placeholder: "Buscar y seleccionar la política 'ReadOnlyAccess'",
+  },
+  {
+    title: 'Ponle un nombre al rol',
+    description: 'Dale un nombre identificable al rol para reconocerlo más tarde, y confirma la creación.',
+    copyValue: 'SmartAuditRole',
+    placeholder: 'Campo de nombre del rol y confirmar creación',
+  },
+  {
+    title: 'Copia el ARN del rol',
+    description: 'Abre el rol recién creado. En la parte superior verás su ARN — cópialo y pégalo en el campo del formulario.',
+    copyValue: `arn:aws:iam::${SMART_AUDIT_ACCOUNT_ID}:role/SmartAuditRole`,
+    placeholder: 'Pantalla del rol creado mostrando su ARN arriba',
+  },
+]
+
+const copyGuideStep = async (step) => {
+  try {
+    await navigator.clipboard.writeText(GUIDE_STEPS[step - 1].copyValue)
+    copiedStep.value = step
+    setTimeout(() => { copiedStep.value = null }, 2000)
+  } catch { /* clipboard not available */ }
+}
 
 const newAccount = reactive({
   name: '',
@@ -650,8 +718,8 @@ const validateForm = () => {
   if (!newAccount.arn.trim()) {
     errors.arn = 'El ARN es requerido'
     isValid = false
-  } else if (!newAccount.arn.startsWith('arn:aws:')) {
-    errors.arn = 'El formato del ARN no es válido'
+  } else if (!/^arn:aws:iam::\d{12}:role\/.+$/.test(newAccount.arn.trim())) {
+    errors.arn = 'Formato: arn:aws:iam::<ID_cuenta>:role/<nombre>'
     isValid = false
   }
 
@@ -665,6 +733,8 @@ const validateForm = () => {
 
 const closeDialog = () => {
   showAddDialog.value = false
+  showGuide.value = false
+  guideStep.value = 1
   selectedProvider.value = null
   newAccount.name = ''
   newAccount.arn = ''
@@ -1038,6 +1108,247 @@ const saveEdit = async () => {
 
 .ai-ctx-hint-box strong { color: #a78bfa; }
 
+/* ════════════════════════════════════════
+   ADD ACCOUNT MODAL — custom overlay
+   ════════════════════════════════════════ */
+.add-overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.add-stage {
+  display: flex;
+  align-items: stretch;
+  max-height: 90vh;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  border-radius: 14px;
+}
+
+/* Form modal */
+.add-modal {
+  width: 460px;
+  background: #161b22;
+  border: 1px solid #2d333b;
+  border-radius: 14px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: border-radius 0.3s ease;
+  flex-shrink: 0;
+}
+.add-stage.guide-open .add-modal {
+  border-radius: 14px 0 0 14px;
+  border-right: none;
+}
+
+.add-modal__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2d333b;
+  flex-shrink: 0;
+}
+.add-modal__title-group { display: flex; align-items: center; gap: 10px; }
+.add-modal__icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #3fb950; flex-shrink: 0;
+}
+.add-modal__title { font-size: 14px; font-weight: 600; color: #e6edf3; }
+.add-modal__sub   { font-size: 11px; color: #768390; margin-top: 1px; }
+.add-modal__close {
+  background: transparent; border: none; color: #4d5566;
+  font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 5px;
+  transition: background 0.1s, color 0.1s; font-family: inherit; line-height: 1;
+}
+.add-modal__close:hover { background: rgba(255,255,255,0.06); color: #e6edf3; }
+
+.add-modal__body {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.add-modal__body::-webkit-scrollbar { width: 4px; }
+.add-modal__body::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 2px; }
+
+.add-modal__footer {
+  padding: 12px 16px; border-top: 1px solid #2d333b;
+  display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0;
+}
+
+/* Form fields */
+.af-field  { display: flex; flex-direction: column; gap: 5px; }
+.af-label  { font-size: 11px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+.af-optional { color: #4d5566; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.af-error  { font-size: 11px; color: #f85149; }
+
+.af-input {
+  background: #1c2128; border: 1px solid #2d333b; color: #e6edf3;
+  border-radius: 7px; padding: 8px 11px; font-size: 12px; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+}
+.af-input:focus         { border-color: #3fb950; }
+.af-input.invalid       { border-color: #f85149; }
+.af-input--mono         { font-family: 'Consolas','Monaco',monospace; font-size: 11px; }
+
+.af-textarea {
+  background: #1c2128; border: 1px solid #2d333b; color: #e6edf3;
+  border-radius: 7px; padding: 8px 11px; font-size: 12px; font-family: inherit;
+  outline: none; resize: none; transition: border-color 0.15s; line-height: 1.5;
+}
+.af-textarea:focus { border-color: #3fb950; }
+
+/* Provider segmented buttons */
+.prov-seg {
+  display: flex; border: 1px solid #2d333b; border-radius: 8px; overflow: hidden;
+  background: #1c2128;
+}
+.prov-btn {
+  flex: 1; padding: 7px 0; background: transparent; border: none;
+  border-right: 1px solid #2d333b; color: #768390; font-size: 12px;
+  font-weight: 500; font-family: inherit; cursor: pointer; transition: all 0.15s;
+}
+.prov-btn:last-child { border-right: none; }
+.prov-btn.active { background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.3) !important; color: #3fb950; font-weight: 600; }
+.prov-btn--disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ARN label row */
+.arn-label-row  { display: flex; align-items: center; justify-content: space-between; }
+.arn-label-left { display: flex; align-items: center; gap: 7px; }
+.req-pill {
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  background: #1c2128; border: 1px solid #2d333b; color: #4d5566;
+  padding: 1px 6px; border-radius: 999px;
+}
+.guide-link {
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  color: #3fb950; font-size: 11px; font-weight: 600; font-family: inherit;
+  transition: opacity 0.15s;
+}
+.guide-link:hover { opacity: 0.75; }
+
+/* Footer buttons */
+.af-btn-cancel {
+  background: transparent; border: 1px solid #2d333b; color: #768390;
+  padding: 7px 14px; border-radius: 7px; font-size: 12px; font-family: inherit;
+  cursor: pointer; transition: border-color 0.12s, color 0.12s;
+}
+.af-btn-cancel:hover { border-color: #4d5566; color: #e6edf3; }
+
+.af-btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #3fb950; border: none; color: #0d1117;
+  padding: 7px 16px; border-radius: 7px; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background 0.12s;
+}
+.af-btn-primary:hover:not(:disabled) { background: #3da847; }
+.af-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.af-btn-primary--sm { padding: 6px 14px; }
+
+.af-btn-secondary {
+  background: #1c2128; border: 1px solid #2d333b; color: #c9d1d9;
+  padding: 6px 14px; border-radius: 7px; font-size: 12px; font-family: inherit;
+  cursor: pointer; transition: background 0.12s;
+}
+.af-btn-secondary:hover { background: #2d333b; }
+
+.af-btn-ghost {
+  background: transparent; border: none; color: #768390;
+  padding: 6px 10px; font-size: 12px; font-family: inherit; cursor: pointer;
+  transition: color 0.12s;
+}
+.af-btn-ghost:hover:not(:disabled) { color: #e6edf3; }
+.af-btn-ghost:disabled { opacity: 0.3; cursor: default; }
+
+/* ── ARN Guide Drawer ── */
+.arn-guide {
+  width: 0; overflow: hidden;
+  background: #161b22; border: 1px solid #2d333b; border-left: none;
+  border-radius: 0 14px 14px 0;
+  transition: width 0.3s ease;
+  flex-shrink: 0;
+}
+.arn-guide.open { width: 380px; }
+
+.arn-guide__inner {
+  width: 380px; height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.arn-guide__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid #2d333b; flex-shrink: 0;
+}
+.arn-guide__title { font-size: 13px; font-weight: 600; color: #e6edf3; }
+
+/* Stepper */
+.guide-stepper {
+  display: flex; gap: 4px; padding: 12px 16px 8px; flex-shrink: 0;
+}
+.stepper-seg {
+  flex: 1; height: 4px; background: #2d333b; border: none; border-radius: 999px;
+  cursor: pointer; transition: background 0.2s; padding: 0;
+}
+.stepper-seg.done { background: #3fb950; }
+
+/* Step content */
+.guide-step {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.guide-step::-webkit-scrollbar { width: 4px; }
+.guide-step::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 2px; }
+
+.guide-step__head {
+  display: flex; align-items: center; gap: 10px;
+}
+.step-circle {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid #3fb950; color: #3fb950; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-title   { font-size: 13px; font-weight: 600; color: #e6edf3; flex: 1; }
+.step-counter { font-size: 11px; color: #4d5566; flex-shrink: 0; }
+
+.step-desc {
+  margin: 0; font-size: 12px; color: #768390; line-height: 1.6;
+}
+
+/* Copy box */
+.copy-box {
+  display: flex; align-items: center; gap: 8px;
+  background: #1c2128; border: 1px solid #2d333b; border-radius: 7px;
+  padding: 8px 10px;
+}
+.copy-value {
+  flex: 1; font-family: 'Consolas','Monaco',monospace; font-size: 11px;
+  color: #a78bfa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.copy-btn {
+  background: transparent; border: 1px solid #2d333b; color: #c9d1d9;
+  padding: 3px 10px; border-radius: 5px; font-size: 11px; font-family: inherit;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.12s;
+}
+.copy-btn:hover { background: rgba(255,255,255,0.05); }
+
+/* Step image */
+.step-img-wrap {
+  border-radius: 8px; overflow: hidden; background: #1c2128;
+  border: 1px solid #2d333b; min-height: 130px;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-img { width: 100%; display: block; border-radius: 7px; }
+.step-img-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px; text-align: center;
+  font-size: 11px; color: #4d5566; line-height: 1.5;
+}
+
+/* Guide nav */
+.guide-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-top: 1px solid #2d333b; flex-shrink: 0; gap: 8px;
+}
+
 /* ── Region toggle ── */
 .region-label-row {
   display: flex;
@@ -1093,5 +1404,43 @@ const saveEdit = async () => {
   font-size: 0.78rem;
   color: #e3b341;
   line-height: 1.45;
+}
+
+/* ── MultiSelect dark theme inside add modal ── */
+.add-modal :deep(.p-multiselect) {
+  background: #1c2128 !important;
+  border: 1px solid #2d333b !important;
+  border-radius: 7px;
+}
+.add-modal :deep(.p-multiselect:hover),
+.add-modal :deep(.p-multiselect.p-focus) {
+  border-color: #3fb950 !important;
+  box-shadow: none !important;
+}
+.add-modal :deep(.p-multiselect-label) {
+  color: #e6edf3 !important;
+  font-size: 12px;
+}
+.add-modal :deep(.p-multiselect-label.p-placeholder) {
+  color: #4d5566 !important;
+}
+.add-modal :deep(.p-multiselect-dropdown) {
+  color: #768390 !important;
+}
+.add-modal :deep(.p-chip) {
+  background: rgba(63,185,80,0.12) !important;
+  color: #3fb950 !important;
+  border: 1px solid rgba(63,185,80,0.25) !important;
+  font-size: 11px;
+}
+.add-modal :deep(.p-chip-remove-icon) {
+  color: #3fb950 !important;
+}
+</style>
+
+<style>
+/* Fix PrimeVue teleported overlay z-index when inside custom modal */
+.add-account-multiselect-panel.p-multiselect-overlay {
+  z-index: 1200 !important;
 }
 </style>
