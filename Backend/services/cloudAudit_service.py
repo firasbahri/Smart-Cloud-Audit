@@ -97,3 +97,17 @@ class CloudAuditService:
             logger.error(f"User {user_id} is not authorized to delete audit result with id {audit_id}")
             raise HTTPException(status_code=403, detail="Not authorized to delete this audit result")
         await self.audit_repository.delete(audit_id)
+
+
+    async def generate_ai_recommendation(self, vulnerability_id:str, audit_id:str, user_id:str):
+        vulnerability= await self.audit_repository.findVulnerabilityById(audit_id, vulnerability_id)
+        if not vulnerability:
+            logger.error(f"Vulnerability with id {vulnerability_id} not found for user {user_id}")
+            raise HTTPException(status_code=404, detail="Vulnerability not found")
+        geminiAnalyzer=GeminiAnalyzer()
+        ai_recommendation=geminiAnalyzer.generateCLI(vulnerability)
+        vulnerability.recommendation=ai_recommendation.get("recommendation", "")
+        vulnerability.cli_command=ai_recommendation.get("cli_command", "")
+        await self.audit_repository.updateVulnerability(audit_id, vulnerability_id, vulnerability)
+        logger.info(f"Generated AI recommendation for vulnerability {vulnerability_id} in audit {audit_id} for user {user_id}")
+        return ai_recommendation

@@ -119,14 +119,69 @@
             <div
               v-for="vuln in selectedAudit.vulnerabilities"
               :key="vuln.id"
-              class="finding-item"
+              :class="['vi-item', { 'vi-item--ai': selectedAudit.origin === 'ai' }]"
             >
-              <span :class="['finding-sev', (vuln.severity || '').toLowerCase()]">
-                {{ vuln.severity }}
-              </span>
-              <div class="finding-body">
-                <div class="finding-name">{{ vuln.name || vuln.id }}</div>
-                <div class="finding-resource">{{ vuln.resource_id }}</div>
+              <!-- Cabecera compacta -->
+              <div class="vi-header">
+                <div class="vi-sev" :style="sevBadgeStyle(vuln.severity)">{{ vuln.severity }}</div>
+                <div class="vi-center">
+                  <div class="fr-name-row">
+                    <span class="vi-name" :class="{ 'vi-name--ai': selectedAudit.origin === 'ai' }">
+                      <span v-if="selectedAudit.origin === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name || vuln.id }}
+                    </span>
+                    <span :class="['vi-origin', selectedAudit.origin === 'ai' ? 'vi-origin--ai' : 'vi-origin--static']">
+                      {{ selectedAudit.origin === 'ai' ? '✦ IA' : 'Estático' }}
+                    </span>
+                  </div>
+                  <div class="vi-resource">{{ vuln.resource_id }}</div>
+                </div>
+                <!-- pastilla verde: hay solución guardada -->
+                <button
+                  v-if="vuln.cli_command"
+                  class="fix-pill"
+                  @click="expandedVulns[vuln.id] = !expandedVulns[vuln.id]"
+                >
+                  ✓ Solución lista
+                  <i
+                    :class="['pi', expandedVulns[vuln.id] ? 'pi-chevron-up' : 'pi-chevron-down']"
+                    style="font-size:0.6rem;color:#4d5566;transition:transform 0.15s"
+                  />
+                </button>
+                <!-- loading mientras se genera -->
+                <div v-else-if="loadingVulns[vuln.id]" class="gen-loading" role="status" aria-live="polite">
+                  <span class="rem-spin" aria-hidden="true">✦</span> Generando comando...
+                </div>
+                <!-- botón morado: no hay solución -->
+                <button v-else class="gen-btn" @click="handleGenerate(vuln.id)">
+                  <span aria-hidden="true">✦</span> Generar solución
+                </button>
+              </div>
+
+              <!-- Detalle expandible: solo si hay solución y está abierta -->
+              <div v-if="expandedVulns[vuln.id] && vuln.cli_command" class="row-detail">
+                <div :class="['row-origin-pill', selectedAudit.origin === 'ai' ? 'row-origin-pill--ai' : 'row-origin-pill--static']">
+                  {{ selectedAudit.origin === 'ai' ? '✦ Generada por IA · guardada' : '✓ Solución guardada' }}
+                </div>
+                <ol v-if="parseRemediationSteps(vuln.recommendation).length" class="rem-steps">
+                  <li v-for="(step, i) in parseRemediationSteps(vuln.recommendation)" :key="i" class="rem-step">
+                    <span class="rem-step-num" aria-hidden="true">{{ i + 1 }}</span>
+                    <span class="rem-step-text">{{ step }}</span>
+                  </li>
+                </ol>
+                <div class="rem-code-box">
+                  <div class="rem-code-header">
+                    <span class="rem-cmd-label">AWS CLI · guardado</span>
+                    <button
+                      :class="['rem-copy-btn', { 'rem-copy-btn--copied': copiedVuln[vuln.id] }]"
+                      @click="copyVulnCommand(vuln.id, vuln.cli_command)"
+                    >
+                      {{ copiedVuln[vuln.id] ? '✓ Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                  <div class="rem-code-body">
+                    <pre class="rem-code-pre">{{ vuln.cli_command }}</pre>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -150,13 +205,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
+import { useAuditStore } from '../store/auditStore'
 import { buildApiUrl } from '../utils/api'
 import { FileX, History } from 'lucide-vue-next'
 
 const cloudAccountsStore = useCloudAccountsStore()
+const auditStore = useAuditStore()
 const toast = useToast()
 
 const audits = ref([])
@@ -164,6 +221,10 @@ const selectedAuditId = ref(null)
 const loading = ref(false)
 const openMenuId = ref(null)
 const confirmDialog = ref({ visible: false, auditId: null })
+
+const copiedVuln    = reactive({})
+const expandedVulns = reactive({})
+const loadingVulns  = reactive({})
 
 const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
 const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
@@ -193,6 +254,53 @@ const formatDate = (iso) => {
   const d = new Date(iso)
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
     + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+}
+
+const SEV_COLORS = { CRITICAL: '#f85149', HIGH: '#e3b341', MEDIUM: '#388bfd', LOW: '#3fb950' }
+const sevBadgeStyle = (severity) => {
+  const color = SEV_COLORS[String(severity).toUpperCase()] ?? '#768390'
+  return { background: color + '21', color }
+}
+
+const parseRemediationSteps = (text) => {
+  if (!text) return []
+  return text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    .map(l => l.replace(/^\d+[-.)]\s*/, '').trim()).filter(l => l.length > 0)
+}
+
+const copyVulnCommand = async (vulnId, command) => {
+  try {
+    await navigator.clipboard.writeText(command)
+    copiedVuln[vulnId] = true
+    setTimeout(() => { copiedVuln[vulnId] = false }, 1500)
+  } catch { /* clipboard no disponible */ }
+}
+
+const handleGenerate = async (vulnId) => {
+  const auditId = selectedAudit.value?.audit_id
+  const token = localStorage.getItem('token')
+  if (!auditId || !token) return
+
+  loadingVulns[vulnId] = true
+  try {
+    const res = await fetch(buildApiUrl(`/cloud/generate-cli/${auditId}/${vulnId}`), {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error('No se pudo generar la solución')
+    const data = await res.json()
+
+    const audit = audits.value.find(a => a.audit_id === auditId)
+    const vuln = audit?.vulnerabilities.find(v => v.id === vulnId)
+    if (vuln) {
+      vuln.cli_command = data.cli_command || ''
+      vuln.recommendation = data.recommendation || ''
+    }
+    expandedVulns[vulnId] = true
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
+  } finally {
+    loadingVulns[vulnId] = false
+  }
 }
 
 const loadAudits = async () => {
@@ -255,6 +363,7 @@ const deleteAudit = async (auditId) => {
     })
     if (!res.ok) throw new Error('Error al eliminar')
     audits.value = audits.value.filter(a => a.audit_id !== auditId)
+    auditStore.audits = auditStore.audits.filter(a => a.audit_id !== auditId)
     if (selectedAuditId.value === auditId) {
       selectedAuditId.value = audits.value[0]?.audit_id ?? null
     }
@@ -413,24 +522,95 @@ watch(accountId, () => {
   font-size: 11px; font-weight: 700; background: #1c2128;
   border: 1px solid #2d333b; border-radius: 999px; padding: 1px 8px; color: #768390;
 }
-.finding-list { display: flex; flex-direction: column; gap: 7px; }
-.finding-item {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 9px 10px; border-radius: 9px;
-  background: #161b22; border: 1px solid #2d333b;
+.finding-list { display: flex; flex-direction: column; gap: 8px; }
+.no-findings  { font-size: 12px; color: #4d5566; }
+
+/* ── Finding row ── */
+.vi-item     { background: #161b22; border: 1px solid #2d333b; border-radius: 10px; overflow: hidden; }
+.vi-item--ai { border-color: rgba(167, 139, 250, 0.25); }
+
+.vi-header { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+
+.vi-sev { flex-shrink: 0; width: 62px; text-align: center; font-size: 9px; font-weight: 700; padding: 3px 0; border-radius: 4px; letter-spacing: 0.04em; }
+
+.vi-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.fr-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+.vi-name { font-family: 'Consolas','Monaco',monospace; font-size: 12.5px; font-weight: 600; color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.vi-name--ai { color: #a78bfa; }
+
+.vi-origin { flex-shrink: 0; font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+.vi-origin--ai     { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.vi-origin--static { background: rgba(63,185,80,0.12);  color: #3fb950; }
+
+.vi-resource { font-family: 'Consolas','Monaco',monospace; font-size: 10.5px; color: #4d5566; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pastilla verde — hay solución guardada */
+.fix-pill {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3);
+  color: #3fb950; border-radius: 7px; padding: 5px 11px;
+  font-size: 11px; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background 0.15s;
 }
-.finding-sev {
-  font-size: 10px; font-weight: 700; padding: 2px 7px;
-  border-radius: 999px; min-width: 52px; text-align: center; flex-shrink: 0;
+.fix-pill:hover { background: rgba(63,185,80,0.16); }
+
+/* Botón morado — sin solución */
+.gen-btn {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.35);
+  color: #a78bfa; border-radius: 7px; padding: 5px 11px;
+  font-size: 11px; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background 0.15s;
 }
-.finding-sev.critical { background: rgba(248,81,73,0.12);  color: #f85149; }
-.finding-sev.high     { background: rgba(227,179,65,0.12); color: #e3b341; }
-.finding-sev.medium   { background: rgba(56,139,253,0.12); color: #388bfd; }
-.finding-sev.low      { background: rgba(63,185,80,0.12);  color: #3fb950; }
-.finding-body    { min-width: 0; flex: 1; }
-.finding-name    { font-size: 12px; font-weight: 600; color: #e6edf3; margin-bottom: 2px; }
-.finding-resource { font-size: 11px; color: #768390; font-family: 'Consolas','Monaco',monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.no-findings     { font-size: 12px; color: #4d5566; }
+.gen-btn:hover { background: rgba(167,139,250,0.16); }
+
+/* Detalle expandible */
+.row-detail {
+  padding: 12px 14px 14px;
+  border-top: 1px solid #2d333b;
+  background: #0d1117;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.row-origin-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; padding: 4px 10px;
+  border-radius: 20px; align-self: flex-start;
+}
+.row-origin-pill--ai     { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); color: #a78bfa; }
+.row-origin-pill--static { background: rgba(63,185,80,0.1);  border: 1px solid rgba(63,185,80,0.3);  color: #3fb950; }
+
+/* Loading state en el botón generar */
+.gen-loading {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.2);
+  color: #a78bfa; border-radius: 7px; padding: 5px 11px;
+  font-size: 11px; font-weight: 500; opacity: 0.85;
+}
+.rem-spin { display: inline-block; animation: rem-rotate 1s linear infinite; }
+@keyframes rem-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rem-spin { animation: none; opacity: 0.6; } }
+
+/* Pasos de remediación */
+.rem-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.rem-step  { display: flex; gap: 9px; align-items: flex-start; }
+.rem-step-num  { flex-shrink: 0; color: #a78bfa; font-weight: 700; font-size: 12px; min-width: 14px; margin-top: 1px; }
+.rem-step-text { font-size: 12px; color: #768390; line-height: 1.5; }
+
+/* Caja de código */
+.rem-code-box    { background: #0a0e14; border: 1px solid #2d333b; border-radius: 8px; overflow: hidden; }
+.rem-code-header { background: #1c2128; border-bottom: 1px solid #2d333b; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; }
+.rem-cmd-label   { font-family: 'Consolas','Monaco',monospace; font-size: 10px; color: #4d5566; }
+.rem-copy-btn    { background: transparent; border: 1px solid #2d333b; color: #c9d1d9; font-size: 10px; font-family: inherit; padding: 3px 10px; border-radius: 5px; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.rem-copy-btn:hover        { background: rgba(255,255,255,0.05); }
+.rem-copy-btn--copied      { color: #3fb950; border-color: rgba(63,185,80,0.3); }
+.rem-code-body { padding: 10px 12px; overflow-x: auto; }
+.rem-code-pre  { margin: 0; font-family: 'Consolas','Monaco',monospace; font-size: 11px; color: #c9d1d9; line-height: 1.6; white-space: pre; }
 
 /* ── Kebab menu ── */
 .audit-item__actions { display: flex; align-items: center; gap: 6px; }

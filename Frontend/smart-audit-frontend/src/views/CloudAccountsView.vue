@@ -1439,8 +1439,114 @@ const saveEdit = async () => {
 </style>
 
 <style>
-/* Fix PrimeVue teleported overlay z-index when inside custom modal */
-.add-account-multiselect-panel.p-multiselect-overlay {
+/* ── MultiSelect teleported panel — dark theme + size cap ── */
+.add-account-multiselect-panel.p-multiselect-overlay,
+.add-account-multiselect-panel.p-multiselect-panel {
   z-index: 1200 !important;
+  background: #1c2128 !important;
+  border: 1px solid #2d333b !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  min-width: 0 !important;
+}
+
+/* Header row (Select All + filter) */
+.add-account-multiselect-panel .p-multiselect-header {
+  background: #161b22 !important;
+  border-bottom: 1px solid #2d333b !important;
+  padding: 7px 10px !important;
+  gap: 8px;
+}
+
+/* Filter input */
+.add-account-multiselect-panel .p-multiselect-filter,
+.add-account-multiselect-panel .p-multiselect-filter-container input {
+  background: #1c2128 !important;
+  border: 1px solid #2d333b !important;
+  color: #e6edf3 !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  padding: 5px 8px !important;
+}
+.add-account-multiselect-panel .p-multiselect-filter:focus,
+.add-account-multiselect-panel .p-multiselect-filter-container input:focus {
+  border-color: #3fb950 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.add-account-multiselect-panel .p-multiselect-filter::placeholder,
+.add-account-multiselect-panel .p-multiselect-filter-container input::placeholder {
+  color: #4d5566 !important;
+}
+
+/* Scrollable list — cap height so it doesn't overflow */
+.add-account-multiselect-panel .p-multiselect-list-container,
+.add-account-multiselect-panel .p-multiselect-items-wrapper {
+  max-height: 220px !important;
+  overflow-y: auto !important;
+}
+.add-account-multiselect-panel .p-multiselect-list-container::-webkit-scrollbar,
+.add-account-multiselect-panel .p-multiselect-items-wrapper::-webkit-scrollbar { width: 4px; }
+.add-account-multiselect-panel .p-multiselect-list-container::-webkit-scrollbar-thumb,
+.add-account-multiselect-panel .p-multiselect-items-wrapper::-webkit-scrollbar-thumb {
+  background: #2d333b; border-radius: 2px;
+}
+
+/* Group headers */
+.add-account-multiselect-panel .p-multiselect-option-group,
+.add-account-multiselect-panel .p-multiselect-item-group {
+  background: #161b22 !important;
+  color: #4d5566 !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 10px 4px !important;
+}
+
+/* Individual options */
+.add-account-multiselect-panel .p-multiselect-option,
+.add-account-multiselect-panel .p-multiselect-item {
+  background: transparent !important;
+  color: #c9d1d9 !important;
+  font-size: 12px !important;
+  padding: 6px 10px !important;
+  border-radius: 0 !important;
+}
+.add-account-multiselect-panel .p-multiselect-option:hover,
+.add-account-multiselect-panel .p-multiselect-option.p-focus,
+.add-account-multiselect-panel .p-multiselect-item:hover,
+.add-account-multiselect-panel .p-multiselect-item:focus {
+  background: rgba(63,185,80,0.09) !important;
+  color: #e6edf3 !important;
+}
+.add-account-multiselect-panel .p-multiselect-option.p-selected,
+.add-account-multiselect-panel .p-multiselect-item.p-highlight {
+  background: rgba(63,185,80,0.14) !important;
+  color: #3fb950 !important;
+}
+
+/* Checkboxes */
+.add-account-multiselect-panel .p-checkbox-box,
+.add-account-multiselect-panel .p-checkbox .p-checkbox-box {
+  background: #1c2128 !important;
+  border: 1px solid #3d444d !important;
+  border-radius: 4px !important;
+}
+.add-account-multiselect-panel .p-checkbox.p-checked .p-checkbox-box,
+.add-account-multiselect-panel .p-checkbox-checked .p-checkbox-box {
+  background: #3fb950 !important;
+  border-color: #3fb950 !important;
+}
+.add-account-multiselect-panel .p-checkbox-box .p-icon,
+.add-account-multiselect-panel .p-checkbox .p-checkbox-box .p-icon {
+  color: #0d1117 !important;
+}
+
+/* Select-all label in header */
+.add-account-multiselect-panel .p-multiselect-select-all-label,
+.add-account-multiselect-panel .p-multiselect-header .p-checkbox + span {
+  color: #768390 !important;
+  font-size: 12px !important;
 }
 </style>

@@ -47,6 +47,11 @@
               </li>
             </ul>
           </Message>
+          <div class="forgot-row">
+            <router-link to="/forgot-password" class="forgot-link">
+              ¿Olvidaste tu contraseña?
+            </router-link>
+          </div>
         </div>
 
         <Button 
@@ -278,6 +283,21 @@ label {
 .register-link:hover {
   color: #4ade80;
   text-decoration: underline;
+}
+
+.forgot-row {
+  text-align: right;
+}
+
+.forgot-link {
+  color: #8b949e;
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgot-link:hover {
+  color: #22c55e;
 }
 </style>
 

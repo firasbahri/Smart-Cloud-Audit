@@ -1,6 +1,7 @@
 from Repositories.IRepository import IRepository
 from DataBase.mongoDB import MongoDB  
 from Model.auditResult import AuditResult
+from Model.vulnerability import Vulnerability
 
 class AuditRepository(IRepository):
     def __init__(self):
@@ -68,6 +69,33 @@ class AuditRepository(IRepository):
             auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
             results.append(auditResult)
         return results
+    
+    async def findVulnerabilityById(self, audit_id: str, vulnerability_id: str):
+        #busca el audit por id y luego filtra la vulnerabilidad dentro del array de vulnerabidades con el id de vulnerabilidad y devuelve solo esa vulnerabilidad
+        result = await self.collection.find_one({"id": audit_id,"vulnerabilities.id": vulnerability_id}, {"vulnerabilities.$": 1})
+        if not result or "vulnerabilities" not in result or len(result["vulnerabilities"]) == 0:
+            return None
+        vulnerability_data = result["vulnerabilities"][0]
+        vulnerability = Vulnerability(
+            id=vulnerability_data.get("id"),
+            name=vulnerability_data.get("name"),
+            description=vulnerability_data.get("description"),
+            severity=vulnerability_data.get("severity"),
+            resource_id=vulnerability_data.get("resource_id"),
+            resource_type=vulnerability_data.get("resource_type"),
+        )
+        return vulnerability
+
+    async def updateVulnerability(self, audit_id: str, vulnerability_id: str, vulnerability: Vulnerability):
+        vulnerability_dict = {}
+        for key, value in vulnerability.__dict__.items():
+            if value is not None:
+                vulnerability_dict[key] = value
+        result = await self.collection.update_one(
+            {"id": audit_id, "vulnerabilities.id": vulnerability_id},
+            {"$set": {"vulnerabilities.$": vulnerability_dict}}
+        )
+        return result.modified_count > 0
 
     async def update(self, audit_id, audit_result):
         pass

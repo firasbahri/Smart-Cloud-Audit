@@ -20,18 +20,30 @@ class GeminiAnalyzer(ILLMAnalyzer):
 
   def analyze(self, resources,vulnerabilities,userContext=dict):
     try:
-      prompt=self.build_prompt(resources, vulnerabilities, userContext)
+      prompt=self.build_analyze_prompt(resources, vulnerabilities, userContext)
       response = self.client.models.generate_content(
         model="gemini-3.1-flash-lite-preview",
         contents=prompt
         )
-      return self.parse_response(response.text)
+      return self.parse_analyze_response(response.text)
     except Exception as e:
       logger.error(f"Error during Gemini analysis: {str(e)}")
       raise Exception(f"Error analyzing with Gemini : {str(e)}")
     
 
-  def build_prompt(self, resources, vulnerabilities, userContext):
+  def generateCLI(self, vulnerability):
+    try:
+      prompt=self.build_generateCLI_prompt(vulnerability)
+      response = self.client.models.generate_content(
+        model="gemini-3.1-flash-lite-preview",
+        contents=prompt
+        )
+      return self.parse_generateCLI_response(response.text)
+    except Exception as e:
+      logger.error(f"Error during Gemini CLI generation: {str(e)}")
+      raise Exception(f"Error generating CLI with Gemini : {str(e)}")  
+
+  def build_analyze_prompt(self, resources, vulnerabilities, userContext):
     return f"""
 You are an expert AWS cloud security auditor. Your task is to analyze the provided AWS resources and context, then return a structured security assessment.
 
@@ -87,7 +99,7 @@ OUTPUT FORMAT (JSON array, in Spanish):
 If no additional vulnerabilities are found beyond the static analysis, return an empty array: []
 """
 
-  def parse_response(self, response):
+  def parse_analyze_response(self, response):
     try:
       text_received=response.strip()
       if text_received.startswith("```"):
@@ -115,3 +127,48 @@ If no additional vulnerabilities are found beyond the static analysis, return an
     except Exception as e :
       logger.error("error during parsing the response")
       raise Exception(f"Error during parsing the response : {str(e)}")
+
+
+
+  def build_generateCLI_prompt(self, vulnerability : Vulnerability):
+
+    return f"""Para la siguiente vulnerabilidad AWS genera:
+1. Una recomendación clara de cómo remediarla
+2. El comando AWS CLI exacto si existe
+
+Vulnerabilidad: {vulnerability.name}
+Recurso ID: {vulnerability.resource_id}
+Tipo: {vulnerability.resource_type}
+
+Responde SOLO en JSON:
+{{
+    "recommendation": "pasos claros para remediar enumerados como 1, 2, 3 , cada linea un paso separados por salto de linea",
+    "cli_command": "comando AWS CLI exacto o null"
+}}
+"""
+
+  def parse_generateCLI_response(self, response):
+    try:
+      text_received = response.strip()
+      if text_received.startswith("```"):
+        text_received = text_received.split("```")[1]
+        # strip language tag (json, bash, etc.)
+        first_newline = text_received.find("\n")
+        if first_newline != -1:
+          text_received = text_received[first_newline:].strip()
+
+      parsed = json.loads(text_received)
+      cmd = parsed.get("cli_command")
+      recommendation = parsed.get("recommendation")
+      if not cmd or str(cmd).lower() == "null":
+        return None
+      if not recommendation:
+        logger.warning("CLI command provided without recommendation")
+        return None
+      return {
+        "cli_command": cmd,
+        "recommendation": recommendation
+      }
+    except Exception as e:
+      logger.error("error during parsing the CLI response")
+      raise Exception(f"Error during parsing the CLI response : {str(e)}")

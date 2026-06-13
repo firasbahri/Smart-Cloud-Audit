@@ -23,32 +23,32 @@ class IAMAnalyzer:
                 logger.info(f"User {user.name} has AdministratorAccess managed policy")
                 vulnerabilities.append(Vulnerability(
                     id=f"iam_user_{user.id}_managed_admin",
-                    name="IAM User with AdministratorAccess Managed Policy",
+                    name="Usuario IAM con Política Administrada AdministratorAccess",
                     description=(
-                        f"The IAM user '{user.name}' has the 'AdministratorAccess' managed policy attached, "
-                        "granting full access to all AWS services and resources."
+                        f"El usuario IAM '{user.name}' tiene la política administrada 'AdministratorAccess' adjunta, "
+                        "lo que le otorga acceso completo a todos los servicios y recursos de AWS."
                     ),
                     severity="Critical",
                     resource_id=user.id,
                     resource_type="IAM User",
                 ))
 
-            wildCardPolicies= self.hasWildcardPermissions(user.inline_policies)
+            wildCardPolicies = self.hasWildcardPermissions(user.inline_policies)
             if wildCardPolicies:
                 for pName in wildCardPolicies:
                     logger.info(f"User {user.name} has inline policy {pName} with wildcard permissions")
                     vulnerabilities.append(Vulnerability(
                         id=f"iam_user_{user.id}_inline_{pName}_wildcard",
-                        name=f"IAM User with Inline Policy {pName} Wildcard Permissions",
+                        name=f"Usuario IAM con Permisos Comodín en la Política Inline {pName}",
                         description=(
-                            f"The IAM user '{user.name}' has an inline policy '{pName}' that allows wildcard permissions, "
-                            "which can lead to excessive privileges and potential security risks."
+                            f"El usuario IAM '{user.name}' tiene una política inline '{pName}' que permite permisos comodín, "
+                            "lo que puede generar privilegios excesivos y riesgos de seguridad."
                         ),
                         severity="Critical",
                         resource_id=user.id,
                         resource_type="IAM User",
                     ))
-              
+
         return vulnerabilities
 
     def check_group_permissions(self, groups):
@@ -60,30 +60,30 @@ class IAMAnalyzer:
                 logger.info(f"Group {group.name} has AdministratorAccess managed policy")
                 vulnerabilities.append(Vulnerability(
                     id=f"iam_group_{group.id}_managed_admin",
-                    name="IAM Group with AdministratorAccess Managed Policy",
+                    name="Grupo IAM con Política Administrada AdministratorAccess",
                     description=(
-                        f"The IAM group '{group.name}' has the 'AdministratorAccess' managed policy attached, "
-                        "granting full access to all AWS services and resources for all users in the group."
+                        f"El grupo IAM '{group.name}' tiene la política administrada 'AdministratorAccess' adjunta, "
+                        "lo que otorga acceso completo a todos los servicios y recursos de AWS a todos los usuarios del grupo."
                     ),
                     severity="Critical",
                     resource_id=group.id,
                     resource_type="IAM Group",
                 ))
-            wildCardPolicies= self.hasWildcardPermissions(group.inline_policies)
+            wildCardPolicies = self.hasWildcardPermissions(group.inline_policies)
             if wildCardPolicies:
                 for pName in wildCardPolicies:
                     logger.info(f"Group {group.name} has inline policy {pName} with wildcard permissions")
                     vulnerabilities.append(Vulnerability(
                         id=f"iam_group_{group.id}_inline_{pName}_wildcard",
-                        name=f"IAM Group with Inline Policy {pName} Wildcard Permissions",
+                        name=f"Grupo IAM con Permisos Comodín en la Política Inline {pName}",
                         description=(
-                            f"The IAM group '{group.name}' has an inline policy '{pName}' that allows wildcard permissions, "
-                        "which can lead to excessive privileges and potential security risks for all users in the group."
-                    ),
-                    severity="Critical",
-                    resource_id=group.id,
-                    resource_type="IAM Group",
-                ))
+                            f"El grupo IAM '{group.name}' tiene una política inline '{pName}' que permite permisos comodín, "
+                            "lo que puede generar privilegios excesivos y riesgos de seguridad para todos los usuarios del grupo."
+                        ),
+                        severity="Critical",
+                        resource_id=group.id,
+                        resource_type="IAM Group",
+                    ))
 
         return vulnerabilities
 
@@ -95,11 +95,10 @@ class IAMAnalyzer:
                 vulnerabilities.append(
                     Vulnerability(
                         id=f"iam_user_{user.id}_mfa_not_enabled",
-                        name="IAM User without MFA Enabled",
+                        name="Usuario IAM sin Autenticación Multifactor (MFA)",
                         description=(
-                            f"The IAM user '{user.name}' does not have Multi-Factor "
-                            "Authentication (MFA) enabled, which can increase the risk "
-                            "of unauthorized access."
+                            f"El usuario IAM '{user.name}' no tiene habilitada la autenticación multifactor (MFA), "
+                            "lo que puede aumentar el riesgo de acceso no autorizado a la cuenta."
                         ),
                         severity="Medium",
                         resource_id=user.id,
@@ -141,11 +140,10 @@ class IAMAnalyzer:
                 vulnerabilities.append(
                     Vulnerability(
                         id=f"iam_user_{user.id}_inactive",
-                        name="Inactive IAM User",
+                        name="Usuario IAM Inactivo",
                         description=(
-                            f"The IAM user '{user.name}' has not used their password or "
-                            "access keys for over 90 days, which may indicate that the "
-                            "account is inactive and could be a security risk."
+                            f"El usuario IAM '{user.name}' no ha utilizado su contraseña ni sus claves de acceso "
+                            "durante más de 90 días, lo que puede indicar que la cuenta está inactiva y representa un riesgo de seguridad."
                         ),
                         severity="Low",
                         resource_id=user.id,
@@ -164,31 +162,31 @@ class IAMAnalyzer:
                 if role.trusted_entities:
                     logger.info(f"Role {role.name} has AdministratorAccess managed policy and trusted entities: {role.trusted_entities}")
                     vulnerabilities.append(Vulnerability(
-                            id=f"iam_role_{role.id}_managed_admin_trusted",
-                            name="IAM Role with AdministratorAccess Managed Policy and Trusted Entities",
-                            description=(
-                                f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached and is trusted by entities {role.trusted_entities}, "
-                                "granting full access to all AWS services and resources to those entities."
-                            ),
-                            severity="Critical",
-                            resource_id=role.id,
-                            resource_type="IAM Role",
-                        ))
+                        id=f"iam_role_{role.id}_managed_admin_trusted",
+                        name="Rol IAM con Política Administrada AdministratorAccess y Entidades de Confianza",
+                        description=(
+                            f"El rol IAM '{role.name}' tiene la política administrada 'AdministratorAccess' adjunta "
+                            f"y es de confianza para las entidades {role.trusted_entities}, "
+                            "lo que les otorga acceso completo a todos los servicios y recursos de AWS."
+                        ),
+                        severity="Critical",
+                        resource_id=role.id,
+                        resource_type="IAM Role",
+                    ))
                 else:
-                        vulnerabilities.append(Vulnerability(
-                            id=f"iam_role_{role.id}_managed_admin",
-                            name="IAM Role with AdministratorAccess Managed Policy",
-                            description=(
-                                f"The IAM role '{role.name}' has the 'AdministratorAccess' managed policy attached, "
-                
-                            ),
-                            severity="Medium",
-                            resource_id=role.id,
-                            resource_type="IAM Role",
-                        ))
-               
+                    vulnerabilities.append(Vulnerability(
+                        id=f"iam_role_{role.id}_managed_admin",
+                        name="Rol IAM con Política Administrada AdministratorAccess",
+                        description=(
+                            f"El rol IAM '{role.name}' tiene la política administrada 'AdministratorAccess' adjunta, "
+                            "lo que otorga acceso completo a todos los servicios y recursos de AWS."
+                        ),
+                        severity="Medium",
+                        resource_id=role.id,
+                        resource_type="IAM Role",
+                    ))
 
-            wildCardPolicies= self.hasWildcardPermissions(role.inline_policies)
+            wildCardPolicies = self.hasWildcardPermissions(role.inline_policies)
             if wildCardPolicies:
                 for pName in wildCardPolicies:
                     logger.info(f"Role {role.name} has inline policy {pName} with wildcard permissions")
@@ -196,10 +194,11 @@ class IAMAnalyzer:
                         logger.info(f"Role {role.name} with inline policy {pName} has trusted entities: {role.trusted_entities}")
                         vulnerabilities.append(Vulnerability(
                             id=f"iam_role_{role.id}_inline_{pName}_wildcard_trusted",
-                            name=f"IAM Role with Inline Policy {pName} Wildcard Permissions and Trusted Entities",
+                            name=f"Rol IAM con Permisos Comodín en la Política Inline {pName} y Entidades de Confianza",
                             description=(
-                                f"The IAM role '{role.name}' has an inline policy '{pName}' that allows wildcard permissions and is trusted by entities {role.trusted_entities}, "
-                                "which can lead to excessive privileges and potential security risks for those entities."
+                                f"El rol IAM '{role.name}' tiene una política inline '{pName}' que permite permisos comodín "
+                                f"y es de confianza para las entidades {role.trusted_entities}, "
+                                "lo que puede generar privilegios excesivos y riesgos de seguridad para dichas entidades."
                             ),
                             severity="Critical",
                             resource_id=role.id,
@@ -208,25 +207,26 @@ class IAMAnalyzer:
                     else:
                         vulnerabilities.append(Vulnerability(
                             id=f"iam_role_{role.id}_inline_{pName}_wildcard",
-                            name=f"IAM Role with Inline Policy {pName} Wildcard Permissions",
+                            name=f"Rol IAM con Permisos Comodín en la Política Inline {pName}",
                             description=(
-                                f"The IAM role '{role.name}' has an inline policy '{pName}' that allows wildcard permissions, "
-                                "which can lead to excessive privileges and potential security risks."
+                                f"El rol IAM '{role.name}' tiene una política inline '{pName}' que permite permisos comodín, "
+                                "lo que puede generar privilegios excesivos y riesgos de seguridad."
                             ),
                             severity="High",
                             resource_id=role.id,
                             resource_type="IAM Role",
                         ))
-                
+
         return vulnerabilities
+
     def isAdmin(self, policies: list) -> bool:
         logger.info(f"Checking policies: {policies}")
         for policy in policies:
             logger.info(f"Checking policy: {policy}")
-            if policy.get("policy_name") == "AdministratorAccess": 
+            if policy.get("policy_name") == "AdministratorAccess":
                 return True
         return False
-    
+
     def hasWildcardPermissions(self, inline_policies: list) -> list:
         policiesWithWildcard = []
         logger.info(f"Checking inline policies for wildcards: {inline_policies}")
@@ -234,9 +234,8 @@ class IAMAnalyzer:
             effect = policy.get("effect")
             if effect != "Allow":
                 continue
-            action=policy.get("actions", [])
-            resources=policy.get("resources", [])
+            action = policy.get("actions", [])
+            resources = policy.get("resources", [])
             if "*" in action and "*" in resources:
                 policiesWithWildcard.append(policy.get("policy_name"))
         return policiesWithWildcard
-    

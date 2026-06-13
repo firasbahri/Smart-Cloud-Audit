@@ -180,7 +180,7 @@ watch(() => cloudAccountsStore.selectedAccount, async(account) => {
 
   try {
     await scanStore.loadScanDataForAccount(account);
-    await auditStore.loadAuditDataForAccount(account);
+    await auditStore.loadAuditsForAccount(account);
     
   } catch (error) {
     console.error('Error cargando datos por cuenta seleccionada:', error);

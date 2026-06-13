@@ -13,8 +13,6 @@ class S3Analyzer:
         return vulnerabilities
 
 
-
-
     def check_public_access(self, buckets) -> list:
         vulnerabilities = []
         logger.info(f"Checking public access for {len(buckets)} buckets")
@@ -26,8 +24,11 @@ class S3Analyzer:
                 vulnerabilities.append(
                     Vulnerability(
                         id=f"s3_{bucket.id}_public_access_policy_and_public_access",
-                        name=f"Public Access to S3 Bucket {bucket.name}",
-                        description=f"The S3 bucket {bucket.name} has a public access policy and is publicly accessible.",
+                        name=f"Acceso Público al Bucket S3 {bucket.name}",
+                        description=(
+                            f"El bucket S3 '{bucket.name}' tiene una política de acceso público "
+                            "y es accesible públicamente desde internet."
+                        ),
                         severity="Critical",
                         resource_id=bucket.id,
                         resource_type="S3",
@@ -37,8 +38,11 @@ class S3Analyzer:
                 vulnerabilities.append(
                     Vulnerability(
                         id=f"s3_{bucket.id}_public_policy_only",
-                        name=f"Public Policy on S3 Bucket {bucket.name}",
-                        description=f"The S3 bucket {bucket.name} has a public access policy but is not publicly accessible due to bucket settings.",
+                        name=f"Política Pública en el Bucket S3 {bucket.name}",
+                        description=(
+                            f"El bucket S3 '{bucket.name}' tiene una política de acceso público, "
+                            "aunque no es accesible públicamente debido a la configuración del bucket."
+                        ),
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
@@ -48,46 +52,53 @@ class S3Analyzer:
                 vulnerabilities.append(
                     Vulnerability(
                         id=f"s3_{bucket.id}_public_access_only",
-                        name=f"Public Access to S3 Bucket {bucket.name}",
-                        description=f"The S3 bucket {bucket.name} is publicly accessible but does not have a public access policy.",
+                        name=f"Acceso Público al Bucket S3 {bucket.name}",
+                        description=(
+                            f"El bucket S3 '{bucket.name}' es accesible públicamente "
+                            "pero no tiene ninguna política de acceso público definida."
+                        ),
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
                     )
                 )
-       
+
         return vulnerabilities
-    
 
 
     def check_versioning(self, buckets) -> list:
-        Vulnerabilities= []
+        Vulnerabilities = []
         for bucket in buckets:
             logger.info(f"Checking versioning for bucket {bucket.name} with versioning status: {bucket.versioning}")
             if not bucket.versioning or bucket.versioning == "Disabled":
                 Vulnerabilities.append(
                     Vulnerability(
                         id=f"s3_{bucket.id}_versioning_disabled",
-                        name=f"S3 Bucket {bucket.name} Versioning Disabled",
-                        description=f"The S3 bucket {bucket.name} does not have versioning enabled, which can lead to data loss.",
+                        name=f"Versionado Deshabilitado en el Bucket S3 {bucket.name}",
+                        description=(
+                            f"El bucket S3 '{bucket.name}' no tiene el versionado habilitado, "
+                            "lo que puede provocar pérdida irreversible de datos."
+                        ),
                         severity="Low",
                         resource_id=bucket.id,
                         resource_type="S3",
                     )
                 )
         return Vulnerabilities
-    
-    def check_encryption(self, buckets) -> list:
-        Vulnerabilities=[]
 
+    def check_encryption(self, buckets) -> list:
+        Vulnerabilities = []
         for bucket in buckets:
             logger.info(f"Checking encryption for bucket {bucket.name} with encryption status: {bucket.encryption}")
-            if not bucket.encryption :
+            if not bucket.encryption:
                 Vulnerabilities.append(
                     Vulnerability(
                         id=f"s3_{bucket.id}_encryption_disabled",
-                        name=f"S3 Bucket {bucket.name} Encryption Disabled",
-                        description=f"The S3 bucket {bucket.name} does not have encryption enabled, which can lead to data breaches.",
+                        name=f"Cifrado Deshabilitado en el Bucket S3 {bucket.name}",
+                        description=(
+                            f"El bucket S3 '{bucket.name}' no tiene el cifrado habilitado, "
+                            "lo que puede provocar brechas de seguridad y exposición de datos sensibles."
+                        ),
                         severity="Medium",
                         resource_id=bucket.id,
                         resource_type="S3",
@@ -104,13 +115,13 @@ class S3Analyzer:
             logger.info(f"Analyzing policy statement: {statement}")
             if statement.get("Effect") == "Allow":
                 principal = statement.get("Principal", {})
-                if principal == "*" :
+                if principal == "*":
                     return True
                 if isinstance(principal, dict):
-                    if principal.get("AWS") == "*" :
+                    if principal.get("AWS") == "*":
                         return True
         return False
-    
+
     def isPublicAccess(self, public_access) -> bool:
         if not public_access:
             return True
@@ -122,12 +133,9 @@ class S3Analyzer:
         except Exception as e:
             logger.error(f"Error parsing public access settings: {e}")
             return True
-      
 
         if not blockPublicAcls or not ignorePublicAcls or not blockPublicPolicy or not restrictPublicBuckets:
             logger.info(f"Bucket is publicly accessible due to settings: BlockPublicAcls={blockPublicAcls}, IgnorePublicAcls={ignorePublicAcls}, BlockPublicPolicy={blockPublicPolicy}, RestrictPublicBuckets={restrictPublicBuckets}")
             return True
-        
-        return False
 
-    
+        return False

@@ -10,11 +10,15 @@ class User :
         self.password = password
         self.VerificationToken = token
         self.isVerified = isVerified
+        self.resetPasswordToken = None
 
 
 
     def verify_email(self):
         self.isVerified = True
+
+    def set_reset_password_token(self, token):
+        self.resetPasswordToken = token
 
 
 

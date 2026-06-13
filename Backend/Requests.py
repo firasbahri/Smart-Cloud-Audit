@@ -10,6 +10,12 @@ class UserRegisterRequest(BaseModel):
   password: str
   
 
+class EmailConfirmRequest(BaseModel):
+  email: str 
+
+class PasswordResetRequest(BaseModel):
+   new_password: str
+   
 class UserLoginRequest(BaseModel):
   username: str
   password: str

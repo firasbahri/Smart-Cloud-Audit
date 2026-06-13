@@ -54,3 +54,12 @@ async def delete_audit(audit_id:str,user_id:str=Depends(get_user_id_from_token))
         raise HTTPException(status_code=401, detail="Invalid token")
     await cloudAuditService.delete_audit(audit_id, user_id)
     return {"message": "Audit deleted successfully"}
+
+
+@router.get("/generate-cli/{audit_id}/{vulnerability_id}")
+async def generate_cli_command(vulnerability_id:str, audit_id:str, user_id:str=Depends(get_user_id_from_token)):
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    ai_recommendation=await cloudAuditService.generate_ai_recommendation(vulnerability_id, audit_id, user_id)
+    logger.info(f"Generated AI recommendation for vulnerability {vulnerability_id} in audit {audit_id} for user {user_id}: {ai_recommendation}")
+    return ai_recommendation

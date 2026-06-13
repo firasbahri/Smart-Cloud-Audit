@@ -6,7 +6,9 @@ export const useAuditStore = defineStore("audit", () => {
   const audits = ref([]);
   const selectedAudit = ref(null);
   const id = ref("");
-  const auditResult = ref(null);
+  const auditResult = ref(null);       // static vulnerabilities
+  const aiAuditResult = ref([]);       // AI vulnerabilities
+  const aiAuditId = ref("");
   const auditCreatedAt = ref(null);
   const auditProgressByAccount = ref({});
   const auditingAccounts = ref({});
@@ -19,6 +21,12 @@ export const useAuditStore = defineStore("audit", () => {
     auditResult.value = normalized;
   };
 
+  const setAiAudits = (auditIdValue, data) => {
+    console.log('Estableciendo auditoría IA con ID:', auditIdValue, 'y datos:', data);
+    aiAuditId.value = auditIdValue || "";
+    aiAuditResult.value = Array.isArray(data) ? data : [];
+  };
+
   const startAccountAudit = (accountId, auditId) => {
     auditingAccounts.value[accountId] = true;
     auditProgressByAccount.value[accountId] = 0;
@@ -27,71 +35,49 @@ export const useAuditStore = defineStore("audit", () => {
 
   const clearData = () => {
     id.value = "";
+    aiAuditId.value = "";
     audits.value = [];
     auditResult.value = null;
+    aiAuditResult.value = [];
   };
 
-  const loadAuditDataForAccount = async (account) => {
-    
-    const accountId = account?.id || account?.account_id || account;
-    if (!accountId) {
-      clearData();
-      return null;
-    }
-
+  const loadAuditsForAccount = async (account) => {
+    const id = account.id || account.account_id;
+    const token = localStorage.getItem("token");
+    const url = buildApiUrl(`/cloud/my-audits/${id}`);
     try {
-      const endpoint = buildApiUrl(`/cloud/last-audit-result/${accountId}`);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        clearData();
-        return null;
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'GET',
+      const response = await fetch(url, {
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         }
       });
-
-      if (!response.ok) {
-        throw new Error('Error fetching audit result');
-      }
-
+      if (!response.ok) throw new Error(`Error fetching audits: ${response.statusText}`);
       const data = await response.json();
-      const result = data.vulnerabilities || data.results || [];
-      const auditID = data.audit_id || "";
-      const createdAt = data.created_at || null;  
-
-      console.log('Datos de auditoría cargados para la cuenta:', accountId, result);
-
-      setAudits(auditID, result);
-      auditCreatedAt.value = createdAt;
-      if (auditID) {
-        auditIdByAccount.value[accountId] = auditID;
-      }
-
-      return data;
+      audits.value = Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('Error loading audit data:', error);
-      clearData();
-      return null;
+      console.error("Failed to load audits:", error);
+      audits.value = [];
     }
-  };
+  }
 
   return {
     audits,
     selectedAudit,
     id,
+    aiAuditId,
     auditResult,
+    aiAuditResult,
     auditCreatedAt,
     auditProgressByAccount,
     setAudits,
+    setAiAudits,
     auditingAccounts,
     auditIdByAccount,
     clearData,
     startAccountAudit,
-    loadAuditDataForAccount
+    loadAuditsForAccount
   };
 });
 

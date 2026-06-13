@@ -19,10 +19,10 @@ class EC2Analyzer:
             if instance.public_ip is not None:
                 vulnerabilities.append(Vulnerability(
                     id=f"ec2_{instance.id}_public_ip",
-                    name="EC2 Instance with Public IP",
+                    name="Instancia EC2 con IP Pública",
                     description=(
-                        f"The EC2 instance '{instance.id}' has a public IP address ({instance.public_ip}), "
-                        "which exposes it directly to the internet and increases the attack surface."
+                        f"La instancia EC2 '{instance.id}' tiene una dirección IP pública ({instance.public_ip}), "
+                        "lo que la expone directamente a internet y amplía la superficie de ataque."
                     ),
                     severity="Medium",
                     resource_id=instance.id,
@@ -41,9 +41,10 @@ class EC2Analyzer:
                             if ip_range == "0.0.0.0/0":
                                 Vulnerabilities.append(Vulnerability(
                                     id=f"ec2_{instance.id}_sg_{sg.id}_open_ssh",
-                                    name="EC2 Instance with Open SSH Port",
+                                    name="Instancia EC2 con Puerto SSH Abierto",
                                     description=(
-                                        f"The EC2 instance '{instance.id}' has a security group '{sg.id}' that allows open SSH access from any IP address."
+                                        f"La instancia EC2 '{instance.id}' tiene un grupo de seguridad '{sg.id}' "
+                                        "que permite el acceso SSH desde cualquier dirección IP."
                                     ),
                                     severity="High",
                                     resource_id=instance.id,
@@ -54,19 +55,20 @@ class EC2Analyzer:
                             if ip_range == "0.0.0.0/0":
                                 Vulnerabilities.append(Vulnerability(
                                     id=f"ec2_{instance.id}_sg_{sg.id}_open_rdp",
-                                    name="EC2 Instance with Open RDP Port",
+                                    name="Instancia EC2 con Puerto RDP Abierto",
                                     description=(
-                                        f"The EC2 instance '{instance.id}' has a security group '{sg.id}' that allows open RDP access from any IP address."
+                                        f"La instancia EC2 '{instance.id}' tiene un grupo de seguridad '{sg.id}' "
+                                        "que permite el acceso RDP desde cualquier dirección IP."
                                     ),
                                     severity="High",
                                     resource_id=instance.id,
                                     resource_type="EC2 Instance",
                                 ))
-        return Vulnerabilities 
- 
+        return Vulnerabilities
 
 
-    def check_ebs_encryption(self,instances: list)-> list:
+
+    def check_ebs_encryption(self, instances: list) -> list:
         vulnerabilities = []
         for instance in instances:
             for volume in instance.volumes:
@@ -74,18 +76,19 @@ class EC2Analyzer:
                 if volume["encrypted"] == False:
                     vulnerabilities.append(Vulnerability(
                         id=f"ec2_{instance.id}_ebs_{volume['volume_id']}_unencrypted",
-                        name="EC2 Instance with Unencrypted EBS Volume",
+                        name="Instancia EC2 con Volumen EBS sin Cifrar",
                         description=(
-                            f"The EC2 instance '{instance.id}' has an attached EBS volume '{volume['volume_id']}' that is not encrypted, which can lead to data exposure if the volume is compromised."
+                            f"La instancia EC2 '{instance.id}' tiene un volumen EBS '{volume['volume_id']}' adjunto "
+                            "que no está cifrado, lo que puede provocar exposición de datos si el volumen se ve comprometido."
                         ),
                         severity="Medium",
                         resource_id=instance.id,
                         resource_type="EC2 Instance",
                     ))
         return vulnerabilities
-    
 
-    def check_tags(self,instances: list)-> list:
+
+    def check_tags(self, instances: list) -> list:
         vulnerabilities = []
         REQUIRED_TAGS = ["Name", "Environment", "Owner"]
         for instance in instances:
@@ -94,9 +97,10 @@ class EC2Analyzer:
             if missing_tags:
                 vulnerabilities.append(Vulnerability(
                     id=f"ec2_{instance.id}_missing_tags",
-                    name="EC2 Instance Missing Tags",
+                    name="Instancia EC2 con Etiquetas Faltantes",
                     description=(
-                        f"The EC2 instance '{instance.id}' does not have all required tags, which can make it difficult to manage and identify resources effectively."
+                        f"La instancia EC2 '{instance.id}' no tiene todas las etiquetas requeridas, "
+                        "lo que puede dificultar la gestión e identificación eficaz de los recursos."
                     ),
                     severity="Low",
                     resource_id=instance.id,

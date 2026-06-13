@@ -51,6 +51,38 @@ class UserRepository(IRepository):
          else None
       )
       return user
+   
+
+   async def find_user_by_email(self, email) -> User:
+      user_response = await self.collection.find_one({"email":email})
+      if user_response:
+         user = User(
+            user_response["username"],
+            user_response["password"],
+            user_response["email"],
+            user_response["isVerified"],
+            None,
+            str(user_response["_id"]),
+         )
+         logger.info("User found by email: %s with id: %s", email, user.id)
+         return user
+      return None
+   
+
+   async def find_user_by_password_reset_token(self, token) -> User:
+      user_response = await self.collection.find_one({"resetPasswordToken": token})
+      if user_response:
+         user = User(
+            user_response["username"],
+            user_response["password"],
+            user_response["email"],
+            user_response["isVerified"],
+            None,
+            str(user_response["_id"]),
+         )
+         logger.info("User found by password reset token with id: %s", user.id)
+         return user
+      return None
 
    async def delete(self, user_id):
       result = await self.collection.delete_one({"_id": ObjectId(user_id)})
@@ -81,3 +113,6 @@ class UserRepository(IRepository):
          logger.info("id user found by token: %s", user.id)
          return user
       return None
+   
+
+   

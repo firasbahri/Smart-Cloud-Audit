@@ -1,9 +1,11 @@
+from datetime import timedelta
+
 from Repositories.userRepository import UserRepository
 from Model.user import User
 from passlib.hash import bcrypt
 from fastapi import HTTPException
 from tokenConfigure import create_access_token
-from services.email_service import send_email
+from services.email_service import send_email, send_password_reset_email
 import logging
 import secrets
 
@@ -37,7 +39,7 @@ class AuthService:
             if not userFounded.isVerified:
                 raise HTTPException(status_code=403, detail="Email not verified")
             logger.info("userId es %s",userFounded.id)
-            access_token = create_access_token({"user_id": userFounded.id})
+            access_token = create_access_token({"user_id": userFounded.id}, expiration_delta=timedelta(minutes=60))
             logger.info("token created for username: %s es %s", username, access_token)
             return access_token
         except HTTPException:
@@ -54,3 +56,30 @@ class AuthService:
             await self.user_repository.update(user.id, user)
             return True
         return False
+    
+
+
+    async def send_password_reset_email(self, email):
+        user =await self.user_repository.find_user_by_email(email)
+        if not user:
+            raise Exception("No user found with that email")
+        
+        token = create_access_token({"user_id": user.id}, expiration_delta=timedelta(minutes=30))
+        user.set_reset_password_token(token)
+        await self.user_repository.update(user.id, user)
+        await send_password_reset_email(email, token)
+
+
+
+    async def reset_password(self, token, new_password):
+        user =await self.user_repository.find_user_by_password_reset_token(token)
+        if not user:
+            raise Exception("Invalid password reset token") 
+        
+        user.password = bcrypt.hash(new_password)
+        user.reset_password_token = None
+        await self.user_repository.update(user.id, user)
+        return True
+    
+
+

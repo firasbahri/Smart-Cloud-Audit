@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from services.auth_service import AuthService
-from Requests   import  UserRegisterRequest, UserLoginRequest
+from Requests   import  UserRegisterRequest, UserLoginRequest, EmailConfirmRequest, PasswordResetRequest    
 from Responses import UserResponse, TokenResponse
 import logging
 logger=logging.getLogger(__name__)
@@ -43,5 +43,28 @@ async def verify_email(token: str):
             return RedirectResponse(url=f"{baseUrl}/login?verified=true")
         else:
             raise HTTPException(status_code=400, detail="Token de verificación inválido")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+
+@router.post("/forgot-password")
+async def forgot_password(emailConfirm : EmailConfirmRequest):
+    try:
+        await auth_service.send_password_reset_email(emailConfirm.email)
+        return {"message": "Correo de restablecimiento de contraseña enviado"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+
+@router.post("/reset-password/{token}")
+async def reset_password(token: str,passwordReset : PasswordResetRequest):
+    try:
+        result = await auth_service.reset_password(token, passwordReset.new_password)
+        if result:
+            return {"message": "Contraseña restablecida exitosamente"}
+        else:
+            raise HTTPException(status_code=400, detail="Token de restablecimiento inválido")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

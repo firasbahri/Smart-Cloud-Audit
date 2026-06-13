@@ -77,6 +77,25 @@
 
 		<Card v-if="hasResources" class="vuln-card">
 			<template #content>
+
+				<!-- ── Sin resultados: estado vacío guiado ── -->
+				<div v-if="!hasResults && !isLoadingAny" class="audit-empty">
+					<div class="empty-well">
+						<div class="empty-icon-box">
+							<i class="pi pi-shield" style="font-size:1.25rem" />
+						</div>
+						<h3 class="empty-title">Aún no hay hallazgos</h3>
+						<p class="empty-hint">
+							Elige <span style="color:#3fb950;font-weight:600">Estático</span> o
+							<span style="color:#a78bfa;font-weight:600">Análisis IA</span>
+							arriba y pulsa <strong style="color:#e6edf3">Ejecutar</strong>.
+							Los resultados aparecerán aquí en tiempo real.
+						</p>
+					</div>
+				</div>
+
+				<!-- ── Con resultados ── -->
+				<template v-else>
 				<div class="results-bar">
 					<div :class="['seg-ctrl', `mode-${activeTab}`]">
 						<button :class="['seg-btn', { active: activeTab === 'static' }]" @click="activeTab = 'static'">
@@ -106,20 +125,99 @@
 						:key="vuln.id"
 						:class="['vuln-item', { 'ai-vuln-item': activeTab === 'ai' }]"
 					>
-						<div class="vuln-top flex align-items-center justify-content-between gap-2">
-							<strong :class="{ 'ai-vuln-id': activeTab === 'ai' }">{{ vuln.id }}</strong>
-							<div class="flex gap-2">
-								<Tag :value="vuln.severity" :severity="mapSeverity(vuln.severity)" rounded />
-								<Tag v-if="activeTab === 'static'" :value="vuln.origin" severity="secondary" rounded />
+						<!-- ── Header ── -->
+						<div class="vi-header">
+							<div class="vi-sev" :style="sevBadgeStyle(vuln.severity)">
+								{{ vuln.severity }}
+							</div>
+							<div class="vi-center">
+								<div class="vi-name" :class="{ 'vi-name--ai': activeTab === 'ai' }">
+									<span v-if="activeTab === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name }}
+								</div>
+								<div class="vi-resource">{{ vuln.resource_id }}</div>
+							</div>
+							<div :class="['vi-origin', activeTab === 'ai' ? 'vi-origin--ai' : 'vi-origin--static']">
+								{{ activeTab === 'ai' ? '✦ IA' : 'Estático' }}
 							</div>
 						</div>
-						<p class="vuln-description">{{ vuln.description }}</p>
-						<div :class="['vuln-meta', { 'ai-vuln-meta': activeTab === 'ai' }]">
-							<span><strong>Resource ID:</strong> {{ vuln.resource_id }}</span>
+
+						<!-- ── Body ── -->
+						<div class="vi-body">
+							<!-- Por qué es un problema (siempre visible) -->
+							<div class="vi-why">
+								<span class="vi-label">Por qué es un problema</span>
+								<p class="vi-why-text">{{ vuln.description }}</p>
+							</div>
+
+							<!-- Remediation — idle -->
+							<button
+								v-if="getRemState(vuln.id) === 'idle'"
+								class="rem-gen-btn"
+								@click="handleGenerate(vuln.id)"
+							>
+								<span aria-hidden="true">✦</span> Generar solución con IA
+							</button>
+
+							<!-- Remediation — loading -->
+							<div
+								v-else-if="getRemState(vuln.id) === 'loading'"
+								class="rem-loading"
+								role="status"
+								aria-live="polite"
+							>
+								<span class="rem-spin" aria-hidden="true">✦</span>
+								<span>Generando comando para tu recurso...</span>
+							</div>
+
+							<!-- Remediation — done -->
+							<div v-else class="rem-done">
+								<div class="rem-saved-pill">
+									<span aria-hidden="true">✦</span> Generada por IA · guardada
+								</div>
+
+								<span class="vi-label">Cómo solucionarlo</span>
+
+								<ol class="rem-steps">
+									<li v-for="(step, i) in getRemData(vuln.id).steps" :key="i" class="rem-step">
+										<span class="rem-step-num" aria-hidden="true">{{ i + 1 }}</span>
+										<span class="rem-step-text">{{ step }}</span>
+									</li>
+								</ol>
+
+								<!-- CLI code box -->
+								<div class="rem-code-box">
+									<div class="rem-code-header">
+										<span class="rem-cmd-label">{{ getRemData(vuln.id).cmdLabel }}</span>
+										<button
+											:class="['rem-copy-btn', { 'rem-copy-btn--copied': copiedVuln[vuln.id] }]"
+											@click="copyVulnCommand(vuln.id)"
+										>
+											{{ copiedVuln[vuln.id] ? '✓ Copiado' : 'Copiar' }}
+										</button>
+									</div>
+									<div class="rem-code-body">
+										<pre class="rem-code-pre">{{ getRemData(vuln.id).command }}</pre>
+									</div>
+								</div>
+
+								<!-- Disclaimer -->
+								<div class="rem-disclaimer" role="note">
+									<span class="rem-disc-icon" aria-hidden="true">⚠</span>
+									<span>Comando sugerido por IA — revísalo antes de ejecutar. Smart Audit no aplica cambios (solo lectura).</span>
+								</div>
+
+								<!-- Marcar como resuelto -->
+								<button class="rem-resolve-btn" @click="handleResolve(vuln.id)">
+									✓ Marcar como resuelto
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>
-				<Message v-else-if="activeFiltered.length === 0 && currentTotal > 0" severity="info" :closable="false" class="mt-3">No hay vulnerabilidades para la severidad seleccionada.</Message>
+
+				<Message v-else-if="activeFiltered.length === 0 && currentTotal > 0" severity="info" :closable="false" class="mt-3">
+					No hay vulnerabilidades para la severidad seleccionada.
+				</Message>
 
 				<div v-if="totalPages > 1" class="paginator">
 					<button class="pag-btn" :disabled="currentPage === 1" @click="currentPage--">
@@ -134,6 +232,7 @@
 					</button>
 					<span class="pag-info">{{ pageInfo }}</span>
 				</div>
+				</template>
 			</template>
 		</Card>
 
@@ -141,7 +240,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, reactive } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
 import { useScanStore } from '../store/scanStore'
@@ -164,12 +263,96 @@ const staticVulnerabilities = computed(() =>
 		? auditStore.auditResult.map((item, i) => normalizeVulnerability(item, i, 'static'))
 		: []
 )
-const aiVulnerabilities = ref([])
+const aiVulnerabilities = computed(() =>
+	Array.isArray(auditStore.aiAuditResult)
+		? auditStore.aiAuditResult.map((item, i) => normalizeVulnerability(item, i, 'ai'))
+		: []
+)
 const activeTab = ref('static')
 const selectedSeverity = ref('ALL')
 const isLoadingStatic = ref(false)
 const isLoadingAi = ref(false)
 const auditMode = ref('static')
+
+// ── Remediation state (per vulnerability) ──
+// 'idle' | 'loading' | 'done'
+const remediationStates = reactive({})
+// { steps: string[], command: string, cmdLabel: string }
+const remediationData = reactive({})
+// copy feedback per vuln
+const copiedVuln = reactive({})
+
+const getRemState = (vulnId) => remediationStates[vulnId] || 'idle'
+
+const getRemData = (vulnId) => remediationData[vulnId] || { steps: [], command: '', cmdLabel: 'AWS CLI · sugerido por IA' }
+
+// Parses "1- Paso uno\n2- Paso dos" → ['Paso uno', 'Paso dos']
+const parseRemediationSteps = (text) => {
+	if (!text) return []
+	return text
+		.split('\n')
+		.map(line => line.trim())
+		.filter(line => line.length > 0)
+		.map(line => line.replace(/^\d+[-.)]\s*/, '').trim())
+		.filter(line => line.length > 0)
+}
+
+const handleGenerate = async (vulnId) => {
+	remediationStates[vulnId] = 'loading'
+	const auditId = activeTab.value === 'ai' ? auditStore.aiAuditId : auditStore.id
+	const token = localStorage.getItem('token')
+	try {
+		const response = await fetch(buildApiUrl(`/cloud/generate-cli/${auditId}/${vulnId}`), {
+			method: 'GET',
+			headers: { Authorization: `Bearer ${token}` }
+		})
+		if (!response.ok) throw new Error('No se pudo generar la solución')
+		
+		const data = await response.json()
+		console.log('Respuesta de generación IA:', data)
+		const cmd = data?.cli_command || ''
+		const steps =data?.recommendation ? parseRemediationSteps(data.recommendation) : []
+		
+		const vuln = staticVulnerabilities.value.find(v => v.id === vulnId)
+			|| aiVulnerabilities.value.find(v => v.id === vulnId)
+
+		remediationData[vulnId] = {
+			steps: steps.length > 0
+				? steps
+				: ['Consulta la documentación oficial de AWS para este tipo de vulnerabilidad.'],
+			command: cmd,
+			cmdLabel: cmd ? 'AWS CLI · generado por IA' : '',
+		}
+		remediationStates[vulnId] = 'done'
+	} catch (error) {
+		toast.add({ severity: 'error', summary: 'Error al generar', detail: error.message, life: 3000 })
+		remediationStates[vulnId] = 'idle'
+	}
+}
+
+// TODO: connect to backend — mark finding as resolved
+const handleResolve = (vulnId) => {
+	// TODO: llamar endpoint de resolución
+	console.log('TODO: marcar como resuelto', vulnId)
+}
+
+const copyVulnCommand = async (vulnId) => {
+	const cmd = getRemData(vulnId).command
+	try {
+		await navigator.clipboard.writeText(cmd)
+		copiedVuln[vulnId] = true
+		setTimeout(() => { copiedVuln[vulnId] = false }, 1500)
+	} catch { /* clipboard no disponible */ }
+}
+
+// Severity badge style
+const SEV_COLORS = { CRITICAL: '#f85149', HIGH: '#e3b341', MEDIUM: '#388bfd', LOW: '#3fb950' }
+const sevBadgeStyle = (severity) => {
+	const color = SEV_COLORS[String(severity).toUpperCase()] ?? '#768390'
+	return { background: color + '21', color }
+}
+
+// ──────────────────────────────────────────────
 
 const severityOptions = [
 	{ label: 'Todas', value: 'ALL' },
@@ -200,6 +383,9 @@ const resolvedScanId = computed(() => {
 
 const canRunAudit = computed(() => Boolean(resolvedScanId.value) && hasResources.value)
 const isLoadingAny = computed(() => isLoadingStatic.value || isLoadingAi.value)
+const hasResults = computed(() =>
+	staticVulnerabilities.value.length > 0 || aiVulnerabilities.value.length > 0
+)
 const currentTotal = computed(() => activeTab.value === 'ai' ? aiVulnerabilities.value.length : staticVulnerabilities.value.length)
 
 const contextGroups = computed(() => {
@@ -279,16 +465,21 @@ const mapSeverity = (severity) => {
 
 const normalizeVulnerability = (item, index, mode) => ({
 	id: item?.id || item?._id || `VULN-${index + 1}`,
+	name: item?.name || item?.id || `VULN-${index + 1}`,
 	description: item?.description || item?.detail || 'Sin descripcion',
 	severity: String(item?.severity || 'LOW').toUpperCase(),
 	resource_id: item?.resource_id || item?.resourceId || 'N/A',
+	remediation: item?.remediation || item?.recommendation || item?.cli_command || '',
 	origin: item?.origin || (mode === 'ai' ? 'AI Analysis' : 'Static Analysis')
 })
 
 watch(accountId, () => {
-	aiVulnerabilities.value = []
+	auditStore.clearData()
 	activeTab.value = 'static'
 	currentPage.value = 1
+	// Reset remediation state when account changes
+	Object.keys(remediationStates).forEach(k => delete remediationStates[k])
+	Object.keys(remediationData).forEach(k => delete remediationData[k])
 })
 
 watch([activeTab, selectedSeverity], () => { currentPage.value = 1 })
@@ -313,7 +504,11 @@ const runStaticAudit = async () => {
 			.map((item, i) => normalizeVulnerability(item, i, 'static'))
 
 		auditStore.setAudits(data?.audit_id || '', normalized)
+		if (data?.audit_id && accountId.value) {
+			auditStore.auditIdByAccount[accountId.value] = data.audit_id
+		}
 		activeTab.value = 'static'
+	
 		toast.add({ severity: 'success', summary: 'Auditoria completada', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
 	} catch (error) {
 		toast.add({ severity: 'error', summary: 'Error en auditoria', detail: error.message, life: 3500 })
@@ -326,7 +521,7 @@ const submitAiAudit = async () => {
 	const token = localStorage.getItem('token')
 	if (!token) { toast.add({ severity: 'error', summary: 'Sesion', detail: 'Token no encontrado', life: 3000 }); return }
 	const scanId = resolvedScanId.value
-	const auditId = auditStore.id
+	const auditId = auditStore.id || auditStore.auditIdByAccount[accountId.value] || ''
 	if (!scanId || !auditId) {
 		toast.add({ severity: 'warn', summary: 'Auditoria IA', detail: 'Ejecuta primero el análisis estático', life: 3000 })
 		return
@@ -347,14 +542,19 @@ const submitAiAudit = async () => {
 		})
 		const data = await response.json()
 		if (!response.ok) throw new Error(data?.detail || 'No se pudo ejecutar el análisis IA')
-
+		console.log('data de análisis IA:', data)
 		const normalized = (Array.isArray(data?.vulnerabilities) ? data.vulnerabilities : [])
 			.map((item, i) => normalizeVulnerability(item, i, 'ai'))
+		const aiAuditId = data?.audit_id || ''
+		console.log('Vulnerabilidades IA normalizadas antes de setAiAudits: y el ID:', aiAuditId, normalized)
+		auditStore.setAiAudits(aiAuditId, normalized)
 
-		aiVulnerabilities.value = normalized
+		console.log('Vulnerabilidades IA normalizadas despues de setAiAudits:', normalized)
 		activeTab.value = 'ai'
+		console.log('Vulnerabilidades IA normalizadas:', normalized)
 		toast.add({ severity: 'success', summary: 'Análisis IA completado', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
 	} catch (error) {
+		console.error('Error en submitAiAudit:', error)
 		toast.add({ severity: 'error', summary: 'Error en análisis IA', detail: error.message, life: 3500 })
 	} finally {
 		isLoadingAi.value = false
@@ -416,83 +616,35 @@ const submitAiAudit = async () => {
 }
 .seg-btn:last-child { border-right: none; }
 .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: #e6edf3; }
-
-/* green when static mode is active */
-.seg-ctrl.mode-static .seg-btn.active {
-	background: rgba(34, 197, 94, 0.1);
-	color: #22c55e;
-}
-/* purple when ai mode is active */
-.seg-ctrl.mode-ai .seg-btn.active {
-	background: rgba(167, 139, 250, 0.12);
-	color: #a78bfa;
-}
+.seg-ctrl.mode-static .seg-btn.active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.seg-ctrl.mode-ai .seg-btn.active { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
 
 .seg-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(255,255,255,0.07);
-	color: inherit;
-	border-radius: 999px;
-	font-size: 0.65rem;
-	font-weight: 700;
-	padding: 0.05rem 0.4rem;
-	min-width: 18px;
+	display: inline-flex; align-items: center; justify-content: center;
+	background: rgba(255,255,255,0.07); color: inherit;
+	border-radius: 999px; font-size: 0.65rem; font-weight: 700;
+	padding: 0.05rem 0.4rem; min-width: 18px;
 }
 
-/* ── Filter right ── */
-.filter-right {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
+.filter-right { display: flex; align-items: center; gap: 10px; }
 
 .sev-select {
-	background: #1c2128;
-	border: 1px solid #2d333b;
-	color: #e6edf3;
-	border-radius: 7px;
-	padding: 5px 10px;
-	font-size: 12px;
-	font-family: inherit;
-	cursor: pointer;
-	outline: none;
-	appearance: auto;
+	background: #1c2128; border: 1px solid #2d333b; color: #e6edf3;
+	border-radius: 7px; padding: 5px 10px; font-size: 12px; font-family: inherit;
+	cursor: pointer; outline: none; appearance: auto;
 }
-.sev-select option {
-	background: #1c2128;
-	color: #e6edf3;
-}
+.sev-select option { background: #1c2128; color: #e6edf3; }
 .sev-select:hover { border-color: #4d5566; }
 
 .audit-controls { display: flex; align-items: center; gap: 0.5rem; }
-
-.audit-mode-toggle {
-	display: flex;
-	border: 1px solid #2d333b;
-	border-radius: 8px;
-	overflow: hidden;
-	background: #161b22;
-}
+.audit-mode-toggle { display: flex; border: 1px solid #2d333b; border-radius: 8px; overflow: hidden; background: #161b22; }
 
 .toggle-btn {
-	flex: 1;
-	padding: 9px 14px;
-	background: transparent;
-	border: none;
-	color: #768390;
-	cursor: pointer;
-	font-size: 12px;
-	font-weight: 500;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	transition: all 0.15s;
-	border-right: 1px solid #2d333b;
-	white-space: nowrap;
+	flex: 1; padding: 9px 14px; background: transparent; border: none;
+	color: #768390; cursor: pointer; font-size: 12px; font-weight: 500;
+	display: flex; align-items: center; gap: 6px;
+	transition: all 0.15s; border-right: 1px solid #2d333b; white-space: nowrap;
 }
-
 .toggle-btn:last-child { border-right: none; }
 .toggle-btn:hover { background: #1c2128; color: #e6edf3; }
 .toggle-btn.static-btn.active { background: #1c2128; color: #22c55e; }
@@ -500,128 +652,322 @@ const submitAiAudit = async () => {
 
 .text-muted { color: #94a3b8; }
 .vuln-list { margin-top: 0.5rem; }
-.vuln-item { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 0.7rem; background: rgba(2, 6, 23, 0.45); }
-.vuln-description { margin: 0.65rem 0; color: #cbd5e1; }
-.vuln-meta { color: #94a3b8; font-size: 0.9rem; }
 
-.ai-vuln-item { border-color: rgba(167, 139, 250, 0.25); background: rgba(88, 28, 135, 0.08); }
-.ai-vuln-id { color: #c4b5fd; }
-.ai-vuln-meta { color: #a78bfa; }
-
-/* ── Context summary panel ── */
-.ctx-panel {
+/* ── Vulnerability item (card) ── */
+.vuln-item {
 	background: #161b22;
-	border: 1px solid rgba(167, 139, 250, 0.2);
-	border-radius: 14px;
-	padding: 0.9rem 1rem;
+	border: 1px solid #2d333b;
+	border-radius: 10px;
+	overflow: hidden;
+}
+.ai-vuln-item { border-color: rgba(167, 139, 250, 0.25); }
+
+/* Header */
+.vi-header {
 	display: flex;
-	flex-direction: column;
-	gap: 0.55rem;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	border-bottom: 1px solid #2d333b;
 }
 
-.ctx-panel-header {
+.vi-sev {
+	flex-shrink: 0;
+	width: 62px;
+	text-align: center;
+	font-size: 9px;
+	font-weight: 700;
+	padding: 3px 0;
+	border-radius: 4px;
+	letter-spacing: 0.04em;
+}
+
+.vi-center {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.vi-name {
+	font-family: 'Consolas', 'Monaco', monospace;
+	font-size: 13px;
+	font-weight: 600;
+	color: #e6edf3;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.vi-name--ai { color: #a78bfa; }
+
+.vi-resource {
+	font-family: 'Consolas', 'Monaco', monospace;
+	font-size: 11px;
+	color: #4d5566;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vi-origin {
+	flex-shrink: 0;
+	font-size: 9px;
+	font-weight: 600;
+	padding: 3px 8px;
+	border-radius: 10px;
+	white-space: nowrap;
+}
+.vi-origin--ai     { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.vi-origin--static { background: rgba(63,185,80,0.12);  color: #3fb950; }
+
+/* Body */
+.vi-body {
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.vi-why { display: flex; flex-direction: column; gap: 5px; }
+
+.vi-label {
+	display: block;
+	font-size: 10px;
+	font-weight: 700;
+	color: #4d5566;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.vi-why-text {
+	margin: 0;
+	font-size: 12px;
+	color: #768390;
+	line-height: 1.6;
+}
+
+/* idle: generate button */
+.rem-gen-btn {
+	width: 100%;
+	background: rgba(167,139,250,0.1);
+	border: 1px solid rgba(167,139,250,0.35);
+	color: #a78bfa;
+	border-radius: 8px;
+	padding: 11px;
+	font-size: 13px;
+	font-weight: 600;
+	font-family: inherit;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+}
+.rem-gen-btn:hover {
+	background: rgba(167,139,250,0.16);
+	border-color: rgba(167,139,250,0.55);
+}
+
+/* loading */
+.rem-loading {
+	width: 100%;
+	background: rgba(167,139,250,0.06);
+	border: 1px solid rgba(167,139,250,0.2);
+	color: #a78bfa;
+	border-radius: 8px;
+	padding: 11px;
+	font-size: 13px;
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+	opacity: 0.85;
+}
+
+.rem-spin {
+	display: inline-block;
+	animation: rem-rotate 1s linear infinite;
+}
+
+@keyframes rem-rotate {
+	from { transform: rotate(0deg); }
+	to   { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rem-spin { animation: none; opacity: 0.6; }
+}
+
+/* done */
+.rem-done {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.rem-saved-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(167,139,250,0.1);
+	border: 1px solid rgba(167,139,250,0.3);
+	color: #a78bfa;
+	font-size: 10px;
+	font-weight: 600;
+	padding: 4px 10px;
+	border-radius: 20px;
+	align-self: flex-start;
+}
+
+/* Steps */
+.rem-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.rem-step  { display: flex; gap: 10px; align-items: flex-start; }
+.rem-step-num  { flex-shrink: 0; color: #a78bfa; font-weight: 700; font-size: 12px; min-width: 14px; margin-top: 1px; }
+.rem-step-text { font-size: 12px; color: #768390; line-height: 1.5; }
+
+/* CLI code box */
+.rem-code-box { background: #0a0e14; border: 1px solid #2d333b; border-radius: 8px; overflow: hidden; }
+
+.rem-code-header {
+	background: #1c2128;
+	border-bottom: 1px solid #2d333b;
+	padding: 6px 12px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 }
 
-.ctx-panel-title {
-	display: flex;
-	align-items: center;
-	gap: 7px;
-	font-size: 0.875rem;
-	font-weight: 600;
-	color: #c4b5fd;
-}
+.rem-cmd-label { font-family: 'Consolas','Monaco',monospace; font-size: 10px; color: #4d5566; }
 
-.ctx-sections-badge {
-	background: rgba(167, 139, 250, 0.15);
-	color: #a78bfa;
-	border-radius: 999px;
-	font-size: 0.7rem;
-	font-weight: 700;
-	padding: 0.1rem 0.5rem;
-}
-
-.ctx-edit-link {
-	background: transparent;
-	border: none;
-	color: #768390;
-	font-size: 0.8rem;
-	cursor: pointer;
-	font-family: inherit;
-	transition: color 0.15s;
-	padding: 0;
-}
-.ctx-edit-link:hover { color: #a78bfa; }
-
-.ctx-business {
-	margin: 0;
-	font-size: 0.82rem;
-	color: #c9d1d9;
-	line-height: 1.5;
-}
-.ctx-empty-hint { color: #4d5566; font-style: italic; }
-
-.ctx-pills {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-}
-
-.ctx-pill {
-	display: inline-flex;
-	align-items: center;
-	font-size: 0.75rem;
-	font-weight: 500;
-	padding: 3px 10px;
-	border-radius: 999px;
-	border: 1px solid;
-	white-space: nowrap;
-}
-
-.pill-full    { background: rgba(63, 185, 80, 0.1);  border-color: rgba(63, 185, 80, 0.35);  color: #3fb950; }
-.pill-partial { background: rgba(227, 179, 65, 0.1); border-color: rgba(227, 179, 65, 0.35); color: #e3b341; }
-.pill-empty   { background: rgba(255,255,255,0.03);  border-color: #2d333b;                  color: #4d5566; }
-
-/* ── Paginator ── */
-.paginator {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	padding: 1rem 0 0.25rem;
-}
-
-.pag-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 30px;
-	height: 30px;
-	padding: 0 6px;
+.rem-copy-btn {
 	background: transparent;
 	border: 1px solid #2d333b;
-	border-radius: 7px;
-	color: #768390;
-	font-size: 12px;
+	color: #c9d1d9;
+	font-size: 10px;
 	font-family: inherit;
+	padding: 3px 10px;
+	border-radius: 5px;
 	cursor: pointer;
-	transition: all 0.15s;
+	transition: background 0.12s, color 0.12s;
 }
+.rem-copy-btn:hover { background: rgba(255,255,255,0.05); }
+.rem-copy-btn--copied { color: #3fb950; border-color: rgba(63,185,80,0.3); }
+
+.rem-code-body { padding: 10px 12px; overflow-x: auto; }
+.rem-code-pre {
+	margin: 0;
+	font-family: 'Consolas','Monaco',monospace;
+	font-size: 11px;
+	color: #c9d1d9;
+	line-height: 1.6;
+	white-space: pre;
+}
+
+/* Disclaimer */
+.rem-disclaimer {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	background: rgba(227,179,65,0.06);
+	border: 1px solid rgba(227,179,65,0.25);
+	border-radius: 7px;
+	padding: 9px 12px;
+	font-size: 11px;
+	color: #f0d28a;
+	line-height: 1.5;
+}
+.rem-disc-icon { color: #e3b341; flex-shrink: 0; margin-top: 1px; }
+
+/* Resolve button */
+.rem-resolve-btn {
+	align-self: flex-start;
+	background: transparent;
+	border: 1px solid #2d333b;
+	color: #3fb950;
+	font-size: 11px;
+	font-weight: 600;
+	font-family: inherit;
+	padding: 6px 14px;
+	border-radius: 7px;
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+.rem-resolve-btn:hover {
+	background: rgba(63,185,80,0.08);
+	border-color: rgba(63,185,80,0.35);
+}
+
+/* ── Empty state ── */
+.audit-empty {
+	padding: 4px 0;
+}
+
+.empty-well {
+	border: 1px dashed #2d333b;
+	border-radius: 12px;
+	padding: 30px 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+}
+
+.empty-icon-box {
+	width: 48px;
+	height: 48px;
+	border-radius: 14px;
+	background: #1c2128;
+	border: 1px solid #2d333b;
+	color: #768390;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+}
+
+.empty-title {
+	margin: 0 0 6px;
+	font-size: 15px;
+	font-weight: 600;
+	color: #e6edf3;
+}
+
+.empty-hint {
+	margin: 0;
+	font-size: 12.5px;
+	color: #768390;
+	max-width: 360px;
+	line-height: 1.55;
+}
+
+/* ── Context summary panel ── */
+.ctx-panel {
+	background: #161b22; border: 1px solid rgba(167,139,250,0.2);
+	border-radius: 14px; padding: 0.9rem 1rem;
+	display: flex; flex-direction: column; gap: 0.55rem;
+}
+.ctx-panel-header { display: flex; align-items: center; justify-content: space-between; }
+.ctx-panel-title  { display: flex; align-items: center; gap: 7px; font-size: 0.875rem; font-weight: 600; color: #c4b5fd; }
+.ctx-sections-badge { background: rgba(167,139,250,0.15); color: #a78bfa; border-radius: 999px; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; }
+.ctx-edit-link { background: transparent; border: none; color: #768390; font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: color 0.15s; padding: 0; }
+.ctx-edit-link:hover { color: #a78bfa; }
+.ctx-business { margin: 0; font-size: 0.82rem; color: #c9d1d9; line-height: 1.5; }
+.ctx-empty-hint { color: #4d5566; font-style: italic; }
+.ctx-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctx-pill { display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 500; padding: 3px 10px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+.pill-full    { background: rgba(63,185,80,0.1);  border-color: rgba(63,185,80,0.35);  color: #3fb950; }
+.pill-partial { background: rgba(227,179,65,0.1); border-color: rgba(227,179,65,0.35); color: #e3b341; }
+.pill-empty   { background: rgba(255,255,255,0.03); border-color: #2d333b; color: #4d5566; }
+
+/* ── Paginator ── */
+.paginator { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 1rem 0 0.25rem; }
+.pag-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px; background: transparent; border: 1px solid #2d333b; border-radius: 7px; color: #768390; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
 .pag-btn:hover:not(:disabled):not(.active) { background: #1c2128; color: #e6edf3; border-color: #4d5566; }
 .pag-btn:disabled { opacity: 0.3; cursor: default; }
 .pag-btn.active { background: #1c2128; border-color: #4d5566; color: #e6edf3; font-weight: 600; }
-
-.seg-ctrl.mode-static ~ * .pag-btn.active,
-.pag-btn.pag-num.active { border-color: #4d5566; }
-
 .pag-ellipsis { color: #4d5566; font-size: 12px; padding: 0 4px; line-height: 30px; }
-
-.pag-info {
-	margin-left: 8px;
-	font-size: 11px;
-	color: #4d5566;
-	white-space: nowrap;
-}
+.pag-info { margin-left: 8px; font-size: 11px; color: #4d5566; white-space: nowrap; }
 </style>
