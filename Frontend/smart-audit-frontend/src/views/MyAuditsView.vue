@@ -8,6 +8,27 @@
           <p class="subtitle">Historial de auditorías · {{ activeAccountLabel }}</p>
         </div>
       </div>
+
+      <div v-if="audits.length" class="origin-filter">
+        <button
+          :class="['filter-btn', { active: originFilter === 'all' }]"
+          @click="originFilter = 'all'"
+        >
+          Todas <span class="filter-count">{{ audits.length }}</span>
+        </button>
+        <button
+          :class="['filter-btn', 'filter-btn--static', { active: originFilter === 'static' }]"
+          @click="originFilter = 'static'"
+        >
+          Estático <span class="filter-count">{{ originCounts.static }}</span>
+        </button>
+        <button
+          :class="['filter-btn', 'filter-btn--ai', { active: originFilter === 'ai' }]"
+          @click="originFilter = 'ai'"
+        >
+          ✦ IA <span class="filter-count">{{ originCounts.ai }}</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="state-box">
@@ -21,11 +42,17 @@
       <p>Ejecuta una desde <strong>Auditoría</strong></p>
     </div>
 
+    <div v-else-if="!filteredAudits.length" class="state-box">
+      <FileX :size="34" style="color:#4d5566" />
+      <span>No hay auditorías {{ originFilter === 'ai' ? 'de IA' : 'estáticas' }}</span>
+      <p>Prueba a cambiar el filtro o ejecuta una desde <strong>Auditoría</strong></p>
+    </div>
+
     <div v-else class="layout">
       <!-- ── Master list ── -->
       <aside class="audits-list">
         <button
-          v-for="audit in audits"
+          v-for="audit in filteredAudits"
           :key="audit.audit_id"
           :class="['audit-item', { active: selectedAuditId === audit.audit_id }]"
           @click="selectedAuditId = audit.audit_id"
@@ -221,6 +248,7 @@ const selectedAuditId = ref(null)
 const loading = ref(false)
 const openMenuId = ref(null)
 const confirmDialog = ref({ visible: false, auditId: null })
+const originFilter = ref('all') // 'all' | 'static' | 'ai'
 
 const copiedVuln    = reactive({})
 const expandedVulns = reactive({})
@@ -229,6 +257,22 @@ const loadingVulns  = reactive({})
 const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
 const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
 const selectedAudit = computed(() => audits.value.find(a => a.audit_id === selectedAuditId.value) ?? null)
+
+const originCounts = computed(() => ({
+  static: audits.value.filter(a => a.origin === 'static').length,
+  ai:     audits.value.filter(a => a.origin === 'ai').length,
+}))
+
+const filteredAudits = computed(() => {
+  if (originFilter.value === 'all') return audits.value
+  return audits.value.filter(a => a.origin === originFilter.value)
+})
+
+watch(originFilter, () => {
+  if (!filteredAudits.value.some(a => a.audit_id === selectedAuditId.value)) {
+    selectedAuditId.value = filteredAudits.value[0]?.audit_id ?? null
+  }
+})
 
 const computeCounts = (vulnerabilities = []) => {
   const c = { critical: 0, high: 0, medium: 0, low: 0 }
@@ -394,8 +438,30 @@ watch(accountId, () => {
 }
 
 /* ── Header ── */
-.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .title-group  { display: flex; align-items: center; gap: 12px; }
+
+/* ── Origin filter toggle ── */
+.origin-filter {
+  display: flex; border: 1px solid #2d333b; border-radius: 9px;
+  overflow: hidden; background: #161b22;
+}
+.filter-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; background: transparent; border: none;
+  border-right: 1px solid #2d333b; color: #768390;
+  font-size: 12px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap;
+}
+.filter-btn:last-child { border-right: none; }
+.filter-btn:hover { background: #1c2128; color: #e6edf3; }
+.filter-btn.active { background: #1c2128; color: #e6edf3; }
+.filter-btn.filter-btn--static.active { color: #3fb950; }
+.filter-btn.filter-btn--ai.active     { color: #a78bfa; }
+.filter-count {
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 999px; background: rgba(255,255,255,0.06); color: inherit;
+}
 
 .page-icon {
   width: 36px; height: 36px; border-radius: 10px;

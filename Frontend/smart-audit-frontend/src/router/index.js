@@ -45,7 +45,6 @@ const router = createRouter({
         { path: 'inventory', component: () => import('../views/InventoryView.vue') },
         { path: 'audit', component: () => import('../views/AuditView.vue') },
         { path: 'my-audits', component: () => import('../views/MyAuditsView.vue') },
-        { path: 'configuration', component: () => import('../views/ConfigurationView.vue') },
       ]
     }
   ]
