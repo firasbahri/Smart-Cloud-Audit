@@ -77,8 +77,8 @@ class AwsScanner(IScanner):
             buckets=self.scan_s3()
             return AWSFactory.create_buckets(buckets)
         elif resource == "ec2":
-            ec2_instances=self.scan_ec2(regions)
-            return AWSFactory.create_ec2(ec2_instances)
+            ec2_instances , regions_founded=self.scan_ec2(regions)
+            return AWSFactory.create_ec2(ec2_instances), regions_founded
         else:
             logger.error(f"Resource type {resource} not supported for scanning")
             raise HTTPException(status_code=400, detail=f"Recurso {resource} no soportado para escanear")
@@ -299,6 +299,7 @@ class AwsScanner(IScanner):
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
 
             all_instances = []
+            regions_founded = []
             if regions == None or len(regions) == 0:
                 ec2 = self.session.client('ec2')
                 regions = [region['RegionName'] for region in ec2.describe_regions()['Regions']]
@@ -307,38 +308,44 @@ class AwsScanner(IScanner):
                     logger.info(f"Scanning EC2 instances in region: {r}")
                     regional_ec2 = self.session.client('ec2', region_name=r)
                     instances = regional_ec2.describe_instances()
-                    for reservation in instances['Reservations']:
-                        for instance in reservation['Instances']:
-                            try:
-                                volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
-                                list_volumes = []
-                                for v in volumes['Volumes']:
-                                    list_volumes.append({
-                                        "volume_id": v['VolumeId'],
-                                        "encrypted": v['Encrypted']
-                                    })
-                                instance['volumes'] = list_volumes
-                            except ClientError:
-                                instance['volumes'] = None
+                    if instances['Reservations'] == []:
+                        logger.info(f"No EC2 instances found in region: {r}")
+                        continue
+                    else:
+                        regions_founded.append(r)
+                        logger.info(f"Found {len(instances['Reservations'])} reservations in region: {r}")
+                        for reservation in instances['Reservations']:
+                            for instance in reservation['Instances']:
+                                try:
+                                    volumes = regional_ec2.describe_volumes(Filters=[{'Name': 'attachment.instance-id', 'Values': [instance['InstanceId']]}])
+                                    list_volumes = []
+                                    for v in volumes['Volumes']:
+                                        list_volumes.append({
+                                            "volume_id": v['VolumeId'],
+                                            "encrypted": v['Encrypted']
+                                        })
+                                    instance['volumes'] = list_volumes
+                                except ClientError:
+                                    instance['volumes'] = None
 
-                            try:
-                                sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
-                                if sg_ids:
-                                    sg_details = regional_ec2.describe_security_groups(GroupIds=sg_ids)
-                                    instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
-                                else:
+                                try:
+                                    sg_ids = [sg['GroupId'] for sg in instance.get('SecurityGroups', [])]
+                                    if sg_ids:
+                                        sg_details = regional_ec2.describe_security_groups(GroupIds=sg_ids)
+                                        instance['SecurityGroupsDetails'] = sg_details['SecurityGroups']
+                                    else:
+                                        instance['SecurityGroupsDetails'] = []
+                                except ClientError:
                                     instance['SecurityGroupsDetails'] = []
-                            except ClientError:
-                                instance['SecurityGroupsDetails'] = []
 
-                            instance['public_ip'] = instance.get('PublicIpAddress', None)
-                            all_instances.append(instance)
+                                instance['public_ip'] = instance.get('PublicIpAddress', None)
+                                all_instances.append(instance)
 
                 except Exception as e:
                     logger.error(f"Error scanning EC2 instances in region {r}: {str(e)}")
                     continue
-
-            return all_instances
+            logger.info(f"Total EC2 instances found across all regions: {len(all_instances)}")
+            return all_instances, regions_founded
     
         except ClientError as e:
             error_code = e.response['Error']['Code']

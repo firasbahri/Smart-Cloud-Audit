@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from services.auth_service import AuthService
+from dependencies import get_user_id_from_token
 from Requests   import  UserRegisterRequest, UserLoginRequest, EmailConfirmRequest, PasswordResetRequest    
 from Responses import UserResponse, TokenResponse
 import logging
@@ -66,5 +67,18 @@ async def reset_password(token: str,passwordReset : PasswordResetRequest):
             return {"message": "Contraseña restablecida exitosamente"}
         else:
             raise HTTPException(status_code=400, detail="Token de restablecimiento inválido")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@router.delete("/delete-account")
+async def delete_account(user_id: str = Depends(get_user_id_from_token)):
+    try:
+        result = await auth_service.delete_account(user_id)
+        if result:
+            return {"message": "Cuenta eliminada exitosamente"}
+        else:
+            raise HTTPException(status_code=400, detail="No se pudo eliminar la cuenta")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

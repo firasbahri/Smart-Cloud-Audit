@@ -103,12 +103,11 @@
 							<span v-if="staticVulnerabilities.length" class="seg-badge">{{ staticVulnerabilities.length }}</span>
 						</button>
 						<button
-							v-if="aiVulnerabilities.length > 0"
 							:class="['seg-btn', { active: activeTab === 'ai' }]"
 							@click="activeTab = 'ai'"
 						>
 							<i class="pi pi-sparkles" style="font-size: 0.68rem" /> IA
-							<span class="seg-badge">{{ aiVulnerabilities.length }}</span>
+							<span v-if="aiVulnerabilities.length" class="seg-badge">{{ aiVulnerabilities.length }}</span>
 						</button>
 					</div>
 					<div class="filter-right">
@@ -484,6 +483,10 @@ watch(accountId, () => {
 
 watch([activeTab, selectedSeverity], () => { currentPage.value = 1 })
 
+// auditMode (qué voy a ejecutar) sincroniza la vista de resultados,
+// pero no al revés: navegar resultados no debe cambiar qué se va a ejecutar.
+watch(auditMode, (val) => { activeTab.value = val })
+
 const runStaticAudit = async () => {
 	const token = localStorage.getItem('token')
 	if (!token) { toast.add({ severity: 'error', summary: 'Sesion', detail: 'Token no encontrado', life: 3000 }); return }
@@ -508,7 +511,10 @@ const runStaticAudit = async () => {
 			auditStore.auditIdByAccount[accountId.value] = data.audit_id
 		}
 		activeTab.value = 'static'
-	
+		if (cloudAccountsStore.selectedAccount) {
+			auditStore.loadAuditsForAccount(cloudAccountsStore.selectedAccount)
+		}
+
 		toast.add({ severity: 'success', summary: 'Auditoria completada', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
 	} catch (error) {
 		toast.add({ severity: 'error', summary: 'Error en auditoria', detail: error.message, life: 3500 })
@@ -548,10 +554,10 @@ const submitAiAudit = async () => {
 		const aiAuditId = data?.audit_id || ''
 		console.log('Vulnerabilidades IA normalizadas antes de setAiAudits: y el ID:', aiAuditId, normalized)
 		auditStore.setAiAudits(aiAuditId, normalized)
-
-		console.log('Vulnerabilidades IA normalizadas despues de setAiAudits:', normalized)
 		activeTab.value = 'ai'
-		console.log('Vulnerabilidades IA normalizadas:', normalized)
+		if (cloudAccountsStore.selectedAccount) {
+			auditStore.loadAuditsForAccount(cloudAccountsStore.selectedAccount)
+		}
 		toast.add({ severity: 'success', summary: 'Análisis IA completado', detail: `${normalized.length} vulnerabilidades encontradas`, life: 3000 })
 	} catch (error) {
 		console.error('Error en submitAiAudit:', error)
@@ -749,20 +755,19 @@ const submitAiAudit = async () => {
 
 /* idle: generate button */
 .rem-gen-btn {
-	width: 100%;
+	align-self: flex-start;
 	background: rgba(167,139,250,0.1);
 	border: 1px solid rgba(167,139,250,0.35);
 	color: #a78bfa;
-	border-radius: 8px;
-	padding: 11px;
-	font-size: 13px;
+	border-radius: 7px;
+	padding: 6px 12px;
+	font-size: 12px;
 	font-weight: 600;
 	font-family: inherit;
 	cursor: pointer;
 	transition: background 0.15s, border-color 0.15s;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	justify-content: center;
 	gap: 7px;
 }
 .rem-gen-btn:hover {
@@ -772,17 +777,16 @@ const submitAiAudit = async () => {
 
 /* loading */
 .rem-loading {
-	width: 100%;
+	align-self: flex-start;
 	background: rgba(167,139,250,0.06);
 	border: 1px solid rgba(167,139,250,0.2);
 	color: #a78bfa;
-	border-radius: 8px;
-	padding: 11px;
-	font-size: 13px;
+	border-radius: 7px;
+	padding: 6px 12px;
+	font-size: 12px;
 	font-weight: 500;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	justify-content: center;
 	gap: 9px;
 	opacity: 0.85;
 }

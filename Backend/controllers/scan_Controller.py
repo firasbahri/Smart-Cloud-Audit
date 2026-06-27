@@ -39,8 +39,13 @@ class ScanController:
     if resource not in resources:
       logger.warning(f"Resource {resource} not found in available resources: {resources}")
       raise Exception(f"Resource {resource} not found in available resources: {resources}")
-    result= self.scan_service.scan_resource(resource,self.regions)
-    result_serializado = JSONSerializer.serializeList(result)
+    if resource == "ec2":
+       all_instances, regions_founded = self.scan_service.scan_resource(resource,self.regions)
+       result_serializado = JSONSerializer.serializeList(all_instances)
+       self.regions = regions_founded
+    else:
+      result = self.scan_service.scan_resource(resource,self.regions)
+      result_serializado = JSONSerializer.serializeList(result)
     return result_serializado
 
  

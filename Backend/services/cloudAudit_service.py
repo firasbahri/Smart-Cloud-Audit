@@ -19,6 +19,7 @@ class CloudAuditService:
     def __init__(self):
         self.scan_repository = ScanRepository()
         self.audit_repository = AuditRepository()
+        self.auditController=AuditController()
 
     async def static_audit_cloud_resources(self, scan_id: str, user_id: str):
         scanResult= await self.scan_repository.findById(scan_id)
@@ -28,10 +29,9 @@ class CloudAuditService:
 
         resources = scanResult.resources
         accountId=scanResult.cloudAccount_id
-        aws_analyzer=AWSAnalyzer()
-        auditController=AuditController(aws_analyzer)
+        
         deserializedResources=JSONDeserializer.deserialize_resources(resources)
-        vulnerabilities=auditController.staticAudit(deserializedResources)
+        vulnerabilities=self.auditController.staticAudit(deserializedResources,"AWS")
         auditID=str(uuid4())
         vulnerabilities_serialized=JSONSerializer.serializeList(vulnerabilities)
         critical_count=sum(1 for v in vulnerabilities if v.severity.lower() == 'critical')
@@ -65,9 +65,7 @@ class CloudAuditService:
             raise HTTPException(status_code=404, detail="Audit result not found")
         resources=scanResult.resources
         vulnerabilities=auditResult.vulnerabilities
-        geminiAnalyzer=GeminiAnalyzer()
-
-        response_vulnerabilities=geminiAnalyzer.analyze(resources, vulnerabilities, user_context)
+        response_vulnerabilities=self.auditController.aiAudit(resources, vulnerabilities, user_context, "Gemini")
         auditID=str(uuid4())
         critical_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'critical')
         high_count=sum(1 for v in response_vulnerabilities if v.severity.lower() == 'high')

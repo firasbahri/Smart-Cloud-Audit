@@ -37,115 +37,61 @@
       </span>
     </div>
 
-    <!-- 3. KPI de mejora -->
-    <Card class="kpi-card mb-3">
+    <!-- 3. Donut: hallazgos por severidad (última auditoría) -->
+    <Card class="donut-card mb-3">
       <template #content>
+        <span class="section-lbl">
+          Hallazgos por severidad · última auditoría {{ selectedMode === 'static' ? 'estática' : 'de IA' }}
+        </span>
 
-        <!-- Cargando -->
-        <div v-if="loading" class="kpi-empty">
-          <i class="pi pi-spin pi-spinner kpi-empty-icon" />
-          <p class="kpi-empty-hint">Cargando datos…</p>
+        <div v-if="!current" class="chart-empty">
+          <i class="pi pi-chart-pie chart-empty-icon" />
+          <p class="chart-empty-title">Aún no tienes auditorías {{ selectedMode === 'static' ? 'estáticas' : 'de IA' }}</p>
+          <p class="chart-empty-hint">Ejecuta una auditoría {{ selectedMode === 'static' ? 'estática' : 'de IA' }} para ver los datos aquí.</p>
         </div>
 
-        <!-- 0 auditorías del tipo -->
-        <div v-else-if="filtered.length === 0" class="kpi-empty">
-          <i class="pi pi-chart-bar kpi-empty-icon" />
-          <p class="kpi-empty-title">Aún no tienes auditorías {{ selectedMode === 'static' ? 'estáticas' : 'de IA' }}</p>
-          <p class="kpi-empty-hint">Ejecuta una auditoría {{ selectedMode === 'static' ? 'estática' : 'de IA' }} para ver los datos aquí.</p>
-        </div>
-
-        <!-- 1 auditoría: desglose sin % -->
-        <div v-else-if="filtered.length < 2" class="kpi-grid">
-          <div class="kpi-left">
-            <span class="section-lbl">{{ modeLabel }} · última auditoría</span>
-            <div class="kpi-num" style="color:#e6edf3">{{ totalLast }}</div>
-            <span class="kpi-sub">hallazgos en total</span>
-            <div class="kpi-warn">
-              <i class="pi pi-info-circle" style="color:#768390" />
-              Ejecuta al menos 2 auditorías {{ selectedMode === 'static' ? 'estáticas' : 'de IA' }} para ver la tendencia.
+        <div v-else class="donut-grid">
+          <div class="donut-wrap">
+            <Chart type="doughnut" :data="donutData" :options="donutOptions" class="donut-canvas" />
+            <div class="donut-center">
+              <span class="donut-total">{{ currentTotal }}</span>
+              <span class="donut-total-lbl">hallazgos</span>
             </div>
           </div>
-          <div class="kpi-right">
-            <span class="section-lbl">Desglose por severidad</span>
-            <div class="kpi-chips">
-              <div
-                v-for="chip in sevBreakdown" :key="chip.key"
-                class="sev-chip"
-                :style="{ background: '#1c2128', border: `1px solid ${chip.color}40` }"
-              >
-                <span class="chip-dot" :style="{ background: chip.color }" />
-                <span class="chip-label">{{ chip.label }}</span>
-                <span class="chip-range">{{ chip.val }}</span>
+          <div class="donut-legend">
+            <div v-for="item in donutLegend" :key="item.key" class="legend-row">
+              <span class="legend-dot" :style="{ background: item.color }" />
+              <span class="legend-name">{{ item.label }}</span>
+              <span class="legend-n" :style="{ color: item.color }">{{ item.n }}</span>
+              <span class="legend-pct">{{ item.pct }}%</span>
+              <div class="legend-bar-track">
+                <div class="legend-bar-fill" :style="{ width: item.pct + '%', background: item.color }" />
               </div>
             </div>
           </div>
         </div>
-
-        <!-- ≥ 2 auditorías: KPI completo -->
-        <div v-else class="kpi-grid">
-          <div class="kpi-left">
-            <span class="section-lbl">{{ modeLabel }} (últimas {{ filtered.length }})</span>
-            <div class="kpi-num" :style="{ color: improve >= 0 ? '#3fb950' : '#f85149' }">
-              {{ improve >= 0 ? '↓' : '↑' }} {{ Math.abs(improve) }}%
-            </div>
-            <span class="kpi-sub">{{ totalFirst }} → {{ totalLast }} hallazgos · {{ improve >= 0 ? 'menos' : 'más' }}</span>
-          </div>
-          <div class="kpi-right">
-            <span class="section-lbl">Cambio por severidad · {{ firstLabel }} → {{ lastLabel }}</span>
-            <div class="kpi-chips">
-              <div
-                v-for="chip in severityChips" :key="chip.key"
-                class="sev-chip"
-                :style="{ background: '#1c2128', border: `1px solid ${chip.color}40` }"
-              >
-                <span class="chip-dot" :style="{ background: chip.color }" />
-                <span class="chip-label">{{ chip.label }}</span>
-                <span class="chip-range">{{ chip.first }}→{{ chip.last }}</span>
-                <span class="chip-pct" :style="{ color: chip.pct >= 0 ? '#3fb950' : '#f85149' }">
-                  {{ chip.pct >= 0 ? '−' : '+' }}{{ Math.abs(chip.pct) }}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </template>
     </Card>
 
-    <!-- 4. Gráfico de tendencia -->
+    <!-- 4. Líneas: evolución por severidad en el tiempo -->
     <Card class="trend-card mb-3">
       <template #content>
-        <div class="trend-head">
-          <span class="section-lbl" style="margin-bottom:0">
-            Tendencia · {{ selectedMode === 'static' ? 'auditorías estáticas' : 'auditorías de IA' }}
-          </span>
-          <div v-if="filtered.length >= 2" class="chart-legend">
-            <span v-for="s in SEV_DEF" :key="s.key" class="legend-item">
-              <span class="legend-dot" :style="{ background: s.color }" />{{ s.label }}
-            </span>
-          </div>
-        </div>
+        <span class="section-lbl">
+          Evolución por severidad · {{ selectedMode === 'static' ? 'auditorías estáticas' : 'auditorías de IA' }}
+        </span>
 
         <div v-if="filtered.length < 2" class="empty-chart">
-          <i class="pi pi-chart-bar" style="font-size:1.8rem;color:#2d333b" />
+          <i class="pi pi-chart-line" style="font-size:1.8rem;color:#2d333b" />
           <p style="color:#4d5566;margin:0;font-size:12px">
             {{
               filtered.length === 0
-                ? 'Sin auditorías ' + (selectedMode === 'static' ? 'estáticas' : 'de IA')
-                : 'Necesitas al menos 2 auditorías para ver la tendencia'
+                ? 'Aún no tienes auditorías ' + (selectedMode === 'static' ? 'estáticas' : 'de IA')
+                : 'Necesitas al menos 2 auditorías ' + (selectedMode === 'static' ? 'estáticas' : 'de IA') + ' para ver la evolución'
             }}
           </p>
         </div>
-        <div v-else class="css-chart">
-          <div v-for="audit in filtered" :key="audit.id" class="bar-col">
-            <div class="bar-stack">
-              <div v-if="audit.crit" class="seg seg-crit" :style="{ height: barH(audit.crit) }" :title="`Críticos: ${audit.crit}`" />
-              <div v-if="audit.high" class="seg seg-high" :style="{ height: barH(audit.high) }" :title="`Altos: ${audit.high}`" />
-              <div v-if="audit.med"  class="seg seg-med"  :style="{ height: barH(audit.med) }"  :title="`Medios: ${audit.med}`" />
-              <div v-if="audit.low"  class="seg seg-low"  :style="{ height: barH(audit.low) }"  :title="`Bajos: ${audit.low}`" />
-            </div>
-            <span class="bar-lbl">{{ shortId(audit.id) }}</span>
-          </div>
+        <div v-else class="line-chart-wrap">
+          <Chart type="line" :data="lineData" :options="lineOptions" class="line-canvas" />
         </div>
       </template>
     </Card>
@@ -190,8 +136,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import Card from 'primevue/card'
+import Chart from 'primevue/chart'
 import { useScanStore } from '../store/scanStore'
 import { useCloudAccountsStore } from '../store/cloudAccountsStore'
 import { useAuditStore } from '../store/auditStore'
@@ -205,11 +152,7 @@ const selectedAccount = computed(() => cloudAccountsStore.selectedAccount)
 const accountId       = computed(() => selectedAccount.value?.id)
 const scanResult      = computed(() => scanStore.scanResultByAccount[accountId.value] || {})
 
-// ── Carga de datos ──
-const loading = ref(false)
-
-
-// ── Auditorías mapeadas desde el store ──
+// ── Auditorías mapeadas desde el store (datos reales, sin fetch propio: MainPage ya las carga) ──
 const auditHistory = computed(() =>
   (auditStore.audits || [])
     .map(a => ({
@@ -223,8 +166,9 @@ const auditHistory = computed(() =>
     }))
     .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
 )
+console.log('audit store audits en panel', auditStore.audits)
 
-
+// ── Toggle ──
 const selectedMode = ref('static')
 
 const auditCounts = computed(() => ({
@@ -232,29 +176,9 @@ const auditCounts = computed(() => ({
   ai:     auditHistory.value.filter(a => a.origin === 'ai').length,
 }))
 
-const modeLabel = computed(() =>
-  selectedMode.value === 'static' ? 'Mejora · estáticas' : 'Mejora · IA'
-)
-
 const filtered = computed(() =>
   auditHistory.value.filter(a => a.origin === selectedMode.value).slice(-5)
 )
-
-
-const totalOf    = a => a.crit + a.high + a.med + a.low
-const firstAudit = computed(() => filtered.value[0] ?? null)
-const lastAudit  = computed(() => filtered.value[filtered.value.length - 1] ?? null)
-const totalFirst = computed(() => firstAudit.value ? totalOf(firstAudit.value) : 0)
-const totalLast  = computed(() => lastAudit.value  ? totalOf(lastAudit.value)  : 0)
-
-const improve = computed(() => {
-  if (!firstAudit.value || totalFirst.value === 0) return 0
-  return Math.round((totalFirst.value - totalLast.value) / totalFirst.value * 100)
-})
-
-const shortId = (id = '') => 'AUD-' + String(id).replace(/-/g, '').slice(0, 6).toUpperCase()
-const firstLabel = computed(() => firstAudit.value ? shortId(firstAudit.value.id) : '—')
-const lastLabel  = computed(() => lastAudit.value  ? shortId(lastAudit.value.id)  : '—')
 
 const SEV_DEF = [
   { key: 'crit', label: 'Críticos', color: '#f85149' },
@@ -263,24 +187,57 @@ const SEV_DEF = [
   { key: 'low',  label: 'Bajos',    color: '#768390' },
 ]
 
-const severityChips = computed(() => {
-  if (!firstAudit.value || !lastAudit.value) return []
+const totalOf = a => a.crit + a.high + a.med + a.low
+const current      = computed(() => filtered.value.at(-1) ?? null)
+const currentTotal = computed(() => current.value ? totalOf(current.value) : 0)
+
+const shortId = (id = '') => 'AUD-' + String(id).replace(/-/g, '').slice(0, 6).toUpperCase()
+
+// ── Donut: composición de la última auditoría del tipo seleccionado ──
+const donutLegend = computed(() => {
+  if (!current.value) return []
+  const total = currentTotal.value
   return SEV_DEF.map(s => {
-    const f = firstAudit.value[s.key]
-    const l = lastAudit.value[s.key]
-    return { ...s, first: f, last: l, pct: f > 0 ? Math.round((f - l) / f * 100) : 0 }
+    const n = current.value[s.key]
+    return { ...s, n, pct: total > 0 ? Math.round(n / total * 100) : 0 }
   })
 })
 
-const sevBreakdown = computed(() => {
-  const a = lastAudit.value
-  if (!a) return []
-  return SEV_DEF.map(s => ({ ...s, val: a[s.key] }))
-})
+const donutData = computed(() => ({
+  labels: SEV_DEF.map(s => s.label),
+  datasets: [{
+    data: SEV_DEF.map(s => current.value?.[s.key] ?? 0),
+    backgroundColor: SEV_DEF.map(s => s.color),
+    borderWidth: 0,
+  }],
+}))
 
+const donutOptions = {
+  cutout: '68%',
+  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+  maintainAspectRatio: false,
+}
 
-const maxTotal = computed(() => Math.max(...filtered.value.map(totalOf), 1))
-const barH = val => `${Math.round(val / maxTotal.value * 140)}px`
+// ── Líneas: evolución multiserie por severidad ──
+const lineData = computed(() => ({
+  labels: filtered.value.map(a => shortId(a.id)),
+  datasets: SEV_DEF.map(s => ({
+    label: s.label,
+    borderColor: s.color,
+    backgroundColor: s.color,
+    data: filtered.value.map(a => a[s.key]),
+    tension: 0.3,
+  })),
+}))
+
+const lineOptions = {
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'top', labels: { color: '#768390', boxWidth: 14, usePointStyle: true } } },
+  scales: {
+    x: { ticks: { color: '#768390' }, grid: { color: '#2d333b' } },
+    y: { beginAtZero: true, ticks: { color: '#768390', precision: 0 }, grid: { color: '#2d333b' } },
+  },
+}
 
 // ── Inventario (desde scanStore) ──
 const inventoryItems = computed(() => [
@@ -300,7 +257,7 @@ const formatDate = iso => {
     + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 }
 const lastScanLabel      = computed(() => formatDate(scanStore.scanCreatedAtByAccount[accountId.value]))
-const lastAuditMetaLabel = computed(() => formatDate(lastAudit.value?.created_at ?? auditStore.auditCreatedAt))
+const lastAuditMetaLabel = computed(() => formatDate(current.value?.created_at ?? auditStore.auditCreatedAt))
 </script>
 
 <style scoped>
@@ -360,64 +317,49 @@ const lastAuditMetaLabel = computed(() => formatDate(lastAudit.value?.created_at
   text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
 }
 
-/* ── KPI empty ── */
-.kpi-empty {
+/* ── Estado vacío (donut / líneas) ── */
+.chart-empty {
   display: flex; flex-direction: column; align-items: center;
   gap: 6px; padding: 20px 0; text-align: center;
 }
-.kpi-empty-icon  { font-size: 1.6rem; color: #2d333b; }
-.kpi-empty-title { margin: 0; font-size: 13px; color: #768390; font-weight: 500; }
-.kpi-empty-hint  { margin: 0; font-size: 11px; color: #4d5566; }
+.chart-empty-icon  { font-size: 1.6rem; color: #2d333b; }
+.chart-empty-title { margin: 0; font-size: 13px; color: #768390; font-weight: 500; }
+.chart-empty-hint  { margin: 0; font-size: 11px; color: #4d5566; }
 
-/* ── KPI grid ── */
-.kpi-grid {
-  display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: start;
+/* ── Donut ── */
+.donut-grid { display: flex; align-items: center; gap: 28px; }
+.donut-wrap {
+  position: relative; width: 150px; height: 150px; flex-shrink: 0;
 }
-.kpi-left {
-  display: flex; flex-direction: column; gap: 5px;
-  padding-right: 28px; border-right: 1px solid #2d333b;
+.donut-canvas { width: 100%; height: 100%; }
+.donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
 }
-.kpi-num  { font-size: 42px; font-weight: 700; line-height: 1.05; }
-.kpi-sub  { font-size: 11px; color: #768390; }
-.kpi-warn {
-  margin-top: 8px; display: flex; align-items: flex-start; gap: 6px;
-  font-size: 10px; color: #4d5566; line-height: 1.4;
-}
+.donut-total     { font-size: 28px; font-weight: 700; color: #e6edf3; line-height: 1; }
+.donut-total-lbl { font-size: 10px; color: #768390; margin-top: 2px; }
 
-.kpi-right { display: flex; flex-direction: column; gap: 10px; }
-.kpi-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.sev-chip  {
-  display: inline-flex; align-items: center; gap: 7px;
-  border-radius: 7px; padding: 6px 11px;
+.donut-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.legend-row {
+  display: grid; grid-template-columns: 10px 76px 38px 38px 1fr;
+  align-items: center; gap: 10px;
 }
-.chip-dot   { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.chip-label { font-size: 11px; color: #768390; }
-.chip-range { font-family: 'Consolas','Monaco',monospace; font-size: 11px; color: #e6edf3; }
-.chip-pct   { font-size: 11px; font-weight: 600; }
+.legend-dot  { width: 9px; height: 9px; border-radius: 50%; }
+.legend-name { font-size: 12px; color: #768390; }
+.legend-n    { font-family: 'Consolas','Monaco',monospace; font-size: 14px; font-weight: 700; text-align: right; }
+.legend-pct  { font-size: 11px; color: #4d5566; }
+.legend-bar-track {
+  height: 5px; border-radius: 4px; background: #1c2128; overflow: hidden;
+}
+.legend-bar-fill { height: 100%; border-radius: 4px; }
 
-/* ── Chart ── */
-.trend-head   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.chart-legend { display: flex; gap: 12px; flex-wrap: wrap; }
-.legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #768390; }
-.legend-dot   { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-
+/* ── Líneas ── */
 .empty-chart {
   height: 120px; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px;
 }
-.css-chart { display: flex; gap: 8px; align-items: flex-end; height: 160px; padding-top: 8px; }
-.bar-col   { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.bar-stack {
-  width: 100%; max-width: 48px;
-  display: flex; flex-direction: column; justify-content: flex-end;
-  gap: 1px; height: 140px;
-}
-.seg      { width: 100%; flex-shrink: 0; border-radius: 2px; }
-.seg-crit { background: #f85149; }
-.seg-high { background: #e3b341; }
-.seg-med  { background: #388bfd; }
-.seg-low  { background: #768390; }
-.bar-lbl  { font-family: 'Consolas','Monaco',monospace; font-size: 9px; color: #4d5566; text-align: center; }
+.line-chart-wrap { height: 200px; }
+.line-canvas     { width: 100%; height: 100%; }
 
 /* ── Inventario ── */
 .inv-strip { display: flex; align-items: center; flex-wrap: wrap; }
@@ -435,8 +377,8 @@ const lastAuditMetaLabel = computed(() => formatDate(lastAudit.value?.created_at
 .dot-green { color: #3fb950; font-size: 10px; }
 
 @media (max-width: 700px) {
-  .kpi-grid     { grid-template-columns: 1fr; }
-  .kpi-left     { border-right: none; padding-right: 0; border-bottom: 1px solid #2d333b; padding-bottom: 14px; }
+  .donut-grid   { flex-direction: column; align-items: stretch; }
+  .legend-row   { grid-template-columns: 10px 70px 34px 34px 1fr; }
   .dash-header  { flex-direction: column; }
   .dash-account { align-items: flex-start; }
   .mode-bar     { flex-wrap: wrap; }

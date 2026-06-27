@@ -4,6 +4,7 @@ import { buildApiUrl } from '../utils/api';
 
 export const useAuditStore = defineStore("audit", () => {
   const audits = ref([]);
+  const auditsLoading = ref(false);
   const selectedAudit = ref(null);
   const id = ref("");
   const auditResult = ref(null);       // static vulnerabilities
@@ -17,15 +18,32 @@ export const useAuditStore = defineStore("audit", () => {
   const setAudits = (auditIdValue, data) => {
     const normalized = Array.isArray(data) ? data : [];
     id.value = auditIdValue || "";
-    audits.value = normalized;
     auditResult.value = normalized;
   };
 
   const setAiAudits = (auditIdValue, data) => {
-    console.log('Estableciendo auditoría IA con ID:', auditIdValue, 'y datos:', data);
     aiAuditId.value = auditIdValue || "";
     aiAuditResult.value = Array.isArray(data) ? data : [];
   };
+
+  const computeCounts = (vulnerabilities = []) => {
+    const c = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const v of vulnerabilities) {
+      const s = (v.severity || "").toLowerCase();
+      if (s === "critical") c.critical++;
+      else if (s === "high") c.high++;
+      else if (s === "medium") c.medium++;
+      else if (s === "low") c.low++;
+    }
+    return c;
+  };
+
+  const normalizeAudit = (a) => ({
+    ...a,
+    vulnerabilities: a.vulnerabilities || [],
+    counts: a.counts || computeCounts(a.vulnerabilities),
+    origin: a.origin || "static",
+  });
 
   const startAccountAudit = (accountId, auditId) => {
     auditingAccounts.value[accountId] = true;
@@ -45,6 +63,7 @@ export const useAuditStore = defineStore("audit", () => {
     const id = account.id || account.account_id;
     const token = localStorage.getItem("token");
     const url = buildApiUrl(`/cloud/my-audits/${id}`);
+    auditsLoading.value = true;
     try {
       const response = await fetch(url, {
         method: "GET",
@@ -53,17 +72,21 @@ export const useAuditStore = defineStore("audit", () => {
           Authorization: `Bearer ${token}`,
         }
       });
+      if (response.status === 404) { audits.value = []; return; }
       if (!response.ok) throw new Error(`Error fetching audits: ${response.statusText}`);
       const data = await response.json();
-      audits.value = Array.isArray(data) ? data : [];
+      audits.value = (Array.isArray(data) ? data : []).map(normalizeAudit);
     } catch (error) {
       console.error("Failed to load audits:", error);
       audits.value = [];
+    } finally {
+      auditsLoading.value = false;
     }
   }
 
   return {
     audits,
+    auditsLoading,
     selectedAudit,
     id,
     aiAuditId,

@@ -214,6 +214,7 @@
                 <span>Recorrerá ~30 regiones. El escaneo inicial será más lento.</span>
               </div>
               <span v-if="errors.regions && !autoDetectRegions" class="af-error">{{ errors.regions }}</span>
+              <span class="af-hint">Recomendación: selecciona tus regiones manualmente — ayuda a reducir el tiempo de escaneo de EC2.</span>
             </div>
 
             <!-- Description -->
@@ -339,95 +340,148 @@
       </template>
     </Dialog>
 
-    <Dialog
-      v-model:visible="showDetailsDialog"
-      modal
-      header="Detalles de la Cuenta"
-      :style="{ width: '42rem' }"
-      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
-    >
-      <div v-if="selectedAccount" class="flex flex-column gap-4 py-2">
-        <div class="flex align-items-center justify-content-between gap-3">
-          <div class="flex align-items-center gap-3">
-            <component
-              :is="getProviderIcon(selectedAccount.provider)"
-              :size="28"
-              class="provider-icon"
-              :class="'provider-' + selectedAccount.provider.toLowerCase()"
-            />
+    <!-- ── Custom Details Modal ── -->
+    <div v-if="showDetailsDialog" class="add-overlay" @click.self="showDetailsDialog = false">
+      <div class="add-modal add-modal--wide">
+        <div class="add-modal__header">
+          <div class="add-modal__title-group">
+            <div class="add-modal__icon">
+              <component :is="getProviderIcon(selectedAccount?.provider)" :size="15" />
+            </div>
             <div>
-              <h3 class="m-0 mb-1">{{ selectedAccount.name }}</h3>
+              <div class="add-modal__title">{{ selectedAccount?.name }}</div>
+              <div class="add-modal__sub">Detalles de la cuenta</div>
+            </div>
+          </div>
+          <button class="add-modal__close" @click="showDetailsDialog = false">✕</button>
+        </div>
+
+        <div v-if="selectedAccount" class="add-modal__body">
+          <div class="af-field">
+            <div class="flex gap-2">
               <Tag :value="selectedAccount.provider" :severity="getProviderSeverity(selectedAccount.provider)" />
+              <Tag
+                :value="selectedAccount.status || 'Sin estado'"
+                :severity="getStatusSeverity(selectedAccount.status)"
+                :icon="getStatusIcon(selectedAccount.status)"
+              />
             </div>
           </div>
-          <Tag
-            :value="selectedAccount.status || 'Sin estado'"
-            :severity="getStatusSeverity(selectedAccount.status)"
-            :icon="getStatusIcon(selectedAccount.status)"
-          />
+
+          <div class="af-field">
+            <label class="af-label">Role ARN</label>
+            <div class="af-readonly af-readonly--mono">{{ selectedAccount.identifier || selectedAccount.arn || '-' }}</div>
+          </div>
+
+          <div class="af-field">
+            <label class="af-label">ID de Cuenta</label>
+            <div class="af-readonly">{{ selectedAccount.account_id || '-' }}</div>
+          </div>
+
+          <div class="af-field">
+            <label class="af-label">Fecha de Vinculación</label>
+            <div class="af-readonly">{{ selectedAccount.created_at ? formatDate(selectedAccount.created_at) : '-' }}</div>
+          </div>
+
+          <div class="af-field">
+            <label class="af-label">Regiones AWS</label>
+            <div class="af-readonly">
+              {{ (selectedAccount.regions && selectedAccount.regions.length) ? selectedAccount.regions.join(', ') : 'Auto-detectar (todas las regiones)' }}
+            </div>
+          </div>
+
+          <div class="af-field">
+            <label class="af-label">Descripción</label>
+            <div class="af-readonly">{{ selectedAccount.description || 'Sin descripción' }}</div>
+          </div>
         </div>
 
-        <Divider class="my-1" />
-
-        <div class="flex flex-column gap-3 text-sm">
-          <div class="flex flex-column gap-1">
-            <span class="text-600 font-semibold">ARN</span>
-            <span class="text-500 break-all">{{ selectedAccount.identifier || selectedAccount.arn || '-' }}</span>
-          </div>
-
-          <div class="grid">
-            <div class="col-12 md:col-6 flex flex-column gap-1">
-              <span class="text-600 font-semibold">ID de Cuenta</span>
-              <span class="text-500">{{ selectedAccount.account_id || '-' }}</span>
-            </div>
-            <div class="col-12 md:col-6 flex flex-column gap-1">
-              <span class="text-600 font-semibold">Fecha de Vinculación</span>
-              <span class="text-500">{{ selectedAccount.created_at ? formatDate(selectedAccount.created_at) : '-' }}</span>
-            </div>
-          </div>
-
-          <div class="flex flex-column gap-1">
-            <span class="text-600 font-semibold">Descripción</span>
-            <span class="text-500">{{ selectedAccount.description || 'Sin descripción' }}</span>
-          </div>
+        <div class="add-modal__footer">
+          <button class="af-btn-cancel" @click="showDetailsDialog = false">Cerrar</button>
         </div>
       </div>
+    </div>
 
-      <template #footer>
-        <Button label="Cerrar" icon="pi pi-times" text @click="showDetailsDialog = false" />
-      </template>
-    </Dialog>
-
-    <Dialog
-      v-model:visible="showEditDialog"
-      modal
-      header="Editar Cuenta de Nube"
-      :style="{ width: '50rem' }"
-      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
-    >
-      <div class="flex flex-column gap-4 py-3">
-        <div class="flex flex-column gap-2">
-          <label class="font-semibold">Nombre de la Cuenta</label>
-          <InputText v-model="editAccount.name" placeholder="Nombre de la cuenta" />
+    <!-- ── Custom Edit Modal ── -->
+    <div v-if="showEditDialog" class="add-overlay" @click.self="closeEditDialog">
+      <div class="add-modal add-modal--wide">
+        <div class="add-modal__header">
+          <div class="add-modal__title-group">
+            <div class="add-modal__icon"><Cloud :size="15" /></div>
+            <div>
+              <div class="add-modal__title">Editar Cuenta</div>
+              <div class="add-modal__sub">{{ editAccount.name || 'Cuenta de nube' }}</div>
+            </div>
+          </div>
+          <button class="add-modal__close" @click="closeEditDialog">✕</button>
         </div>
 
-        <div class="flex flex-column gap-2">
-          <label class="font-semibold">ARN</label>
-          <Textarea :modelValue="editAccount.arn" rows="3" disabled class="opacity-60" />
-          <small class="text-500">El ARN no puede modificarse. Elimina y vuelve a conectar la cuenta si necesitas cambiarlo.</small>
+        <div class="add-modal__body">
+          <!-- Name -->
+          <div class="af-field">
+            <label class="af-label">Nombre de la cuenta</label>
+            <input v-model="editAccount.name" class="af-input" :class="{ invalid: editErrors.name }" placeholder="Nombre de la cuenta" />
+            <span v-if="editErrors.name" class="af-error">{{ editErrors.name }}</span>
+          </div>
+
+          <!-- ARN (read-only) -->
+          <div class="af-field">
+            <label class="af-label">Role ARN</label>
+            <div class="af-readonly af-readonly--mono">{{ editAccount.arn }}</div>
+            <span class="af-hint">El ARN no puede modificarse. Elimina y vuelve a conectar la cuenta si necesitas cambiarlo.</span>
+          </div>
+
+          <!-- Regions -->
+          <div class="af-field">
+            <div class="region-label-row">
+              <label class="af-label">Regiones AWS</label>
+              <label class="auto-detect-toggle">
+                <input type="checkbox" v-model="editAutoDetectRegions" @change="editAutoDetectRegions && (editAccount.regions = [])" />
+                <span class="toggle-track"><span class="toggle-thumb" /></span>
+                <span class="toggle-label">Auto-detectar</span>
+              </label>
+            </div>
+            <MultiSelect
+              v-if="!editAutoDetectRegions"
+              v-model="editAccount.regions"
+              :options="AWS_REGIONS"
+              optionLabel="label"
+              optionValue="value"
+              optionGroupLabel="label"
+              optionGroupChildren="items"
+              placeholder="Selecciona regiones..."
+              display="chip"
+              filter
+              filterPlaceholder="Buscar región..."
+              class="w-full"
+              panelClass="add-account-multiselect-panel"
+              :invalid="editErrors.regions"
+            />
+            <div v-if="editAutoDetectRegions" class="auto-detect-warn">
+              <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
+              <span>El próximo escaneo recorrerá ~30 regiones.</span>
+            </div>
+            <span v-if="editErrors.regions && !editAutoDetectRegions" class="af-error">{{ editErrors.regions }}</span>
+            <span class="af-hint">Recomendación: selecciona tus regiones manualmente — ayuda a reducir el tiempo de escaneo de EC2.</span>
+          </div>
+
+          <!-- Description -->
+          <div class="af-field">
+            <label class="af-label">Descripción <span class="af-optional">(opcional)</span></label>
+            <textarea v-model="editAccount.description" class="af-textarea" rows="2" placeholder="Describe el propósito de esta cuenta..." />
+            <div class="ai-ctx-hint-box">
+              <i class="pi pi-sparkles" style="font-size:0.75rem;color:#a78bfa" />
+              <span>Se usará como contexto en el <strong>Análisis IA</strong>.</span>
+            </div>
+          </div>
         </div>
 
-        <div class="flex flex-column gap-2">
-          <label class="font-semibold">Descripción (Opcional)</label>
-          <Textarea v-model="editAccount.description" rows="2" placeholder="Describe el propósito de esta cuenta..." />
+        <div class="add-modal__footer">
+          <button class="af-btn-cancel" @click="closeEditDialog">Cancelar</button>
+          <button class="af-btn-primary" :disabled="!editAccount.name" @click="saveEdit">Guardar cambios</button>
         </div>
       </div>
-
-      <template #footer>
-        <Button label="Cancelar" icon="pi pi-times" text @click="showEditDialog = false" />
-        <Button label="Guardar cambios" icon="pi pi-check" @click="saveEdit" :disabled="!editAccount.name" />
-      </template>
-    </Dialog>
+    </div>
   </div>
 </template>
 
@@ -450,8 +504,6 @@ import Aws from 'lucide-vue-next/dist/esm/icons/cloud'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
 import Tag from 'primevue/tag'
 import Divider from 'primevue/divider'
 import Menu from 'primevue/menu'
@@ -597,12 +649,20 @@ const editAccount = reactive({
   name: '',
   arn: '',
   description: '',
-  provider: ''
+  provider: '',
+  regions: []
 })
+
+const editAutoDetectRegions = ref(false)
 
 const errors = reactive({
   name: '',
   arn: '',
+  regions: ''
+})
+
+const editErrors = reactive({
+  name: '',
   regions: ''
 })
 
@@ -914,19 +974,39 @@ const openEdit = (account) => {
   editAccount.provider = account.provider
   editAccount.arn = account.arn || account.identifier
   editAccount.description = account.description || ''
+  editAccount.regions = [...(account.regions || [])]
+  editAutoDetectRegions.value = !account.regions || account.regions.length === 0
+  editErrors.name = ''
+  editErrors.regions = ''
   showEditDialog.value = true
 }
 
-const saveEdit = async () => {
+const closeEditDialog = () => {
+  showEditDialog.value = false
+}
+
+const validateEditForm = () => {
+  editErrors.name = ''
+  editErrors.regions = ''
+  let isValid = true
+
   if (!editAccount.name.trim()) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error de Validación',
-      detail: 'El nombre es requerido',
-      life: 3000
-    })
-    return
+    editErrors.name = 'El nombre es requerido'
+    isValid = false
   }
+
+  if (!editAutoDetectRegions.value && !editAccount.regions.length) {
+    editErrors.regions = 'Selecciona al menos una región'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const saveEdit = async () => {
+  if (!validateEditForm()) return
+
+  const regionsToSave = editAutoDetectRegions.value ? [] : editAccount.regions
 
   try {
     const token = localStorage.getItem('token')
@@ -940,15 +1020,12 @@ const saveEdit = async () => {
       body: JSON.stringify({
         id: editAccount.id,
         name: editAccount.name,
-        description: editAccount.description
+        description: editAccount.description,
+        regions: regionsToSave
       })
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.detail)
-    cloudAccountsStore.updateAccount(editAccount.id, {
-      name: editAccount.name,
-      description: editAccount.description
-    })
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -963,7 +1040,8 @@ const saveEdit = async () => {
     name: editAccount.name,
     provider: editAccount.provider,
     arn: editAccount.arn,
-    description: editAccount.description
+    description: editAccount.description,
+    regions: regionsToSave
   }
 
   cloudAccountsStore.updateAccount(editAccount.id, accountData)
@@ -1141,6 +1219,8 @@ const saveEdit = async () => {
   border-right: none;
 }
 
+.add-modal--wide { width: 560px; }
+
 .add-modal__header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px;
@@ -1180,6 +1260,14 @@ const saveEdit = async () => {
 .af-label  { font-size: 11px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
 .af-optional { color: #4d5566; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .af-error  { font-size: 11px; color: #f85149; }
+.af-hint   { font-size: 11px; color: #4d5566; }
+
+.af-readonly {
+  background: #0d1117; border: 1px solid #2d333b; border-radius: 6px;
+  padding: 8px 10px; font-size: 12px; color: #8b949e;
+  word-break: break-all;
+}
+.af-readonly--mono { font-family: 'Consolas','Monaco',monospace; font-size: 11px; }
 
 .af-input {
   background: #1c2128; border: 1px solid #2d333b; color: #e6edf3;

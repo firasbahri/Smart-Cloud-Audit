@@ -31,7 +31,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="state-box">
+    <div v-if="auditStore.auditsLoading" class="state-box">
       <i class="pi pi-spin pi-spinner" style="font-size:1.6rem;color:#768390" />
       <span>Cargando auditorías...</span>
     </div>
@@ -243,9 +243,8 @@ const cloudAccountsStore = useCloudAccountsStore()
 const auditStore = useAuditStore()
 const toast = useToast()
 
-const audits = ref([])
+const audits = computed(() => auditStore.audits)
 const selectedAuditId = ref(null)
-const loading = ref(false)
 const openMenuId = ref(null)
 const confirmDialog = ref({ visible: false, auditId: null })
 const originFilter = ref('all') // 'all' | 'static' | 'ai'
@@ -254,7 +253,6 @@ const copiedVuln    = reactive({})
 const expandedVulns = reactive({})
 const loadingVulns  = reactive({})
 
-const accountId = computed(() => cloudAccountsStore.selectedAccount?.id)
 const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
 const selectedAudit = computed(() => audits.value.find(a => a.audit_id === selectedAuditId.value) ?? null)
 
@@ -273,18 +271,6 @@ watch(originFilter, () => {
     selectedAuditId.value = filteredAudits.value[0]?.audit_id ?? null
   }
 })
-
-const computeCounts = (vulnerabilities = []) => {
-  const c = { critical: 0, high: 0, medium: 0, low: 0 }
-  for (const v of vulnerabilities) {
-    const s = (v.severity || '').toLowerCase()
-    if (s === 'critical') c.critical++
-    else if (s === 'high') c.high++
-    else if (s === 'medium') c.medium++
-    else if (s === 'low') c.low++
-  }
-  return c
-}
 
 const totalVulns = (audit) => Object.values(audit.counts).reduce((s, v) => s + v, 0)
 
@@ -347,37 +333,6 @@ const handleGenerate = async (vulnId) => {
   }
 }
 
-const loadAudits = async () => {
-  if (!accountId.value) { audits.value = []; return }
-  const token = localStorage.getItem('token')
-  if (!token) return
-
-  loading.value = true
-  try {
-    const res = await fetch(buildApiUrl(`/cloud/my-audits/${accountId.value}`), {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (res.status === 404) { audits.value = []; return }
-    if (!res.ok) throw new Error('Error cargando auditorías')
-
-    const data = await res.json()
-    console.log('Raw audits data:', data) 
-    audits.value = (Array.isArray(data) ? data : []).map(a => ({
-      ...a,
-      vulnerabilities: a.vulnerabilities || [],
-      counts: a.counts || computeCounts(a.vulnerabilities),
-      origin: a.origin || 'static'
-    }))
-
-    selectedAuditId.value = audits.value[0]?.audit_id ?? null
-  } catch (err) {
-    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
-    audits.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
 const toggleMenu = (id) => {
   openMenuId.value = openMenuId.value === id ? null : id
 }
@@ -406,7 +361,6 @@ const deleteAudit = async (auditId) => {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error('Error al eliminar')
-    audits.value = audits.value.filter(a => a.audit_id !== auditId)
     auditStore.audits = auditStore.audits.filter(a => a.audit_id !== auditId)
     if (selectedAuditId.value === auditId) {
       selectedAuditId.value = audits.value[0]?.audit_id ?? null
@@ -417,10 +371,10 @@ const deleteAudit = async (auditId) => {
   }
 }
 
-watch(accountId, () => {
-  audits.value = []
-  selectedAuditId.value = null
-  loadAudits()
+watch(() => auditStore.audits, (list) => {
+  if (!list.some(a => a.audit_id === selectedAuditId.value)) {
+    selectedAuditId.value = list[0]?.audit_id ?? null
+  }
 }, { immediate: true })
 </script>
 

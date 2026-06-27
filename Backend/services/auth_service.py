@@ -1,6 +1,8 @@
 from datetime import timedelta
 
 from Repositories.userRepository import UserRepository
+from Repositories.cloudRepository import CloudRepository
+from services.cloudAuth_service import CloudAuthService
 from Model.user import User
 from passlib.hash import bcrypt
 from fastapi import HTTPException
@@ -83,3 +85,15 @@ class AuthService:
     
 
 
+    async def delete_account(self, user_id):
+        user = await self.user_repository.findById(user_id)
+        if not user:
+            raise Exception("User not found")
+        cloudRepository = CloudRepository()
+        cloud_service = CloudAuthService()
+        cuentas = await cloudRepository.found_cloud_accounts(user_id)
+        for cuenta in cuentas:
+            logger.info("Deleting cloud data for user_id: %s, cloud_account_id: %s", user_id, cuenta.id)
+            await cloud_service.delete_cloud_data(user_id, cuenta.id)
+        await self.user_repository.delete(user_id)
+        return True

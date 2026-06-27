@@ -66,6 +66,10 @@
             <div class="user-menu-item danger" @click.stop="logout">
               <LogOut :size="13" /> Cerrar sesión
             </div>
+            <div class="user-menu-divider" />
+            <div class="user-menu-item danger" @click.stop="openDeleteAccountDialog">
+              <Trash2 :size="13" /> Eliminar cuenta
+            </div>
           </div>
         </Transition>
         <div class="user-row" @click.stop="userMenuOpen = !userMenuOpen">
@@ -78,6 +82,36 @@
         </div>
       </div>
     </nav>
+
+    <div v-if="deleteAccountDialog.visible" class="confirm-overlay" @click.self="cancelDeleteAccount">
+      <div class="confirm-box">
+        <div class="confirm-icon-wrap">
+          <AlertTriangle :size="22" />
+        </div>
+        <div class="confirm-title">Eliminar cuenta de forma definitiva</div>
+        <div class="confirm-body">
+          Esta acción eliminará tu cuenta de SmartAudit de manera <strong>permanente</strong>:
+          tus cuentas cloud conectadas, escaneos y auditorías guardadas se borrarán y no podrán recuperarse.
+        </div>
+        <div class="confirm-body">
+          Para confirmar, escribe <strong>confirmo</strong> en el campo de abajo.
+        </div>
+        <input
+          v-model="deleteAccountDialog.confirmText"
+          type="text"
+          class="confirm-input"
+          placeholder="Escribe «confirmo»"
+          autocomplete="off"
+          @keyup.enter="confirmDeleteAccount"
+        />
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="cancelDeleteAccount">Cancelar</button>
+          <button class="btn-delete" :disabled="!canDeleteAccount" @click="confirmDeleteAccount">
+            Eliminar cuenta
+          </button>
+        </div>
+      </div>
+    </div>
 
     <main class="content flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
       <div v-if="hasAccounts" class="content-account-corner">
@@ -99,15 +133,19 @@
 </template>
 
 <script setup>
+import { useToast } from 'primevue/usetoast';
 import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useScanStore } from '../store/scanStore';
 import { useAuditStore } from '@/store/auditStore';
 import { useCloudAccountsStore } from '../store/cloudAccountsStore';
 import Select from 'primevue/select';
-import { Cloud, ChevronDown, ChevronUp, History, LayoutDashboard, LogOut, Package, Search, User } from 'lucide-vue-next';
+import { AlertTriangle, Cloud, ChevronDown, ChevronUp, History, LayoutDashboard, LogOut, Package, Search, Trash2, User } from 'lucide-vue-next';
 import SmartAuditLogo from '../components/SmartAuditLogo.vue';
+import { buildApiUrl } from '@/utils/api';
+import Toast from 'primevue/toast';
 
+const toast = useToast();
 const router = useRouter();
 const scanStore = useScanStore();
 const auditStore = useAuditStore();
@@ -218,6 +256,46 @@ const logout = () => {
   cloudAccountsStore.clearAccounts();
 
   router.replace('/login');
+};
+
+const deleteAccountDialog = ref({ visible: false, confirmText: '' })
+const canDeleteAccount = computed(() => deleteAccountDialog.value.confirmText.trim().toLowerCase() === 'confirmo')
+
+const openDeleteAccountDialog = () => {
+  userMenuOpen.value = false
+  deleteAccountDialog.value = { visible: true, confirmText: '' }
+}
+
+const cancelDeleteAccount = () => {
+  deleteAccountDialog.value.visible = false
+  deleteAccountDialog.value.confirmText = ''
+}
+
+const confirmDeleteAccount = async () => {
+  if (!canDeleteAccount.value) return
+  try{
+    const token = localStorage.getItem('token')
+    const url = buildApiUrl('/auth/delete-account');
+    const response = await fetch(url,{
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+    })
+    if(!response.ok){
+      throw new Error('Error al eliminar la cuenta')
+    }
+    toast.add({severity:'success', summary:'Cuenta eliminada', detail:'Tu cuenta ha sido eliminada correctamente', life: 3000})
+    logout()
+  }
+  catch (error) {
+    console.error('Error al eliminar la cuenta:', error);
+    toast.add({severity:'error', summary:'Error', detail:'No se pudo eliminar la cuenta. Inténtalo de nuevo más tarde.', life: 3000})
+  }
+
+  cancelDeleteAccount()
 };
 </script>
 
@@ -548,6 +626,53 @@ const logout = () => {
   opacity: 0;
   transform: translateY(6px);
 }
+
+/* ── Diálogo: eliminar cuenta ── */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-box {
+  background: #161b22; border: 1px solid #2d333b; border-radius: 14px;
+  padding: 24px; width: 380px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: menuIn 0.15s ease-out;
+}
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.confirm-icon-wrap {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
+  color: #f85149; display: flex; align-items: center; justify-content: center;
+}
+.confirm-title { font-size: 15px; font-weight: 700; color: #e6edf3; }
+.confirm-body  { font-size: 13px; color: #8b949e; line-height: 1.5; margin: 0; }
+.confirm-input {
+  background: #0d1117; border: 1px solid #2d333b; border-radius: 8px;
+  padding: 9px 12px; font-size: 13px; color: #e6edf3; font-family: inherit;
+  outline: none; transition: border-color 0.12s;
+}
+.confirm-input:focus { border-color: #f85149; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.btn-cancel {
+  background: transparent; border: 1px solid #2d333b; color: #768390;
+  padding: 7px 16px; border-radius: 7px; font-size: 13px;
+  font-family: inherit; cursor: pointer; transition: border-color 0.12s, color 0.12s;
+}
+.btn-cancel:hover { border-color: #4d5566; color: #e6edf3; }
+
+.btn-delete {
+  background: #f85149; border: none; color: #fff;
+  padding: 7px 16px; border-radius: 7px; font-size: 13px;
+  font-family: inherit; font-weight: 600; cursor: pointer;
+  transition: background 0.12s;
+}
+.btn-delete:hover:not(:disabled) { background: #da3633; }
+.btn-delete:disabled { background: #3a2426; color: #6b4a4a; cursor: not-allowed; }
 
 .menu-hint {
   margin-top: 2rem;

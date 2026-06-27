@@ -114,6 +114,12 @@
           <SmartAuditLogo :size="32" />
           <span>Smart Audit</span>
         </div>
+        <nav class="footer-links">
+          <a href="mailto:contacto@smartaudit-ai.com">Contacto</a>
+          <a href="mailto:soporte@smartaudit-ai.com">Soporte</a>
+          <a href="#">Privacidad</a>
+          <a href="#">Seguridad</a>
+        </nav>
         <p class="footer-text">
           © 2026 Smart Audit - Trabajo Fin de Grado
         </p>
@@ -169,10 +175,7 @@ const features = ref([
 const services = ref([
   { name: 'EC2', icon: '🖥️' },
   { name: 'S3', icon: '🪣' },
-  { name: 'IAM', icon: '👤' },
-  { name: 'VPC', icon: '🔒' },
-  { name: 'RDS', icon: '💾' },
-  { name: 'Lambda', icon: 'λ' }
+  { name: 'IAM', icon: '👤' }
 ]);
 </script>
 
@@ -472,6 +475,26 @@ const services = ref([
   margin-bottom: 1rem;
   font-size: 1.25rem;
   font-weight: 600;
+  color: #22c55e;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: #8b949e;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
   color: #22c55e;
 }
 

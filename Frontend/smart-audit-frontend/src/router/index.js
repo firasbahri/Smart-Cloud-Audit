@@ -29,11 +29,6 @@ const router = createRouter({
       component: () => import('../views/ResetPasswordView.vue')
     },
     {
-      path: '/auth',
-      name: 'auth',
-      component: () => import('../views/AuthView.vue')
-    },
-    {
       path: '/app',
       name: 'layout',
       component: () => import('../views/MainPage.vue'),
@@ -64,7 +59,7 @@ const isTokenValid = () => {
 router.beforeEach((to, from, next) => {
   const authRequired = to.matched.some(record => record.meta.requiresAuth);
   const loggedIn = isTokenValid();
-  const publicPages = ['/', '/login', '/register', '/auth', '/forgot-password'];
+  const publicPages = ['/', '/login', '/register', '/forgot-password'];
 
   if (authRequired && !loggedIn) {
     return next('/login');
