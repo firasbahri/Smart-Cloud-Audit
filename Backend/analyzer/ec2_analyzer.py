@@ -5,7 +5,17 @@ logger = logging.getLogger(__name__)
 
 
 class EC2Analyzer:
+    """Reglas de seguridad estáticas para instancias EC2: IP pública, puertos abiertos, EBS sin cifrar y etiquetado."""
+
     def analyze(self, instances: list) -> list:
+        """Pasa las instancias por las cuatro comprobaciones y devuelve todos los hallazgos juntos.
+
+        Args:
+            instances (list): instancias EC2 del modelo de dominio, con security_groups y volumes ya resueltos.
+
+        Returns:
+            list[Vulnerability]: unión de check_public_ip, check_security_groups, check_ebs_encryption y check_tags.
+        """
         vulnerabilities = []
         vulnerabilities.extend(self.check_public_ip(instances))
         vulnerabilities.extend(self.check_security_groups(instances))
@@ -14,6 +24,8 @@ class EC2Analyzer:
         return vulnerabilities
 
     def check_public_ip(self, instances: list) -> list:
+        """Marca las instancias que tienen una IP pública asignada (severidad Medium: amplía la superficie de ataque,
+        aunque no implica por sí sola que haya un puerto abierto)."""
         vulnerabilities = []
         for instance in instances:
             if instance.public_ip is not None:
@@ -32,6 +44,15 @@ class EC2Analyzer:
 
 
     def check_security_groups(self, instances: list) -> list:
+        """Recorre los grupos de seguridad de cada instancia buscando reglas de entrada TCP que dejen SSH (22) o
+        RDP (3389) abiertos a 0.0.0.0/0 — es decir, accesibles desde cualquier IP de internet.
+
+        Args:
+            instances (list): instancias EC2 con security_groups -> rules ya resueltos.
+
+        Returns:
+            list[Vulnerability]: severidad High por cada puerto SSH/RDP abierto al mundo que se encuentre.
+        """
         Vulnerabilities = []
         for instance in instances:
             for sg in instance.security_groups:
@@ -69,6 +90,15 @@ class EC2Analyzer:
 
 
     def check_ebs_encryption(self, instances: list) -> list:
+        """Detecta volúmenes EBS adjuntos sin cifrar (Encrypted=False). Si el volumen físico se compromete o se
+        clona, los datos quedan legibles sin necesidad de ninguna credencial.
+
+        Args:
+            instances (list): instancias EC2 con la lista volumes ya resuelta (volume_id + encrypted).
+
+        Returns:
+            list[Vulnerability]: una entrada por cada volumen sin cifrar encontrado, severidad Medium.
+        """
         vulnerabilities = []
         for instance in instances:
             for volume in instance.volumes:
@@ -89,6 +119,9 @@ class EC2Analyzer:
 
 
     def check_tags(self, instances: list) -> list:
+        """Comprueba que cada instancia tenga las etiquetas Name, Environment y Owner. No es un riesgo de seguridad
+        directo, pero sin esas etiquetas es fácil perder de vista qué recurso pertenece a quién (severidad Low).
+        """
         vulnerabilities = []
         REQUIRED_TAGS = ["Name", "Environment", "Owner"]
         for instance in instances:

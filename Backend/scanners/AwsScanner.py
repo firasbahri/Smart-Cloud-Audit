@@ -11,28 +11,43 @@ import json
 logger = logging.getLogger(__name__)
 
 class AwsScanner(IScanner):
+    """Scanner concreto para AWS: usa boto3 (vía un rol asumido con STS) para leer IAM, EC2 y S3 de la cuenta del usuario."""
     session = None
     def __init__(self):
         super().__init__("AWS")
 
     def get_resources(self):
+        """Tipos de recurso AWS soportados hoy. Si se añade otro servicio (RDS, Lambda...), hay que sumarlo aquí."""
         resources=["users","groups","roles","s3","ec2"]
         return resources
 
     def connect(self, arn):
-        
+        """Asume el rol IAM de solo lectura que el usuario configuró y abre una sesión de boto3 con esas credenciales temporales.
+
+        Args:
+            arn (str): ARN del rol a asumir, formato "arn:aws:iam::<id_cuenta>:role/<nombre>".
+
+        Returns:
+            str: account_id de la cuenta AWS conectada (sacado de sts.get_caller_identity()).
+
+        Raises:
+            HTTPException: 400 si el ARN no tiene el formato esperado o boto3 no encuentra credenciales locales,
+                403 si el assume-role es denegado (rol mal configurado o trust policy incorrecta),
+                500 para cualquier otro error de AWS no controlado.
+        """
+
         try:
             if not arn or not arn.startswith('arn:aws:iam::'):
                 raise HTTPException(status_code=400, detail="Arn Invalido. Debe comenzar con 'arn:aws:iam::'")
-            
+
             sts = boto3.client('sts')
 
-       
+
             response = sts.assume_role(
                 RoleArn=arn,
                 RoleSessionName='ScannerSession'
             )
-           
+
             credentials = response['Credentials']
             self.session = boto3.Session(
                 aws_access_key_id=credentials['AccessKeyId'],
@@ -45,7 +60,7 @@ class AwsScanner(IScanner):
             account_id = identity['Account']
             return account_id
 
-          
+
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
@@ -63,6 +78,23 @@ class AwsScanner(IScanner):
             raise HTTPException(status_code=500, detail=f"Error inesperado al conectar: {str(e)}")
 
     def scan_resource(self, resource,regions):
+        """Despacha el escaneo según el tipo de recurso pedido y devuelve los datos ya convertidos al modelo de dominio.
+
+        El caso "ec2" es distinto a los demás: scan_ec2 además devuelve en qué regiones encontró algo, así que aquí
+        se propaga esa segunda parte hacia arriba (a scanController) en vez de devolver solo la lista de instancias.
+
+        Args:
+            resource (str): uno de los valores de get_resources() ("users", "groups", "roles", "s3", "ec2").
+            regions (list): regiones AWS a recorrer; solo se usa para "ec2" (los demás servicios son globales o
+                se consultan vía un único endpoint).
+
+        Returns:
+            list: recursos ya convertidos a modelo de dominio. Para "ec2" devuelve una tupla
+            (instancias, regiones_con_resultados) en vez de solo la lista.
+
+        Raises:
+            HTTPException: 400 si resource no es ninguno de los soportados.
+        """
         if resource == "users":
             users=self.scan_users()
             logger.info(f"Scanned users: {users}")
@@ -82,19 +114,31 @@ class AwsScanner(IScanner):
         else:
             logger.error(f"Resource type {resource} not supported for scanning")
             raise HTTPException(status_code=400, detail=f"Recurso {resource} no soportado para escanear")
-            
-        
+
+
 
     def scan_users(self):
+        """Lista los usuarios IAM de la cuenta y completa cada uno con MFA, claves de acceso, políticas inline y
+        managed. Añade también un usuario "root" sintético con el estado de MFA de la cuenta, sacado de
+        get_account_summary (root no aparece en list_users).
+
+        Returns:
+            list[dict]: usuarios en formato crudo de boto3, con los campos extra Mfa_enabled, AccessKeyMetadata,
+            InlinePolicies y AttachedManagedPolicies añadidos a mano.
+
+        Raises:
+            PermissionError: si el rol no tiene permiso para listar usuarios IAM.
+            Exception: cualquier otro fallo de la API de IAM.
+        """
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
-            
+
             iam = self.session.client('iam')
             users = iam.list_users()['Users']
             try:
                 summary = iam.get_account_summary()['SummaryMap']
-                mfa_enabled = summary.get('AccountMFAEnabled', False) 
+                mfa_enabled = summary.get('AccountMFAEnabled', False)
                 logger.info(f"Account MFA enabled: {mfa_enabled}")
                 root_user = {
                     'UserName': 'root',
@@ -104,7 +148,7 @@ class AwsScanner(IScanner):
                     'Mfa_enabled': bool(summary.get('AccountMFAEnabled', 0)),
                     'AccessKeysPresent': summary.get('AccountAccessKeysPresent', 0),
                 }
-                
+
                 users.append(root_user)
                 for u in users:
                     if u['UserName'] == 'root':
@@ -115,17 +159,17 @@ class AwsScanner(IScanner):
 
                     except ClientError:
                         u['Mfa_enabled'] = False
-                    
+
                     try:
                         access_keys=iam.list_access_keys(UserName=u['UserName'])['AccessKeyMetadata']
                         u['AccessKeyMetadata'] = access_keys
                     except ClientError:
-                        u['AccessKeyMetadata'] = []  
+                        u['AccessKeyMetadata'] = []
 
-                    try: 
+                    try:
                         u["InlinePolicies"] = []
-                        inlinePolicies = iam.list_user_policies(UserName=u['UserName'])['PolicyNames'] 
-                        logger.info(f"User {u['UserName']} has inline policies: {inlinePolicies}")  
+                        inlinePolicies = iam.list_user_policies(UserName=u['UserName'])['PolicyNames']
+                        logger.info(f"User {u['UserName']} has inline policies: {inlinePolicies}")
                         for policy_name in inlinePolicies:
                             policy_document = iam.get_user_policy(UserName=u['UserName'], PolicyName=policy_name)['PolicyDocument']
                             logger.info(f"Policy document for {policy_name}: {policy_document}")
@@ -141,12 +185,12 @@ class AwsScanner(IScanner):
                         Managedpolicies = iam.list_attached_user_policies(UserName=u['UserName'])['AttachedPolicies']
                         u['AttachedManagedPolicies'] = Managedpolicies
                     except ClientError:
-                        u['AttachedManagedPolicies'] = []            
+                        u['AttachedManagedPolicies'] = []
             except ClientError as e:
                 # Si no hay permisos para obtener summary, continuar sin root
                 if e.response['Error']['Code'] != 'AccessDenied':
                     raise
-            
+
             return users
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -155,13 +199,22 @@ class AwsScanner(IScanner):
             raise Exception(f"Error al escanear usuarios: {e.response['Error']['Message']}")
         except Exception as e:
             raise Exception(f"Error inesperado al escanear usuarios: {str(e)}")
-    
+
     def scan_groups(self):
-      
+        """Lista los grupos IAM y, para cada uno, sus miembros y sus políticas (inline y managed).
+
+        Returns:
+            list[dict]: grupos en formato crudo de boto3 con Users, InlinePolicies y AttachedManagedPolicies añadidos.
+
+        Raises:
+            PermissionError: sin permisos para listar grupos IAM.
+            Exception: cualquier otro fallo de la API.
+        """
+
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
-            
+
             iam = self.session.client('iam')
             groups = iam.list_groups()
             for g in groups['Groups']:
@@ -170,7 +223,7 @@ class AwsScanner(IScanner):
                     g['Users'] = users
                 except ClientError:
                     g['Users'] = []
-                
+
                 try :
                     inlinePolicies = iam.list_group_policies(GroupName=g['GroupName'])['PolicyNames']
                     g['InlinePolicies'] = []
@@ -197,13 +250,24 @@ class AwsScanner(IScanner):
             raise Exception(f"Error al escanear grupos: {e.response['Error']['Message']}")
         except Exception as e:
             raise Exception(f"Error inesperado al escanear grupos: {str(e)}")
-    
+
     def scan_roles(self):
+        """Lista los roles IAM con sus políticas adjuntas y, en TrustPolicy, quién puede asumir cada rol
+        (clave para que IAM_Analyzer detecte roles privilegiados asumibles desde fuera de la cuenta).
+
+        Returns:
+            list[dict]: roles en formato crudo de boto3, con AttachedManagedPolicies, InlinePolicies y
+            TrustPolicy añadidos.
+
+        Raises:
+            PermissionError: sin permisos para listar roles IAM.
+            Exception: cualquier otro fallo de la API.
+        """
 
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
-            
+
             iam = self.session.client('iam')
             roles = iam.list_roles()
             for r in roles['Roles']:
@@ -226,7 +290,7 @@ class AwsScanner(IScanner):
                 except ClientError:
                     r['InlinePolicies'] = []
 
-                r['TrustPolicy'] = r.get('AssumeRolePolicyDocument', {}) 
+                r['TrustPolicy'] = r.get('AssumeRolePolicyDocument', {})
 
             return roles['Roles']
         except ClientError as e:
@@ -238,18 +302,30 @@ class AwsScanner(IScanner):
         except Exception as e:
             logger.error(f"Unexpected error when scanning IAM roles: {str(e)}")
             raise Exception(f"Error inesperado al escanear roles: {str(e)}")
-    
+
     def scan_s3(self):
-    
+        """Lista los buckets S3 y, para cada uno, su configuración de acceso público, versionado, cifrado,
+        política y región — cada una de esas llamadas puede fallar por permisos sin tirar todo el scan abajo,
+        así que cada una tiene su propio valor por defecto si no se puede leer.
+
+        Returns:
+            list[dict]: buckets en formato crudo de boto3 con name, PublicAccess, Versioning, Encryption,
+            Policies y Region añadidos.
+
+        Raises:
+            PermissionError: sin permisos para listar buckets S3.
+            Exception: cualquier otro fallo de la API.
+        """
+
         try:
             if not self.session:
                 raise Exception("No hay sesión activa. Ejecute connect() primero")
-            
+
             s3 = self.session.client('s3')
             buckets = s3.list_buckets()
             for b in buckets['Buckets']:
                 b['name'] = b['Name']
-                b['CreationDate'] = b['CreationDate'].isoformat() 
+                b['CreationDate'] = b['CreationDate'].isoformat()
                 try:
                     public_access = s3.get_public_access_block(Bucket=b['Name'])
                     b['PublicAccess'] = public_access.get('PublicAccessBlockConfiguration',None)
@@ -291,8 +367,28 @@ class AwsScanner(IScanner):
             raise Exception(f"Error al escanear S3: {e.response['Error']['Message']}")
         except Exception as e:
             raise Exception(f"Error inesperado al escanear S3: {str(e)}")
-    
+
     def scan_ec2(self, regions):
+        """Recorre las regiones indicadas (o las ~30 regiones de la cuenta si no se pasa ninguna) buscando
+        instancias EC2, y para cada instancia encontrada añade sus volúmenes EBS y grupos de seguridad.
+
+        Una región sin instancias se salta sin marcarse como encontrada — así regions_founded acaba siendo
+        justo el subconjunto de regiones donde de verdad hay algo, útil para que la próxima vez no haga falta
+        recorrer las 30 si la cuenta solo usa 2 o 3.
+
+        Args:
+            regions (list | None): regiones a escanear. Si es None o lista vacía, se autodetectan todas las
+                regiones habilitadas de la cuenta vía describe_regions().
+
+        Returns:
+            tuple[list[dict], list[str]]: (todas las instancias encontradas en formato crudo de boto3,
+            regiones en las que se encontró al menos una instancia).
+
+        Raises:
+            PermissionError: sin permisos para listar instancias EC2.
+            Exception: cualquier otro fallo de la API. Los errores de una región concreta no detienen el
+                escaneo de las demás (se loguean y se continúa).
+        """
 
         try:
             if not self.session:
@@ -346,7 +442,7 @@ class AwsScanner(IScanner):
                     continue
             logger.info(f"Total EC2 instances found across all regions: {len(all_instances)}")
             return all_instances, regions_founded
-    
+
         except ClientError as e:
             error_code = e.response['Error']['Code']
             if error_code == 'AccessDenied':
@@ -354,8 +450,6 @@ class AwsScanner(IScanner):
             raise Exception(f"Error al escanear EC2: {e.response['Error']['Message']}")
         except Exception as e:
             raise Exception(f"Error inesperado al escanear EC2: {str(e)}")
-    
 
 
-    
-    
+

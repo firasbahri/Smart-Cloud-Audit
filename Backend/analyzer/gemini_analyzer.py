@@ -9,8 +9,10 @@ import logging
 logger=logging.getLogger(__name__)
 
 class GeminiAnalyzer(ILLMAnalyzer):
+  """Implementación de ILLMAnalyzer que usa la API de Google Gemini para el análisis con IA y la generación de comandos CLI."""
 
   def __init__(self):
+    """Carga la API key desde .env y abre el cliente de Gemini. El listado de modelos es solo para depurar en consola."""
     load_dotenv()
     api_key=os.getenv("GEMINI_API_KEY")
     self.client=genai.Client(api_key=api_key)
@@ -19,6 +21,20 @@ class GeminiAnalyzer(ILLMAnalyzer):
       print(model.name)
 
   def analyze(self, resources,vulnerabilities,userContext=dict):
+    """Construye el prompt de auditoría, lo manda a Gemini y devuelve los hallazgos ya convertidos a Vulnerability.
+
+    Args:
+        resources: recursos escaneados de la cuenta (dict crudo, no el modelo de dominio).
+        vulnerabilities: hallazgos del análisis estático, se incluyen en el prompt para que el modelo no los repita.
+        userContext (dict): contexto de negocio aportado por el usuario (campos "company" y "resources").
+
+    Returns:
+        list[Vulnerability]: hallazgos adicionales que propone el modelo. Lista vacía si no encuentra nada nuevo.
+
+    Example:
+        >>> GeminiAnalyzer().analyze(scan_resources, static_vulns, {"company": "fintech con datos de clientes"})
+        [Vulnerability(id="ai_001", severity="High", ...)]
+    """
     try:
       prompt=self.build_analyze_prompt(resources, vulnerabilities, userContext)
       response = self.client.models.generate_content(
@@ -29,9 +45,17 @@ class GeminiAnalyzer(ILLMAnalyzer):
     except Exception as e:
       logger.error(f"Error during Gemini analysis: {str(e)}")
       raise Exception(f"Error analyzing with Gemini : {str(e)}")
-    
 
-  def generateCLI(self, vulnerability):
+
+  def generate_recommendations(self, vulnerability):
+    """Pide a Gemini los pasos de remediación y, si existe, el comando AWS CLI para arreglar una vulnerabilidad concreta.
+
+    Args:
+        vulnerability (Vulnerability): hallazgo sobre el que se quiere generar la solución.
+
+    Returns:
+        dict | None: {"recommendation": str, "cli_command": str} o None si el modelo no devuelve un comando válido.
+    """
     try:
       prompt=self.build_generateCLI_prompt(vulnerability)
       response = self.client.models.generate_content(
@@ -41,9 +65,15 @@ class GeminiAnalyzer(ILLMAnalyzer):
       return self.parse_generateCLI_response(response.text)
     except Exception as e:
       logger.error(f"Error during Gemini CLI generation: {str(e)}")
-      raise Exception(f"Error generating CLI with Gemini : {str(e)}")  
+      raise Exception(f"Error generating CLI with Gemini : {str(e)}")
 
   def build_analyze_prompt(self, resources, vulnerabilities, userContext):
+    """Arma el prompt de auditoría completo: contexto de negocio, recursos escaneados, vulnerabilidades ya
+    detectadas y las instrucciones de formato/severidad que Gemini debe seguir para responder en JSON.
+
+    Returns:
+        str: prompt listo para mandar tal cual a generate_content.
+    """
     return f"""
 You are an expert AWS cloud security auditor. Your task is to analyze the provided AWS resources and context, then return a structured security assessment.
 
@@ -69,10 +99,10 @@ YOUR TASKS:
 1. Analyze the static vulnerabilities in the company context — add business impact where relevant.
 2. Identify additional vulnerabilities not detected by static analysis (contextual, logical, or configuration-based).
 3. Identify attack chains between resources (e.g., public S3 bucket + overpermissioned IAM role = lateral movement path).
-4. For each vulnerability, explain the business impact using the company context 
-   provided — mention specifically how it affects THIS company (startup, developers, 
+4. For each vulnerability, explain the business impact using the company context
+   provided — mention specifically how it affects THIS company (startup, developers,
    client data, etc.)
-5. Prioritize vulnerabilities based on the company context — a startup with client 
+5. Prioritize vulnerabilities based on the company context — a startup with client
    data has different risk tolerance than an enterprise.
 
 SEVERITY CRITERIA:
@@ -100,6 +130,19 @@ If no additional vulnerabilities are found beyond the static analysis, return an
 """
 
   def parse_analyze_response(self, response):
+    """Limpia la respuesta de Gemini (a veces viene envuelta en \\`\\`\\`json ... \\`\\`\\`) y la convierte en
+    una lista de Vulnerability.
+
+    Args:
+        response (str): texto crudo devuelto por response.text.
+
+    Returns:
+        list[Vulnerability]: vacía si el modelo respondió "[]".
+
+    Raises:
+        Exception: si el texto no es JSON válido tras quitar el markdown — normalmente indica que el modelo
+            no siguió el formato pedido.
+    """
     try:
       text_received=response.strip()
       if text_received.startswith("```"):
@@ -107,12 +150,12 @@ If no additional vulnerabilities are found beyond the static analysis, return an
           if text_received.startswith("json"):
             text_received=text_received[4:]
 
-      
+
 
       lista=json.loads(text_received)
       vulnerabilities=[]
 
-      for item in lista:   
+      for item in lista:
         vulnerabilities.append(
           Vulnerability(
             id=item.get("id"),
@@ -131,6 +174,11 @@ If no additional vulnerabilities are found beyond the static analysis, return an
 
 
   def build_generateCLI_prompt(self, vulnerability : Vulnerability):
+    """Prompt corto y específico: dado un único hallazgo, pide la recomendación paso a paso y el comando CLI exacto.
+
+    Returns:
+        str: prompt para generate_content, pensado para una sola vulnerabilidad (no un batch).
+    """
 
     return f"""Para la siguiente vulnerabilidad AWS genera:
 1. Una recomendación clara de cómo remediarla
@@ -148,6 +196,16 @@ Responde SOLO en JSON:
 """
 
   def parse_generateCLI_response(self, response):
+    """Igual que parse_analyze_response pero para la respuesta de generateCLI: quita el bloque de código si lo
+    hay y valida que venga tanto el comando como la recomendación.
+
+    Args:
+        response (str): texto crudo de Gemini.
+
+    Returns:
+        dict | None: {"cli_command": str, "recommendation": str}. None si el modelo dice que no hay comando
+            (cli_command es null/vacío) o si falta la recomendación.
+    """
     try:
       text_received = response.strip()
       if text_received.startswith("```"):

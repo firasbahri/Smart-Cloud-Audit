@@ -10,11 +10,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AWSFactory:
+    """Convierte las respuestas crudas de boto3 (diccionarios con claves en PascalCase, tal como las devuelve
+    la API de AWS) en los modelos de dominio que usa el resto de la app. No hace llamadas a AWS, solo traduce datos."""
+
     @staticmethod
     def create_users(usersRaw):
+        """Convierte usuarios IAM crudos a IAMUser, normalizando las políticas inline al formato interno
+        (policy_name/actions/resources/effect) y tratando al usuario root como un caso especial sin políticas.
+
+        Args:
+            usersRaw (list[dict]): usuarios tal como los devuelve scan_users(), con los campos extra ya añadidos.
+
+        Returns:
+            list[IAMUser]: un IAMUser por cada entrada de usersRaw.
+        """
         users = []
         for u in usersRaw:
-           
+
             if u['UserName'] == 'root':
                 logger.info("Creating root user")
                 userRoot = IAMUser(
@@ -58,9 +70,17 @@ class AWSFactory:
                 logger.info(f"access_keys for user {user.name}: {user.access_keys}")
                 users.append(user)
         return users
-    
+
     @staticmethod
     def create_groups(groupsRaw):
+        """Convierte grupos IAM crudos a IAMGroup, con la misma normalización de políticas inline que create_users.
+
+        Args:
+            groupsRaw (list[dict]): grupos tal como los devuelve scan_groups().
+
+        Returns:
+            list[IAMGroup]
+        """
         groups = []
         for g in groupsRaw:
             inline_policies_normalized = []
@@ -85,9 +105,19 @@ class AWSFactory:
             )
             groups.append(group)
         return groups
-    
+
     @staticmethod
     def create_roles(rolesRaw):
+        """Convierte roles IAM crudos a IAMRole. Además de las políticas, extrae quién puede asumir el rol
+        (trusted_entities) a partir de su trust policy — eso es lo que usa IAM_Analyzer para detectar roles
+        privilegiados accesibles desde fuera de la cuenta.
+
+        Args:
+            rolesRaw (list[dict]): roles tal como los devuelve scan_roles().
+
+        Returns:
+            list[IAMRole]
+        """
         roles = []
         for r in rolesRaw:
             inline_policies_normalized = []
@@ -115,6 +145,14 @@ class AWSFactory:
 
     @staticmethod
     def create_security_groups(securityGroupsRaw):
+        """Convierte grupos de seguridad EC2 crudos a SecurityGroup, delegando las reglas de entrada/salida a create_rules.
+
+        Args:
+            securityGroupsRaw (list[dict]): grupos de seguridad tal como vienen en instance['SecurityGroupsDetails'].
+
+        Returns:
+            list[SecurityGroup]
+        """
         security_groups = []
         for sg in securityGroupsRaw:
             logger.info(f"Creating security group ,{sg} ")
@@ -128,6 +166,15 @@ class AWSFactory:
 
     @staticmethod
     def create_ec2(instancesRaw):
+        """Convierte instancias EC2 crudas a EC2, incluyendo sus grupos de seguridad ya convertidos.
+
+        Args:
+            instancesRaw (list[dict]): instancias tal como las devuelve scan_ec2() (ya con volumes,
+                SecurityGroupsDetails y public_ip añadidos).
+
+        Returns:
+            list[EC2]
+        """
         instances = []
         for i in instancesRaw:
             instance = EC2(
@@ -145,10 +192,19 @@ class AWSFactory:
             )
             instances.append(instance)
         return instances
-    
+
 
     @staticmethod
     def create_rules(rulesRaw):
+      """Convierte reglas de un grupo de seguridad (IpPermissions de boto3) a objetos Rule, quedándose solo
+      con protocolo, rango de puertos y los CIDR permitidos.
+
+      Args:
+          rulesRaw (list[dict]): entradas de IpPermissions tal como las devuelve describe_security_groups.
+
+      Returns:
+          list[Rule]
+      """
       rules = []
       for r in rulesRaw:
           rule = Rule(
@@ -159,9 +215,17 @@ class AWSFactory:
             )
           rules.append(rule)
       return rules
-   
+
     @staticmethod
     def create_buckets(bucketsRaw):
+        """Convierte buckets S3 crudos a S3Bucket.
+
+        Args:
+            bucketsRaw (list[dict]): buckets tal como los devuelve scan_s3().
+
+        Returns:
+            list[S3Bucket]
+        """
         buckets = []
         for b in bucketsRaw:
             bucket = S3Bucket(
@@ -174,13 +238,30 @@ class AWSFactory:
                 versioning=b.get('Versioning'),
                 encryption=b.get('Encryption'),
                 bucket_policy=b.get('Policies')
-                
+
             )
             buckets.append(bucket)
         return buckets
-    
+
 
 def extract_trusted_entities(trust_policy):
+    """Saca de una trust policy de IAM (el AssumeRolePolicyDocument de un rol) qué cuentas/usuarios AWS o qué
+    servicios AWS pueden asumir ese rol.
+
+    Recorre los statements de la policy y junta los principals de tipo "AWS" (cuentas/usuarios/roles externos)
+    y "Service" (servicios AWS como ec2.amazonaws.com), aceptando que cada uno puede venir como string suelto
+    o como lista.
+
+    Args:
+        trust_policy (dict): documento de confianza del rol, con la forma {"Statement": [...]}.
+
+    Returns:
+        list[str]: ARNs o nombres de servicio que pueden asumir el rol. Vacía si no hay ninguno o el dict viene vacío.
+
+    Example:
+        >>> extract_trusted_entities({"Statement": [{"Principal": {"AWS": "arn:aws:iam::123456789012:root"}}]})
+        ['arn:aws:iam::123456789012:root']
+    """
     trusted_entities = []
     for statement in trust_policy.get('Statement', []):
         principal = statement.get('Principal', {})

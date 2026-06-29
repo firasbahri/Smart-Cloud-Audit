@@ -5,7 +5,17 @@ logger = logging.getLogger(__name__)
 
 
 class S3Analyzer:
+    """Reglas de seguridad estáticas para buckets S3: acceso público, versionado y cifrado."""
+
     def analyze(self, buckets: list) -> list:
+        """Pasa los buckets por las tres comprobaciones y junta los resultados.
+
+        Args:
+            buckets (list): buckets S3 del modelo de dominio.
+
+        Returns:
+            list[Vulnerability]: unión de check_public_access, check_versioning y check_encryption.
+        """
         vulnerabilities = []
         vulnerabilities.extend(self.check_public_access(buckets))
         vulnerabilities.extend(self.check_versioning(buckets))
@@ -14,6 +24,21 @@ class S3Analyzer:
 
 
     def check_public_access(self, buckets) -> list:
+        """Cruza la configuración de "block public access" con la política del bucket para decidir si está
+        realmente expuesto, y con qué gravedad.
+
+        Hay tres combinaciones posibles y cada una se reporta distinto:
+        - política pública + nada de block public access -> Critical (ya es accesible desde fuera).
+        - solo política pública, pero el bucket bloquea el acceso público -> Medium (la política sobra y es un riesgo
+          latente si algún día se quita el bloqueo).
+        - solo configuración de acceso público sin política explícita -> Medium.
+
+        Args:
+            buckets (list): buckets S3 con bucket_policy y public_access ya resueltos.
+
+        Returns:
+            list[Vulnerability]: como mucho un hallazgo por bucket (el caso más grave que aplique).
+        """
         vulnerabilities = []
         logger.info(f"Checking public access for {len(buckets)} buckets")
         for bucket in buckets:
@@ -67,6 +92,8 @@ class S3Analyzer:
 
 
     def check_versioning(self, buckets) -> list:
+        """Marca los buckets sin versionado habilitado (severidad Low: no es una puerta de entrada, pero sin
+        versiones anteriores un borrado o sobrescritura accidental — o malintencionada — es irreversible)."""
         Vulnerabilities = []
         for bucket in buckets:
             logger.info(f"Checking versioning for bucket {bucket.name} with versioning status: {bucket.versioning}")
@@ -87,6 +114,7 @@ class S3Analyzer:
         return Vulnerabilities
 
     def check_encryption(self, buckets) -> list:
+        """Marca los buckets sin cifrado en reposo habilitado (severidad Medium)."""
         Vulnerabilities = []
         for bucket in buckets:
             logger.info(f"Checking encryption for bucket {bucket.name} with encryption status: {bucket.encryption}")
@@ -107,6 +135,15 @@ class S3Analyzer:
         return Vulnerabilities
 
     def isPublicBucketPolicy(self, policy) -> bool:
+        """True si la política del bucket tiene un statement 'Allow' con Principal "*" (o {"AWS": "*"}) — es decir,
+        cualquiera, sin autenticar, puede hacer lo que ese statement permita.
+
+        Args:
+            policy (dict | None): documento de política del bucket (formato IAM policy), o None si no tiene.
+
+        Returns:
+            bool: False también si policy es None.
+        """
         if not policy:
             return False
         logger.info(f"Analyzing bucket policy and going to statements: {policy}")
@@ -123,6 +160,17 @@ class S3Analyzer:
         return False
 
     def isPublicAccess(self, public_access) -> bool:
+        """True si falta cualquiera de los 4 bloqueos de "Block Public Access" de S3.
+
+        Si public_access viene vacío/None se asume el peor caso (público) porque, sin esa info, no hay garantía
+        de que el bucket esté protegido.
+
+        Args:
+            public_access (dict | None): BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, RestrictPublicBuckets.
+
+        Returns:
+            bool: True si el bucket queda expuesto por al menos uno de los cuatro flags.
+        """
         if not public_access:
             return True
         try:

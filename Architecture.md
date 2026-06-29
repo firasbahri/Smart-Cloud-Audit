@@ -15,13 +15,15 @@ Plataforma de auditoría de seguridad cloud para AWS. Permite a empresas y desar
 - **MongoDB** — base de datos principal
 - **PyMongo Async** — driver asíncrono oficial de MongoDB
 - **Boto3** — SDK de AWS para escaneo de recursos
+- **Google Gemini API** — análisis con IA y generación de recomendaciones/comandos CLI
 - **SSE (Server-Sent Events)** — notificaciones en tiempo real al frontend
 
 ### Frontend
 - **Vue 3** — framework de interfaz de usuario
+- **PrimeVue** — librería de componentes UI
 - **Pinia** — gestión de estado global
 - **Vue Router** — enrutamiento
-- **Axios** — peticiones HTTP
+- **Fetch API nativo** — peticiones HTTP (sin librería externa como Axios)
 - **EventSource** — recepción de eventos SSE nativos del navegador
 
 ---
@@ -117,15 +119,17 @@ SmartAudit → STS AssumeRole → credenciales temporales → escanea cuenta del
 **Decisión:** cada capa con múltiples implementaciones tiene su propia interfaz abstracta.
 
 ```
-IRepository → auditRepository, cloudRepository, ScanRepository, userRepository
-IScanner    → AwsScanner (en el futuro AzureScanner, GCPScanner)
-IAnalyzer   → IAM_Analyzer, ec2_analyzer, s3_analyzer
+IRepository  → auditRepository, cloudRepository, ScanRepository, userRepository
+IScanner     → AwsScanner (en el futuro AzureScanner, GCPScanner)
+IAnalyzer    → AWSAnalyzer, que internamente orquesta IAM_Analyzer, ec2_analyzer y s3_analyzer
+ILLMAnalyzer → GeminiAnalyzer (en el futuro, otros modelos de IA)
 ```
 
 **Razonamiento:**
 - Desacopla completamente cada capa de sus implementaciones concretas.
 - Añadir un nuevo proveedor cloud (Azure) solo requiere crear `AzureScanner` que implemente `IScanner` — sin tocar nada más.
-- Añadir nuevas reglas de seguridad solo requiere crear un nuevo analyzer — sin tocar el scanner ni los servicios.
+- Añadir nuevas reglas de seguridad solo requiere crear un nuevo analyzer y sumarlo dentro de `AWSAnalyzer` — sin tocar el scanner ni los servicios.
+- Añadir un modelo de IA distinto a Gemini solo requiere implementar `ILLMAnalyzer` y sumarlo en `AIAnalyzerFactory` — sin tocar el controller ni los servicios.
 - Permite cambiar de MongoDB a cualquier otra base de datos modificando solo el repositorio correspondiente.
 - Garantiza consistencia en los métodos entre implementaciones.
 
@@ -173,8 +177,12 @@ Backend/
 │     IAM_Analyzer.py
 │     ec2_analyzer.py
 │     s3_analyzer.py
-├── Factories/             → crean instancias de scanners y recursos
+│     iLLM_analyzer.py     → interfaz para analizadores con IA
+│     gemini_analyzer.py   → implementación con Google Gemini
+├── Factories/             → crean instancias de scanners, analizadores y recursos
 │     scannerFactory.py
+│     analyzerFactory.py   → elige el analizador estático según el proveedor
+│     AIAnalyzerFactory.py → elige el motor de IA según el modelo configurado
 │     awsFactory.py
 ├── celery_worker/         → gestión de tareas en segundo plano
 │     celery_app.py
@@ -230,6 +238,19 @@ Backend/
 
 ---
 
+### 10. Auditoría en dos etapas: análisis estático primero, IA después
+
+**Decisión:** la auditoría con IA nunca se ejecuta sola — siempre recibe como entrada las vulnerabilidades que ya encontró el análisis estático, y se le pide explícitamente que no las repita.
+
+**Razonamiento:**
+- El análisis estático (reglas fijas sobre IAM/EC2/S3) es instantáneo, gratuito y determinista — cubre los casos conocidos sin depender de ninguna API externa.
+- El análisis con IA (Google Gemini) tiene coste y latencia, así que tiene más sentido como una segunda pasada que aporte valor añadido: relacionar hallazgos entre sí (cadenas de ataque), priorizarlos según el contexto de negocio del usuario, y detectar configuraciones sospechosas que las reglas fijas no cubren.
+- Separar ambos en `AuditResult` distintos (`origin: "static"` / `origin: "ai"`) permite comparar resultados, mostrar cada uno en su propia pestaña y no perder el análisis estático si la llamada a Gemini falla.
+
+**Consecuencia en el diseño:** `AuditController` no conoce a `GeminiAnalyzer` directamente — pide el analizador a `AIAnalyzerFactory` según un parámetro `modelo`, igual que `AnalyzerFactory` resuelve el analizador estático según el `provider`. Cambiar de modelo de IA (o añadir uno nuevo) no requiere tocar el controller ni los servicios.
+
+---
+
 ## Modelo de datos principal
 
 ### Scan
@@ -264,6 +285,8 @@ Backend/
 ---
 
 ## Vulnerabilidades detectadas
+
+Esta tabla cubre el análisis **estático** (reglas fijas). El análisis con **IA** no está limitado a este catálogo: puede proponer hallazgos contextuales adicionales (cadenas de ataque entre recursos, riesgos específicos del negocio del usuario, etc.) que no encajan en una regla predefinida.
 
 ### IAM
 | Vulnerabilidad | Severidad |
