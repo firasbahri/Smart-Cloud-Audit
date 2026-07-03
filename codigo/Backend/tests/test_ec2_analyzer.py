@@ -1,0 +1,35 @@
+from analyzer.ec2_analyzer import EC2Analyzer
+from unittest.mock import MagicMock
+
+
+def make_instance(id,volumes,tags):
+  instance = MagicMock()
+  instance.id = id
+  instance.volumes = volumes
+  instance.tags = tags
+  return instance
+
+def test_check_ebs_encryption():
+    analyzer = EC2Analyzer()
+    instance1 = make_instance("i-1234567890abcdef0", [{"volume_id": "vol-1234567890abcdef0", "encrypted": False}],[])
+    instance2 = make_instance("i-0987654321abcdef0", [{"volume_id": "vol-0987654321abcdef0", "encrypted": True}],[])
+    instance3 = make_instance("i-1122334455667788", [{"volume_id": "vol-1122334455667788", "encrypted": False}, {"volume_id": "vol-1122334455667789", "encrypted": True}],[])
+
+    instances = [instance1, instance2, instance3]
+    vulnerabilities = analyzer.check_ebs_encryption(instances)
+    assert len(vulnerabilities) == 2
+    assert vulnerabilities[0].id == f"ec2_{instance1.id}_ebs_{instance1.volumes[0]['volume_id']}_unencrypted"
+    assert vulnerabilities[0].name == "Instancia EC2 con Volumen EBS sin Cifrar"
+
+
+def test_check_tags():
+    analyzer = EC2Analyzer()
+    instance1 = make_instance("i-1234567890abcdef0", [], [])
+    result= analyzer.check_tags([instance1])
+    assert len(result) == 1
+    assert result[0].id == f"ec2_{instance1.id}_missing_tags"
+    assert result[0].severity == "Low"
+
+    instance2=make_instance("i-01245",[],[{'Key':'Name','Value':'Test'},{'Key':'Environment','Value':'Production'},{'Key':'Owner','Value':'Alice'}])
+    result2= analyzer.check_tags([instance2])
+    assert len(result2) == 0

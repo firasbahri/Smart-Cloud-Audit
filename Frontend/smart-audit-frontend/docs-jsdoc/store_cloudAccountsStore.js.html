@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: store/cloudAccountsStore.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: store/cloudAccountsStore.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module cloudAccountsStore
+ * @description Store de Pinia para la gestión de cuentas cloud vinculadas por el usuario.
+ * Mantiene la lista de cuentas, la cuenta actualmente seleccionada y las operaciones
+ * CRUD correspondientes contra el backend.
+ */
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { buildApiUrl } from '../utils/api'
+
+export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
+
+  /** @type {Array} Lista de cuentas cloud del usuario autenticado. */
+  const accounts = ref([])
+
+  /** @type {Object|null} Cuenta actualmente seleccionada en el selector global. */
+  const selectedAccount = ref(null)
+
+  /** @type {number} Total de cuentas vinculadas. */
+  const totalAccounts = computed(() => accounts.value.length)
+
+  /**
+   * Añade una cuenta nueva al store con estado inicial 'Activa'.
+   * Se llama después de que el backend confirme el registro exitoso.
+   * @param {Object} account - Datos de la cuenta devueltos por el backend (id, name, provider, identifier…).
+   * @returns {Object} La misma cuenta con el campo status añadido.
+   */
+  const addAccount = (account) => {
+    const newAccount = { ...account, status: 'Activa' }
+    accounts.value.push(newAccount)
+    return newAccount
+  }
+
+  /**
+   * Aplica una actualización parcial sobre una cuenta existente en el store.
+   * @param {string} id - id de la cuenta a actualizar.
+   * @param {Object} updates - Campos a sobreescribir (name, description, regions…).
+   */
+  const updateAccount = (id, updates) => {
+    const index = accounts.value.findIndex(acc => acc.id === id)
+    if (index !== -1) {
+      accounts.value[index] = { ...accounts.value[index], ...updates }
+      console.log('Cuenta actualizada:', accounts.value[index])
+    }
+  }
+
+  /**
+   * Elimina una cuenta del store y limpia selectedAccount si era la cuenta borrada.
+   * @param {string} id - id de la cuenta a eliminar.
+   */
+  const deleteAccount = (id) => {
+    accounts.value = accounts.value.filter(acc => acc.id !== id)
+    if (selectedAccount.value?.id === id) {
+      selectedAccount.value = null
+    }
+    console.log('Cuenta eliminada del store:', id)
+  }
+
+  /**
+   * Establece la cuenta activa y la persiste en localStorage para sobrevivir recargas.
+   * @param {Object} account - Cuenta a seleccionar.
+   */
+  const selectAccount = (account) => {
+    selectedAccount.value = account
+    localStorage.setItem('selectedCloudAccount', JSON.stringify(account))
+  }
+
+  /**
+   * Restaura selectedAccount desde localStorage al montar la app (llamado en MainPage.vue onMounted).
+   */
+  const loadSelectedAccount = () => {
+    const raw = localStorage.getItem('selectedCloudAccount')
+    selectedAccount.value = raw ? JSON.parse(raw) : null
+  }
+
+  /**
+   * Carga desde el backend todas las cuentas cloud del usuario autenticado
+   * y rellena el array accounts.
+   * @returns {Promise&lt;void>}
+   */
+  const loadAccounts = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const URL = buildApiUrl('/cloud/get_cloud_data')
+      const response = await fetch(URL, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Error al cargar cuentas')
+      accounts.value = data.length === 0 ? [] : data
+    } catch (error) {
+      console.error('Error cargando cuentas:', error)
+    }
+  }
+
+  /**
+   * Vacía completamente el store (cuentas y cuenta seleccionada).
+   * Se usa al cerrar sesión.
+   */
+  const clearAccounts = () => {
+    accounts.value = []
+    selectedAccount.value = null
+  }
+
+  /**
+   * Registra una nueva cuenta cloud en el backend y la añade al store.
+   * @param {{name, provider, arn, description, regions}} payload - Datos del formulario.
+   * @returns {Promise&lt;Object>} Cuenta añadida al store (con status 'Activa').
+   */
+  const registerAccount = async ({ name, provider, arn, description, regions }) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl('/cloud/register_cloud'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name, provider, arn, description, regions })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data?.detail || 'Error al registrar la cuenta')
+    return addAccount({
+      id: data.id,
+      name,
+      provider,
+      identifier: arn,
+      description,
+      created_at: new Date().toISOString()
+    })
+  }
+
+  /**
+   * Actualiza los datos de una cuenta cloud en el backend y en el store.
+   * @param {{id, name, provider, arn, description, regions}} payload
+   * @returns {Promise&lt;void>}
+   */
+  const updateCloudAccount = async ({ id, name, provider, arn, description, regions }) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl('/cloud/update_cloud_data'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, name, description, regions })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data?.detail || 'Error al actualizar la cuenta')
+    updateAccount(id, { name, provider, arn, description, regions })
+  }
+
+  /**
+   * Elimina una cuenta cloud del backend y del store.
+   * @param {string} id - id de la cuenta a eliminar.
+   * @returns {Promise&lt;void>}
+   */
+  const removeCloudAccount = async (id) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl('/cloud/delete_cloud_data'), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data?.detail || 'Error al eliminar la cuenta')
+    }
+    deleteAccount(id)
+  }
+
+  return {
+    accounts,
+    selectedAccount,
+    totalAccounts,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    selectAccount,
+    loadSelectedAccount,
+    loadAccounts,
+    clearAccounts,
+    registerAccount,
+    updateCloudAccount,
+    removeCloudAccount
+  }
+})
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-auditStore.html">auditStore</a></li><li><a href="module-cloudAccountsStore.html">cloudAccountsStore</a></li><li><a href="module-scanStore.html">scanStore</a></li><li><a href="module-utils_api.html">utils/api</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Jul 02 2026 18:23:58 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

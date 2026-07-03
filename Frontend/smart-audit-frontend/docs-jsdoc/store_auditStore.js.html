@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: store/auditStore.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: store/auditStore.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module auditStore
+ * @description Store de Pinia para el historial y los resultados de auditorías.
+ * Gestiona dos tipos de datos distintos:
+ * - `audits`: historial completo de auditorías pasadas (usado por Dashboard y Mis Auditorías).
+ * - `auditResult` / `aiAuditResult`: vulnerabilidades de la auditoría recién ejecutada (usado por la vista Auditoría e Inventario).
+ */
+
+import { defineStore } from "pinia";
+import { ref } from "vue";
+import { buildApiUrl } from '../utils/api';
+
+export const useAuditStore = defineStore("audit", () => {
+
+  /** @type {Object} Historial de auditorías normalizadas de la cuenta activa. */
+  const audits = ref([]);
+
+  /** @type {Object} true mientras loadAuditsForAccount está en curso. */
+  const auditsLoading = ref(false);
+
+  /** @type {Object} id de la última auditoría estática ejecutada. */
+  const id = ref("");
+
+  /** @type {Object} Vulnerabilidades de la última auditoría estática (datos efímeros, no persisten al recargar). */
+  const auditResult = ref(null);
+
+  /** @type {Object} Vulnerabilidades de la última auditoría IA (datos efímeros). */
+  const aiAuditResult = ref([]);
+
+  /** @type {Object} id de la última auditoría IA ejecutada. */
+  const aiAuditId = ref("");
+
+  /** @type {Object} Map accountId → auditId, para asociar el scan_id con su auditoría al lanzar análisis IA. */
+  const auditIdByAccount = ref({});
+
+  /**
+   * Guarda el resultado de una auditoría estática recién ejecutada en auditResult.
+   * No toca `audits` (el historial): ese se actualiza con loadAuditsForAccount.
+   * @param {string} auditIdValue - id de la auditoría creada en el backend.
+   * @param {Array&lt;Object>} data - Lista de vulnerabilidades normalizadas.
+   */
+  const setAudits = (auditIdValue, data) => {
+    const normalized = Array.isArray(data) ? data : [];
+    id.value = auditIdValue || "";
+    auditResult.value = normalized;
+  };
+
+  /**
+   * Guarda el resultado de una auditoría IA recién ejecutada en aiAuditResult.
+   * @param {string} auditIdValue - id de la auditoría IA creada en el backend.
+   * @param {Array&lt;Object>} data - Lista de vulnerabilidades propuestas por el modelo.
+   */
+  const setAiAudits = (auditIdValue, data) => {
+    aiAuditId.value = auditIdValue || "";
+    aiAuditResult.value = Array.isArray(data) ? data : [];
+  };
+
+  /**
+   * Calcula el recuento de vulnerabilidades por severidad a partir de una lista.
+   * Se usa como fallback en normalizeAudit cuando el backend no incluye counts precalculados.
+   * @param {Array&lt;Object>} [vulnerabilities=[]]
+   * @returns {{critical: number, high: number, medium: number, low: number}}
+   */
+  const computeCounts = (vulnerabilities = []) => {
+    const c = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const v of vulnerabilities) {
+      const s = (v.severity || "").toLowerCase();
+      if (s === "critical") c.critical++;
+      else if (s === "high") c.high++;
+      else if (s === "medium") c.medium++;
+      else if (s === "low") c.low++;
+    }
+    return c;
+  };
+
+  /**
+   * Normaliza una entrada del historial de auditorías asegurando que siempre
+   * existan los campos vulnerabilities, counts y origin.
+   * @param {Object} a - Auditoría en bruto tal como la devuelve GET /cloud/my-audits/{id}.
+   * @returns {Object} Auditoría con campos garantizados.
+   */
+  const normalizeAudit = (a) => ({
+    ...a,
+    vulnerabilities: a.vulnerabilities || [],
+    counts: a.counts || computeCounts(a.vulnerabilities),
+    origin: a.origin || "static",
+  });
+
+  /**
+   * Vacía todos los datos de auditoría del store.
+   * Se usa al cerrar sesión o al cambiar de cuenta seleccionada.
+   */
+  const clearData = () => {
+    id.value = "";
+    aiAuditId.value = "";
+    audits.value = [];
+    auditResult.value = null;
+    aiAuditResult.value = [];
+  };
+
+  /**
+   * Carga desde el backend el historial completo de auditorías de una cuenta
+   * y lo normaliza antes de guardarlo en `audits`.
+   * Se llama desde MainPage.vue al cambiar de cuenta y desde AuditView.vue
+   * tras ejecutar una auditoría nueva.
+   * @param {Object} account - Cuenta activa (con .id o .account_id).
+   * @returns {Promise&lt;void>}
+   */
+  const loadAuditsForAccount = async (account) => {
+    const accountId = account.id || account.account_id;
+    const token = localStorage.getItem("token");
+    const url = buildApiUrl(`/cloud/my-audits/${accountId}`);
+    auditsLoading.value = true;
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        }
+      });
+      if (response.status === 404) { audits.value = []; return; }
+      if (!response.ok) throw new Error(`Error fetching audits: ${response.statusText}`);
+      const data = await response.json();
+      audits.value = (Array.isArray(data) ? data : []).map(normalizeAudit);
+    } catch (error) {
+      console.error("Failed to load audits:", error);
+      audits.value = [];
+    } finally {
+      auditsLoading.value = false;
+    }
+  }
+
+  /**
+   * Ejecuta la auditoría estática vía POST /cloud/static-audit.
+   * @param {string} scanId - scan_id del escaneo activo.
+   * @param {Object} account - Cuenta activa.
+   * @returns {Promise&lt;number>} Número de vulnerabilidades encontradas.
+   */
+  const runStaticAudit = async (scanId, account) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl('/cloud/static-audit'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ scan_id: scanId })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data?.detail || 'No se pudo ejecutar la auditoría')
+
+    const vulns = Array.isArray(data?.vulnerabilities) ? data.vulnerabilities : []
+    const auditIdValue = data?.audit_id || ''
+    setAudits(auditIdValue, vulns)
+    const accountId = account?.id || account?.account_id
+    if (auditIdValue &amp;&amp; accountId) auditIdByAccount.value[accountId] = auditIdValue
+    if (account) await loadAuditsForAccount(account)
+    return vulns.length
+  }
+
+  /**
+   * Ejecuta el análisis IA vía POST /cloud/ai-audit.
+   * @param {string} scanId
+   * @param {string} staticAuditId - audit_id de la auditoría estática previa.
+   * @param {Object} userContext - Contexto de empresa y recursos.
+   * @param {Object} account - Cuenta activa.
+   * @returns {Promise&lt;number>} Número de vulnerabilidades IA.
+   */
+  const runAiAudit = async (scanId, staticAuditId, userContext, account) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl('/cloud/ai-audit'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ scan_id: scanId, audit_id: staticAuditId, user_context: userContext })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data?.detail || 'No se pudo ejecutar el análisis IA')
+
+    const vulns = Array.isArray(data?.vulnerabilities) ? data.vulnerabilities : []
+    setAiAudits(data?.audit_id || '', vulns)
+    if (account) await loadAuditsForAccount(account)
+    return vulns.length
+  }
+
+  /**
+   * Solicita al backend la solución IA para una vulnerabilidad concreta.
+   * @param {string} auditId
+   * @param {string} vulnId
+   * @returns {Promise&lt;{cli_command: string, recommendation: string}>}
+   */
+  const generateSolution = async (auditId, vulnId) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl(`/cloud/generate-cli/${auditId}/${vulnId}`), {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('No se pudo generar la solución')
+    return response.json()
+  }
+
+  /**
+   * Elimina una auditoría del backend y la quita del historial local.
+   * @param {string} auditId
+   * @returns {Promise&lt;void>}
+   */
+  const deleteAuditById = async (auditId) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch(buildApiUrl(`/cloud/delete-audit/${auditId}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('Error al eliminar')
+    audits.value = audits.value.filter(a => a.audit_id !== auditId)
+  }
+
+  return {
+    audits,
+    auditsLoading,
+    id,
+    aiAuditId,
+    auditResult,
+    aiAuditResult,
+    auditIdByAccount,
+    setAudits,
+    setAiAudits,
+    clearData,
+    loadAuditsForAccount,
+    runStaticAudit,
+    runAiAudit,
+    generateSolution,
+    deleteAuditById
+  };
+});
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-auditStore.html">auditStore</a></li><li><a href="module-cloudAccountsStore.html">cloudAccountsStore</a></li><li><a href="module-scanStore.html">scanStore</a></li><li><a href="module-utils_api.html">utils/api</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Jul 02 2026 18:23:58 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

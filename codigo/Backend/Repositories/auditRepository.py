@@ -1,0 +1,109 @@
+from Repositories.IRepository import IRepository
+from DataBase.mongoDB import MongoDB  
+from Model.auditResult import AuditResult
+from Model.vulnerability import Vulnerability
+
+class AuditRepository(IRepository):
+    def __init__(self):
+        self.collection = MongoDB.db["audits"]
+
+    async def create(self, audit_result):
+        audit_dict = {}
+        for key, value in audit_result.__dict__.items():
+            if value is not None:
+                audit_dict[key] = value
+        result = await self.collection.insert_one(audit_dict)
+        return str(result.inserted_id)
+    
+    async def findLastByAccountUser(self, account_id, user_id):
+        result = await self.collection.find_one({"accountID": account_id, "userID": user_id}, sort=[("created_at", -1)])
+        if not result:
+            return None
+
+        auditResult = AuditResult(
+            id=result.get("id") or str(result.get("_id")),
+            vulnerabilities=result.get("vulnerabilities", []),
+            accountID=result.get("accountID"),
+            userID=result.get("userID"),
+            resources=result.get("resources", []),
+            origin=result.get("origin"),
+            counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}),
+        )
+        created_at = result.get("created_at")
+        auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
+        return auditResult
+
+    async def findById(self, audit_id):
+        result = await self.collection.find_one({"id": audit_id})
+        if not result:
+            return None
+        
+        auditResult = AuditResult(
+            id=str(result.get("id")),
+            vulnerabilities=result.get("vulnerabilities", []),
+            accountID=result.get("accountID"),
+            userID=result.get("userID"),
+            resources=result.get("resources", []),
+            origin=result.get("origin"),
+            counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0})
+        )
+        creaed_at = result.get("created_at")
+        auditResult.created_at = creaed_at.isoformat() if hasattr(creaed_at, 'isoformat') else creaed_at
+        return auditResult
+    
+
+    async def findAuditsByAccountUser(self, account_id, user_id):
+        cursor=self.collection.find({"accountID": account_id,"userID": user_id}).sort("created_at", -1)
+        results=[]
+        async for result in cursor:
+            auditResult = AuditResult(
+                id=str(result.get("id")),
+                vulnerabilities=result.get("vulnerabilities", []),
+                accountID=result.get("accountID"),
+                userID=result.get("userID"),
+                resources=result.get("resources", []),
+                origin=result.get("origin"),
+                counts=result.get("counts", {'critical': 0, 'high': 0, 'medium': 0, 'low': 0})
+            )
+            created_at = result.get("created_at")
+            auditResult.created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at
+            results.append(auditResult)
+        return results
+    
+    async def findVulnerabilityById(self, audit_id: str, vulnerability_id: str):
+        #busca el audit por id y luego filtra la vulnerabilidad dentro del array de vulnerabidades con el id de vulnerabilidad y devuelve solo esa vulnerabilidad
+        result = await self.collection.find_one({"id": audit_id,"vulnerabilities.id": vulnerability_id}, {"vulnerabilities.$": 1})
+        if not result or "vulnerabilities" not in result or len(result["vulnerabilities"]) == 0:
+            return None
+        vulnerability_data = result["vulnerabilities"][0]
+        vulnerability = Vulnerability(
+            id=vulnerability_data.get("id"),
+            name=vulnerability_data.get("name"),
+            description=vulnerability_data.get("description"),
+            severity=vulnerability_data.get("severity"),
+            resource_id=vulnerability_data.get("resource_id"),
+            resource_type=vulnerability_data.get("resource_type"),
+        )
+        return vulnerability
+
+    async def updateVulnerability(self, audit_id: str, vulnerability_id: str, vulnerability: Vulnerability):
+        vulnerability_dict = {}
+        for key, value in vulnerability.__dict__.items():
+            if value is not None:
+                vulnerability_dict[key] = value
+        result = await self.collection.update_one(
+            {"id": audit_id, "vulnerabilities.id": vulnerability_id},
+            {"$set": {"vulnerabilities.$": vulnerability_dict}}
+        )
+        return result.modified_count > 0
+
+    async def update(self, audit_id, audit_result):
+        pass
+    
+    async def delete(self, audit_id):
+        result= await self.collection.delete_one({"id": audit_id})
+        return result.deleted_count > 0
+    
+    async def deleteByAccountUser(self, accountID, userID):
+        result = await self.collection.delete_many({"accountID": accountID, "userID": userID})
+        return result.deleted_count > 0

@@ -1,0 +1,84 @@
+from dotenv import load_dotenv
+import os
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import RedirectResponse
+from services.auth_service import AuthService
+from dependencies import get_user_id_from_token
+from Requests   import  UserRegisterRequest, UserLoginRequest, EmailConfirmRequest, PasswordResetRequest    
+from Responses import UserResponse, TokenResponse
+import logging
+logger=logging.getLogger(__name__)
+auth_service = AuthService()
+router = APIRouter()
+load_dotenv
+
+@router.post("/register", response_model=UserResponse)
+async def register(user: UserRegisterRequest):
+    logger.info(f"Registrando usuario: {user.username}")
+  
+    try:
+        user_id = await auth_service.register_user(user.username, user.password, user.email)
+        return UserResponse(id=user_id, username=user.username, email=user.email, isVerified=False)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.post("/login", response_model=TokenResponse)
+async def login(user: UserLoginRequest):
+    try:
+        token = await auth_service.login_user(user.username, user.password)
+        return TokenResponse(token=token)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="error al iniciar sesión")
+
+@router.get("/verify-email")
+async def verify_email(token: str):
+    baseUrl=os.getenv("BASE_URL")
+    logger.info(f"Verificando email con token: {token}")
+    try:
+        result = await auth_service.verify_email(token)
+        if result:
+            return RedirectResponse(url=f"{baseUrl}/login?verified=true")
+        else:
+            raise HTTPException(status_code=400, detail="Token de verificación inválido")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+
+@router.post("/forgot-password")
+async def forgot_password(emailConfirm : EmailConfirmRequest):
+    try:
+        await auth_service.send_password_reset_email(emailConfirm.email)
+        return {"message": "Correo de restablecimiento de contraseña enviado"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+
+@router.post("/reset-password/{token}")
+async def reset_password(token: str,passwordReset : PasswordResetRequest):
+    try:
+        result = await auth_service.reset_password(token, passwordReset.new_password)
+        if result:
+            return {"message": "Contraseña restablecida exitosamente"}
+        else:
+            raise HTTPException(status_code=400, detail="Token de restablecimiento inválido")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@router.delete("/delete-account")
+async def delete_account(user_id: str = Depends(get_user_id_from_token)):
+    try:
+        result = await auth_service.delete_account(user_id)
+        if result:
+            return {"message": "Cuenta eliminada exitosamente"}
+        else:
+            raise HTTPException(status_code=400, detail="No se pudo eliminar la cuenta")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

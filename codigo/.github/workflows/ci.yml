@@ -1,0 +1,40 @@
+
+name : smart-audit-ci
+
+on:
+  push:
+    branches : [main]
+  pull_request:
+    branches : [main]
+
+jobs:
+  test :
+    runs-on : ubuntu-latest
+
+    steps:
+      - name : checkout code
+        uses : actions/checkout@v3
+
+      - name : set up python
+        uses : actions/setup-python@v4
+        with:
+          python-version : '3.10'
+      
+      - name : install dependencies
+        run :  pip install -r Backend/requirements.txt
+
+      - name : run basic tests
+        run :  pytest Backend/tests
+
+      - name : run ec2 analyzer tests
+        run :  pytest Backend/tests/test_ec2_analyzer.py
+
+      - name: run role analyzer tests
+        run: pytest Backend/tests/test_role_analyzer.py
+
+      - name: run s3 analyzer tests
+        run: pytest Backend/tests/test_s3_analyzer.py
+      - name : security scan
+        run : |
+          pip install bandit
+          bandit -r Backend -x Backend/venv,Backend/tests

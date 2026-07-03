@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+motor
+aio-pika
+boto3
+PyJWT
+python-dotenv
+passlib[bcrypt]
+bcrypt==4.0.1
+pytest
+celery
+pymongo
+resend
+google-genai
