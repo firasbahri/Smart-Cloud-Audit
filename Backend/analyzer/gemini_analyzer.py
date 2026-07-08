@@ -76,26 +76,25 @@ class GeminiAnalyzer(ILLMAnalyzer):
         str: prompt listo para mandar tal cual a generate_content.
     """
     if vulnerabilities:
-        static_section = f"""VULNERABILITIES ALREADY DETECTED BY STATIC ANALYSIS (do not duplicate these):
+        static_section = f"""VULNERABILITIES ALREADY DETECTED BY STATIC ANALYSIS (context only, do not repeat these as new findings):
 {json.dumps(vulnerabilities, indent=2)}"""
-        task_1 = "1. Analyze the static vulnerabilities in the company context — add business impact where relevant."
-        task_2 = "2. Identify additional vulnerabilities not detected by static analysis (contextual, logical, or configuration-based)."
+        task_1 = "1. Use the static vulnerabilities above as context — they are already known. Your job is to go BEYOND them."
     else:
-        static_section = """No static analysis has been performed yet for this account. Analyze the resources from scratch to identify security vulnerabilities, following AWS security best practices (CIS AWS Foundations Benchmark)."""
+        logger.info("No static vulnerabilities found, asking Gemini to analyze from scratch.")
+        static_section = """No static analysis has been performed yet for this account. Analyze the resources from scratch, following AWS security best practices (CIS AWS Foundations Benchmark)."""
         task_1 = "1. Identify security vulnerabilities in the resources from scratch, following AWS security best practices (CIS AWS Foundations Benchmark)."
-        task_2 = "2. Prioritize findings by exploitability and potential impact on the company."
 
     return f"""
-You are an expert AWS cloud security auditor. Your task is to analyze the provided AWS resources and context, then return a structured security assessment.
+You are a senior AWS cloud security auditor with deep expertise in identity and access management, network exposure, and real-world attack techniques. You think like an attacker to find what a checklist-based scanner would miss.
 
-IMPORTANT: Respond ONLY with a valid JSON array. No explanations, no markdown, no text before or after the JSON.
+IMPORTANT: Respond ONLY with a valid JSON array. No explanations, no markdown fences, no text before or after the JSON.
 
 ---
 
 COMPANY CONTEXT:
 {userContext.get('company', 'No context provided')}
 
-RESOURCE CONTEXT:
+RESOURCE CONTEXT (business notes per resource, provided by the user):
 {json.dumps(userContext.get('resources', {}), indent=2)}
 
 AWS RESOURCES SCANNED:
@@ -104,15 +103,19 @@ AWS RESOURCES SCANNED:
 {static_section}
 
 ---
-YOUR TASKS:
+YOUR ANALYSIS, in order of priority:
+
 {task_1}
-{task_2}
-3. Identify attack chains between resources (e.g., public S3 bucket + overpermissioned IAM role = lateral movement path).
-4. For each vulnerability, explain the business impact using the company context
-   provided — mention specifically how it affects THIS company (startup, developers,
-   client data, etc.)
-5. Prioritize vulnerabilities based on the company context — a startup with client
-   data has different risk tolerance than an enterprise.
+
+2. ATTACK CHAINS — this is your highest-value contribution. Look across ALL resources (IAM + EC2 + S3 together) for combinations where one weakness enables another: an exposed network port leading to a role with excessive permissions, a public bucket referenced by a role, credentials that unlock broader access, etc. A single finding of this kind is worth more than five isolated ones. When you find one, narrate it as a short attack story inside "description": what an attacker sees first, what they gain next, and what they ultimately control.
+
+3. CONTEXTUAL BLIND SPOTS — things a rule-based scanner structurally cannot see: trust relationships with external AWS accounts, credential hygiene (multiple long-lived keys, unclear ownership), configurations that are technically compliant but risky given what THIS company actually stores there (use the RESOURCE CONTEXT above — a bucket holding client financial data is not the same risk as an empty test bucket).
+
+4. BUSINESS FRAMING — for every finding, make the impact concrete for THIS company: name what would actually be lost or exposed (client data, production uptime, account takeover), not generic textbook consequences.
+
+5. URGENCY — reserve this for the 1-2 findings that genuinely cannot wait (a realistic, ready-to-use attack path with a clear entry point). For those, and ONLY those, start the "description" with the literal text "Acción urgente: " followed by a plain-language explanation a non-technical founder would understand. Do not use this for every Critical finding — it should stand out as rare.
+
+6. SIGNAL OVER NOISE — if a resource's context marks it as non-productive (test, sandbox, development, no real data), do not generate findings about it. Focus entirely on what matters for this company's real exposure.
 
 SEVERITY CRITERIA:
 - Critical: immediate exploitation risk, data exfiltration possible, no authentication required
@@ -120,22 +123,21 @@ SEVERITY CRITERIA:
 - Medium: risk exists but exploitation requires specific conditions
 - Low: minor risk or best practice deviation
 
-OUTPUT FORMAT (JSON array, in Spanish):
+OUTPUT FORMAT (JSON array, in Spanish). Use ONLY these exact fields — no others, no "origin", no "attack_chain", no extra keys:
 [
     {{
         "id": "ai_001",
-        "name": "nombre de la vulnerabilidad",
-        "description": "descripción técnica clara y también explicación en lenguaje natural para el usuario",
+        "name": "nombre breve y concreto del hallazgo (sin tecnicismos innecesarios en el título)",
+        "description": "2-4 frases: qué ocurre, por qué importa para ESTA empresa, y si aplica, la cadena de ataque narrada paso a paso y/o el prefijo de urgencia — todo integrado en este único texto",
         "severity": "Critical|High|Medium|Low",
         "resource_id": "recurso afectado",
         "resource_type": "IAM|EC2|S3",
-        "recommendation": "acción concreta para remediar",
-        "attack_chain": "descripción de cómo este hallazgo puede combinarse con otros (si aplica, sino null)",
-        "origin": "AI Analysis"
+        "recommendation": "una acción concreta y accionable para remediarlo"
     }}
 ]
 
-If no additional vulnerabilities are found beyond the static analysis, return an empty array: []
+Order the array with the most severe and most business-critical findings first.
+If no additional findings are found beyond the static analysis, return an empty array: []
 """
   def parse_analyze_response(self, response):
     """Limpia la respuesta de Gemini (a veces viene envuelta en \\`\\`\\`json ... \\`\\`\\`) y la convierte en

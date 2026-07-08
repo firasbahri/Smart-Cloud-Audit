@@ -19,12 +19,14 @@
 						<div class="audit-mode-toggle">
 							<button
 								:class="['toggle-btn', 'static-btn', { active: auditMode === 'static' }]"
+								:disabled="isLoadingAny"
 								@click="auditMode = 'static'"
 							>
 								<i class="pi pi-search" /> Estático
 							</button>
 							<button
 								:class="['toggle-btn', 'ai-btn', { active: auditMode === 'ai' }]"
+								:disabled="isLoadingAny"
 								@click="auditMode = 'ai'"
 							>
 								<i class="pi pi-sparkles" /> Análisis IA
@@ -95,12 +97,17 @@
 				<template v-else>
 				<div class="results-bar">
 					<div :class="['seg-ctrl', `mode-${activeTab}`]">
-						<button :class="['seg-btn', { active: activeTab === 'static' }]" @click="activeTab = 'static'">
+						<button
+							:class="['seg-btn', { active: activeTab === 'static' }]"
+							:disabled="isLoadingAi"
+							@click="activeTab = 'static'"
+						>
 							Estático
 							<span v-if="staticVulnerabilities.length" class="seg-badge">{{ staticVulnerabilities.length }}</span>
 						</button>
 						<button
 							:class="['seg-btn', { active: activeTab === 'ai' }]"
+							:disabled="isLoadingAi"
 							@click="activeTab = 'ai'"
 						>
 							<i class="pi pi-sparkles" style="font-size: 0.68rem" /> IA
@@ -115,6 +122,16 @@
 					</div>
 				</div>
 
+				<div v-if="activeTab === 'ai' && pagedVulns.length" class="ai-notice-banner" role="note">
+					<span class="ai-notice-icon pi pi-sparkles" aria-hidden="true" />
+					<p class="ai-notice-text">
+						<strong class="ai-notice-lead">Hallazgos generados por IA.</strong>
+						Son interpretaciones de un modelo de lenguaje sobre tu configuración y pueden variar entre ejecuciones o contener imprecisiones (falsos positivos/negativos).
+						<strong class="ai-notice-action">Verifica cada hallazgo antes de actuar</strong>
+						— a diferencia del análisis estático, no son deterministas, y no sustituyen el criterio de un profesional de seguridad.
+					</p>
+				</div>
+
 				<div v-if="pagedVulns.length" class="vuln-list flex flex-column gap-3">
 					<div
 						v-for="vuln in pagedVulns"
@@ -126,8 +143,11 @@
 								{{ vuln.severity }}
 							</div>
 							<div class="vi-center">
-								<div class="vi-name" :class="{ 'vi-name--ai': activeTab === 'ai' }">
-									<span v-if="activeTab === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name }}
+								<div class="vi-name-row">
+									<div class="vi-name" :class="{ 'vi-name--ai': activeTab === 'ai' }">
+										<span v-if="activeTab === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name }}
+									</div>
+									<span v-if="activeTab === 'ai'" class="ai-row-badge">✦ IA</span>
 								</div>
 								<div class="vi-resource">{{ vuln.resource_id }}</div>
 							</div>
@@ -223,6 +243,35 @@
 		</Card>
 
 	</div>
+
+	<div v-if="aiModeDialog" class="ai-modal-overlay" @click.self="aiModeDialog = false">
+		<div class="ai-modal">
+			<div class="ai-modal__header">
+				<div class="ai-modal__icon"><i class="pi pi-sparkles" /></div>
+				<div class="ai-modal__title">Ya tienes una auditoría estática para esta cuenta</div>
+				<div class="ai-modal__subtitle">¿Cómo quieres ejecutar el análisis con IA?</div>
+			</div>
+			<div class="ai-modal__options">
+				<button class="ai-opt ai-opt--base" @click="executeAiAudit(auditStore.id || auditStore.auditIdByAccount[accountId])">
+					<div class="ai-opt__icon"><i class="pi pi-link" /></div>
+					<div class="ai-opt__content">
+						<div class="ai-opt__label">Usar auditoría estática como base</div>
+						<div class="ai-opt__desc">La IA complementa los hallazgos estáticos sin duplicarlos</div>
+					</div>
+					<i class="pi pi-chevron-right ai-opt__arrow" />
+				</button>
+				<button class="ai-opt ai-opt--scratch" @click="executeAiAudit(null)">
+					<div class="ai-opt__icon"><i class="pi pi-sparkles" /></div>
+					<div class="ai-opt__content">
+						<div class="ai-opt__label">Analizar todo desde cero con IA</div>
+						<div class="ai-opt__desc">La IA analiza los recursos de forma completamente independiente</div>
+					</div>
+					<i class="pi pi-chevron-right ai-opt__arrow" />
+				</button>
+			</div>
+			<button class="ai-modal__cancel" @click="aiModeDialog = false">Cancelar</button>
+		</div>
+	</div>
 </template>
 
 <script setup>
@@ -298,7 +347,6 @@ const handleGenerate = async (vulnId) => {
 		remediationStates[vulnId] = 'idle'
 	}
 }
-
 
 const copyVulnCommand = async (vulnId) => {
 	const cmd = getRemData(vulnId).command
@@ -457,19 +505,29 @@ const runStaticAudit = async () => {
 	}
 }
 
-const submitAiAudit = async () => {
+const aiModeDialog = ref(false)
+
+const submitAiAudit = () => {
 	const scanId = resolvedScanId.value
-	const auditId = auditStore.id || auditStore.auditIdByAccount[accountId.value] || null
 	if (!scanId) {
 		toast.add({ severity: 'warn', summary: 'Auditoria IA', detail: 'No hay escaneo disponible', life: 3000 })
 		return
 	}
+	const existingAuditId = auditStore.id || auditStore.auditIdByAccount[accountId.value] || null
+	if (existingAuditId) {
+		aiModeDialog.value = true
+		return
+	}
+	executeAiAudit(null)
+}
 
+const executeAiAudit = async (auditId) => {
+	aiModeDialog.value = false
+	const scanId = resolvedScanId.value
 	const userContext = {
 		company: cloudAccountsStore.selectedAccount?.description?.trim() || '',
 		resources: scanStore.resourceContextsByAccount[accountId.value] || {}
 	}
-
 	isLoadingAi.value = true
 	try {
 		const count = await auditStore.runAiAudit(scanId, auditId, userContext, cloudAccountsStore.selectedAccount)
@@ -536,7 +594,8 @@ const submitAiAudit = async () => {
 	font-family: inherit;
 }
 .seg-btn:last-child { border-right: none; }
-.seg-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: #e6edf3; }
+.seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.seg-btn:hover:not(.active):not(:disabled) { background: rgba(255,255,255,0.03); color: #e6edf3; }
 .seg-ctrl.mode-static .seg-btn.active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 .seg-ctrl.mode-ai .seg-btn.active { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
 
@@ -567,7 +626,8 @@ const submitAiAudit = async () => {
 	transition: all 0.15s; border-right: 1px solid #2d333b; white-space: nowrap;
 }
 .toggle-btn:last-child { border-right: none; }
-.toggle-btn:hover { background: #1c2128; color: #e6edf3; }
+.toggle-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.toggle-btn:hover:not(:disabled) { background: #1c2128; color: #e6edf3; }
 .toggle-btn.static-btn.active { background: #1c2128; color: #22c55e; }
 .toggle-btn.ai-btn.active { background: #1c2128; color: #a78bfa; }
 
@@ -871,4 +931,162 @@ const submitAiAudit = async () => {
 .pag-btn.active { background: #1c2128; border-color: #4d5566; color: #e6edf3; font-weight: 600; }
 .pag-ellipsis { color: #4d5566; font-size: 12px; padding: 0 4px; line-height: 30px; }
 .pag-info { margin-left: 8px; font-size: 11px; color: #4d5566; white-space: nowrap; }
+
+/* ── Modal de modo IA ── */
+.ai-modal-overlay {
+	position: fixed; inset: 0; z-index: 300;
+	background: rgba(0, 0, 0, 0.6);
+	display: flex; align-items: center; justify-content: center;
+	padding: 1rem;
+}
+
+.ai-modal {
+	background: #161b22;
+	border: 1px solid rgba(167, 139, 250, 0.3);
+	border-radius: 16px;
+	padding: 24px;
+	width: 100%;
+	max-width: 440px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(167, 139, 250, 0.1);
+	animation: modalIn 0.18s ease-out;
+}
+
+@keyframes modalIn {
+	from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+	to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ai-modal__header { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+
+.ai-modal__icon {
+	width: 44px; height: 44px; border-radius: 12px;
+	background: rgba(167, 139, 250, 0.12);
+	border: 1px solid rgba(167, 139, 250, 0.3);
+	display: flex; align-items: center; justify-content: center;
+	color: #a78bfa; font-size: 1.1rem;
+}
+
+.ai-modal__title {
+	font-size: 15px; font-weight: 700; color: #e6edf3; line-height: 1.35;
+}
+
+.ai-modal__subtitle {
+	font-size: 12.5px; color: #768390;
+}
+
+.ai-modal__options { display: flex; flex-direction: column; gap: 10px; }
+
+.ai-opt {
+	display: flex; align-items: center; gap: 13px;
+	width: 100%; text-align: left;
+	background: #0f141a;
+	border: 1px solid #2d333b;
+	border-radius: 11px;
+	padding: 14px 14px;
+	cursor: pointer; font-family: inherit;
+	transition: border-color 0.15s, background 0.15s;
+}
+
+.ai-opt:hover { background: #131920; }
+
+.ai-opt__icon {
+	flex-shrink: 0;
+	width: 34px; height: 34px; border-radius: 9px;
+	display: flex; align-items: center; justify-content: center;
+	font-size: 0.9rem;
+}
+
+.ai-opt--base .ai-opt__icon {
+	background: rgba(34, 197, 94, 0.1);
+	border: 1px solid rgba(34, 197, 94, 0.3);
+	color: #22c55e;
+}
+.ai-opt--base:hover { border-color: rgba(34, 197, 94, 0.4); }
+
+.ai-opt--scratch .ai-opt__icon {
+	background: rgba(167, 139, 250, 0.1);
+	border: 1px solid rgba(167, 139, 250, 0.3);
+	color: #a78bfa;
+}
+.ai-opt--scratch:hover { border-color: rgba(167, 139, 250, 0.45); }
+
+.ai-opt__content { flex: 1; min-width: 0; }
+
+.ai-opt__label {
+	font-size: 13px; font-weight: 600; color: #e6edf3; margin-bottom: 3px;
+}
+
+.ai-opt__desc {
+	font-size: 11.5px; color: #4d5566; line-height: 1.45;
+}
+
+.ai-opt--base .ai-opt__label  { color: #4ade80; }
+.ai-opt--scratch .ai-opt__label { color: #c4b5fd; }
+
+.ai-opt__arrow { color: #2d333b; font-size: 0.7rem; flex-shrink: 0; }
+.ai-opt:hover .ai-opt__arrow { color: #4d5566; }
+
+.ai-modal__cancel {
+	align-self: center;
+	background: transparent; border: none;
+	color: #4d5566; font-size: 12px; font-family: inherit;
+	cursor: pointer; padding: 4px 12px; border-radius: 6px;
+	transition: color 0.12s, background 0.12s;
+}
+.ai-modal__cancel:hover { color: #768390; background: rgba(255, 255, 255, 0.04); }
+
+/* ── Banner aviso IA ── */
+.ai-notice-banner {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	margin-bottom: 10px;
+	background: rgba(167, 139, 250, 0.07);
+	border: 1px solid rgba(167, 139, 250, 0.3);
+	border-radius: 8px;
+	padding: 10px 14px;
+}
+
+.ai-notice-icon {
+	flex-shrink: 0;
+	color: #a78bfa;
+	font-size: 0.85rem;
+	margin-top: 2px;
+}
+
+.ai-notice-text {
+	margin: 0;
+	font-size: 11.5px;
+	color: #768390;
+	line-height: 1.5;
+}
+
+.ai-notice-lead   { color: #a78bfa; font-weight: 600; }
+.ai-notice-action { color: #e6edf3; font-weight: 600; }
+
+/* ── Badge inline IA por hallazgo ── */
+.vi-name-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.vi-name-row .vi-name {
+	min-width: 0;
+}
+
+.ai-row-badge {
+	flex-shrink: 0;
+	font-size: 9px;
+	font-weight: 600;
+	color: #a78bfa;
+	background: rgba(167, 139, 250, 0.15);
+	border-radius: 10px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
 </style>

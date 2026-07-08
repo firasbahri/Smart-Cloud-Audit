@@ -302,11 +302,14 @@ const confirmDeleteAccount = async () => {
 <style scoped>
 .sidebar {
   width: 280px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: #0d1117;
   color: white;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
-  position: relative;
   z-index: 100;
+  overflow-y: auto;
 }
 
 .sidebar-header {
