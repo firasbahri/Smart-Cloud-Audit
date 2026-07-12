@@ -14,8 +14,13 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
   /** @type {Array} Lista de cuentas cloud del usuario autenticado. */
   const accounts = ref([])
 
-  /** @type {Object|null} Cuenta actualmente seleccionada en el selector global. */
-  const selectedAccount = ref(null)
+  /** @type {string|null} Id de la cuenta actualmente seleccionada. */
+  const selectedAccountId = ref(null)
+
+  /** @type {Object|null} Cuenta actualmente seleccionada, derivada en tiempo real de accounts. */
+  const selectedAccount = computed(() =>
+    accounts.value.find(acc => acc.id === selectedAccountId.value) ?? null
+  )
 
   /** @type {number} Total de cuentas vinculadas. */
   const totalAccounts = computed(() => accounts.value.length)
@@ -39,6 +44,7 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
    */
   const updateAccount = (id, updates) => {
     const index = accounts.value.findIndex(acc => acc.id === id)
+    console.log('Actualizando cuenta con id:', id, 'con cambios:', updates)
     if (index !== -1) {
       accounts.value[index] = { ...accounts.value[index], ...updates }
       console.log('Cuenta actualizada:', accounts.value[index])
@@ -51,10 +57,10 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
    */
   const deleteAccount = (id) => {
     accounts.value = accounts.value.filter(acc => acc.id !== id)
-    if (selectedAccount.value?.id === id) {
-      selectedAccount.value = null
+    if (selectedAccountId.value === id) {
+      selectedAccountId.value = null
+      localStorage.removeItem('selectedCloudAccountId')
     }
-    console.log('Cuenta eliminada del store:', id)
   }
 
   /**
@@ -62,16 +68,16 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
    * @param {Object} account - Cuenta a seleccionar.
    */
   const selectAccount = (account) => {
-    selectedAccount.value = account
-    localStorage.setItem('selectedCloudAccount', JSON.stringify(account))
+    selectedAccountId.value = account?.id ?? null
+    localStorage.setItem('selectedCloudAccountId', account?.id ?? '')
   }
 
   /**
-   * Restaura selectedAccount desde localStorage al montar la app (llamado en MainPage.vue onMounted).
+   * Restaura selectedAccountId desde localStorage al montar la app (llamado en MainPage.vue onMounted).
    */
   const loadSelectedAccount = () => {
-    const raw = localStorage.getItem('selectedCloudAccount')
-    selectedAccount.value = raw ? JSON.parse(raw) : null
+    const id = localStorage.getItem('selectedCloudAccountId')
+    selectedAccountId.value = id || null
   }
 
   /**
@@ -104,7 +110,8 @@ export const useCloudAccountsStore = defineStore('cloudAccounts', () => {
    */
   const clearAccounts = () => {
     accounts.value = []
-    selectedAccount.value = null
+    selectedAccountId.value = null
+    localStorage.removeItem('selectedCloudAccountId')
   }
 
   /**

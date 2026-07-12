@@ -81,7 +81,15 @@ class GeminiAnalyzer(ILLMAnalyzer):
         task_1 = "1. Use the static vulnerabilities above as context — they are already known. Your job is to go BEYOND them."
     else:
         logger.info("No static vulnerabilities found, asking Gemini to analyze from scratch.")
-        static_section = """No static analysis has been performed yet for this account. Analyze the resources from scratch, following AWS security best practices (CIS AWS Foundations Benchmark)."""
+        static_section = """No static analysis has been performed yet for this account.
+
+Perform a complete independent AWS security assessment.
+Do not assume that only critical issues should be reported.
+
+Review AWS resources systematically and identify each independent security weakness found.
+Create separate findings for separate security issues instead of grouping multiple misconfigurations into a single finding.
+
+Follow AWS security best practices and CIS AWS Foundations Benchmark where applicable."""
         task_1 = "1. Identify security vulnerabilities in the resources from scratch, following AWS security best practices (CIS AWS Foundations Benchmark)."
 
     return f"""
