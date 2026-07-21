@@ -8,19 +8,21 @@ class EC2Analyzer:
     """Reglas de seguridad estáticas para instancias EC2: IP pública, puertos abiertos, EBS sin cifrar y etiquetado."""
 
     def analyze(self, instances: list) -> list:
-        """Pasa las instancias por las cuatro comprobaciones y devuelve todos los hallazgos juntos.
+        """Pasa las instancias por todas las comprobaciones y devuelve todos los hallazgos juntos.
 
         Args:
             instances (list): instancias EC2 del modelo de dominio, con security_groups y volumes ya resueltos.
 
         Returns:
-            list[Vulnerability]: unión de check_public_ip, check_security_groups, check_ebs_encryption y check_tags.
+            list[Vulnerability]: unión de check_public_ip, check_security_groups, check_ebs_encryption,
+            check_tags y check_imdsv2.
         """
         vulnerabilities = []
         vulnerabilities.extend(self.check_public_ip(instances))
         vulnerabilities.extend(self.check_security_groups(instances))
         vulnerabilities.extend(self.check_ebs_encryption(instances))
         vulnerabilities.extend(self.check_tags(instances))
+        vulnerabilities.extend(self.check_imdsv2(instances))
         return vulnerabilities
 
     def check_public_ip(self, instances: list) -> list:
@@ -117,6 +119,48 @@ class EC2Analyzer:
                     ))
         return vulnerabilities
 
+
+    def check_imdsv2(self, instances: list) -> list:
+        """Detecta instancias donde el servicio de metadatos (IMDS) no exige IMDSv2.
+
+        El endpoint de metadatos de EC2 (169.254.169.254) expone credenciales temporales del perfil IAM
+        adjunto a la instancia. Si http_tokens='optional', cualquier aplicación que corra dentro
+        de la instancia puede leer esas credenciales con una simple petición HTTP sin autenticar.
+        Un atacante que logre ejecutar código o explotar una vulnerabilidad SSRF en la aplicación
+        puede usar esas credenciales para moverse lateralmente dentro de la cuenta AWS.
+        Con IMDSv2 (http_tokens='required'), la petición requiere un token previo que no puede
+        obtenerse vía SSRF, eliminando ese vector de ataque.
+
+        Se omiten instancias donde el campo no está disponible (http_tokens=None), que corresponden
+        a scans realizados antes de añadir este check.
+
+        Args:
+            instances (list): instancias EC2 con el campo http_tokens ya resuelto.
+
+        Returns:
+            list[Vulnerability]: severidad High, una entrada por cada instancia sin IMDSv2 obligatorio.
+        """
+        vulnerabilities = []
+        for instance in instances:
+            if instance.http_tokens is None:
+                continue
+            if instance.http_tokens != 'required':
+                vulnerabilities.append(Vulnerability(
+                    id=f"ec2_{instance.id}_imdsv2_not_required",
+                    name="Instancia EC2 sin IMDSv2 Obligatorio",
+                    description=(
+                        f"La instancia EC2 '{instance.id}' tiene el servicio de metadatos (IMDS) configurado "
+                        f"como '{instance.http_tokens}', lo que permite obtener las credenciales del perfil IAM "
+                        "adjunto mediante una petición HTTP sin autenticar al endpoint 169.254.169.254. "
+                        "Un atacante que explote una vulnerabilidad de tipo SSRF en la aplicación podría usar "
+                        "esas credenciales para operar dentro de la cuenta AWS. "
+                        "Se recomienda establecer http_tokens='required' para exigir IMDSv2 y bloquear ese vector."
+                    ),
+                    severity="High",
+                    resource_id=instance.id,
+                    resource_type="EC2 Instance",
+                ))
+        return vulnerabilities
 
     def check_tags(self, instances: list) -> list:
         """Comprueba que cada instancia tenga las etiquetas Name, Environment y Owner. No es un riesgo de seguridad

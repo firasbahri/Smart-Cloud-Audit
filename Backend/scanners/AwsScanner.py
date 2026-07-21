@@ -1,5 +1,6 @@
 
 
+import base64
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, BotoCoreError
 from .IScanner import IScanner
@@ -154,11 +155,20 @@ class AwsScanner(IScanner):
                     if u['UserName'] == 'root':
                         continue
                     try:
-                        mfa=iam.list_mfa_devices(UserName=u['UserName'])['MFADevices']
-                        u['Mfa_enabled'] = len(mfa) > 0
-
+                        mfa_devices_raw = iam.list_mfa_devices(UserName=u['UserName'])['MFADevices']
+                        u['Mfa_enabled'] = len(mfa_devices_raw) > 0
+                        # Tipo: serial que empieza por "arn:...mfa" → virtual; resto → hardware
+                        u['MfaDevices'] = [
+                            {
+                                'serial_number': d['SerialNumber'],
+                                'type': 'virtual' if 'mfa' in d['SerialNumber'] else 'hardware',
+                                'enable_date': d.get('EnableDate'),
+                            }
+                            for d in mfa_devices_raw
+                        ]
                     except ClientError:
                         u['Mfa_enabled'] = False
+                        u['MfaDevices'] = []
 
                     try:
                         access_keys=iam.list_access_keys(UserName=u['UserName'])['AccessKeyMetadata']
@@ -186,6 +196,20 @@ class AwsScanner(IScanner):
                         u['AttachedManagedPolicies'] = Managedpolicies
                     except ClientError:
                         u['AttachedManagedPolicies'] = []
+
+                    # console_access: get_login_profile lanza NoSuchEntityException si el usuario
+                    # no tiene contraseña de consola configurada
+                    try:
+                        iam.get_login_profile(UserName=u['UserName'])
+                        u['ConsoleAccess'] = True
+                    except ClientError as e:
+                        u['ConsoleAccess'] = e.response['Error']['Code'] != 'NoSuchEntity'
+
+                    # Tags del usuario
+                    try:
+                        u['Tags'] = iam.list_user_tags(UserName=u['UserName']).get('Tags', [])
+                    except ClientError:
+                        u['Tags'] = []
             except ClientError as e:
                 # Si no hay permisos para obtener summary, continuar sin root
                 if e.response['Error']['Code'] != 'AccessDenied':
@@ -292,6 +316,16 @@ class AwsScanner(IScanner):
 
                 r['TrustPolicy'] = r.get('AssumeRolePolicyDocument', {})
 
+                # PermissionsBoundary ya viene en list_roles; extraemos el ARN
+                pb = r.get('PermissionsBoundary')
+                r['PermissionsBoundary'] = {'arn': pb['PermissionsBoundaryArn'], 'type': pb['PermissionsBoundaryType']} if pb else None
+
+                # Tags del rol
+                try:
+                    r['Tags'] = iam.list_role_tags(RoleName=r['RoleName']).get('Tags', [])
+                except ClientError:
+                    r['Tags'] = []
+
             return roles['Roles']
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -304,13 +338,25 @@ class AwsScanner(IScanner):
             raise Exception(f"Error inesperado al escanear roles: {str(e)}")
 
     def scan_s3(self):
-        """Lista los buckets S3 y, para cada uno, su configuración de acceso público, versionado, cifrado,
-        política y región — cada una de esas llamadas puede fallar por permisos sin tirar todo el scan abajo,
-        así que cada una tiene su propio valor por defecto si no se puede leer.
+        """Lista los buckets S3 y captura toda la configuración de seguridad relevante para cada uno.
+        Cada llamada secundaria tiene su propio try/except — un fallo de permisos en una propiedad
+        no detiene el escaneo completo del bucket.
+
+        Llamadas boto3 por bucket:
+          get_public_access_block   → block_public_acls/ignore_public_acls/block_public_policy/restrict_public_buckets
+          get_bucket_versioning     → Versioning + MFADelete
+          get_bucket_encryption     → Encryption
+          get_bucket_policy         → Policies
+          get_bucket_location       → Region
+          get_bucket_acl            → AclGrantees (acceso público vía ACL)
+          get_bucket_logging        → Logging + LoggingTargetBucket
+          get_object_lock_configuration → ObjectLock
+          get_bucket_lifecycle_configuration → Lifecycle
+          get_bucket_replication    → ReplicationRules
+          get_bucket_notification_configuration → NotificationConfig
 
         Returns:
-            list[dict]: buckets en formato crudo de boto3 con name, PublicAccess, Versioning, Encryption,
-            Policies y Region añadidos.
+            list[dict]: buckets con todos los campos de seguridad añadidos.
 
         Raises:
             PermissionError: sin permisos para listar buckets S3.
@@ -326,36 +372,101 @@ class AwsScanner(IScanner):
             for b in buckets['Buckets']:
                 b['name'] = b['Name']
                 b['CreationDate'] = b['CreationDate'].isoformat()
+
+                # Block Public Access — 4 controles granulares
                 try:
-                    public_access = s3.get_public_access_block(Bucket=b['Name'])
-                    b['PublicAccess'] = public_access.get('PublicAccessBlockConfiguration',None)
+                    pab = s3.get_public_access_block(Bucket=b['Name']).get('PublicAccessBlockConfiguration', {})
+                    b['PublicAccess'] = pab
+                    b['BlockPublicAcls'] = pab.get('BlockPublicAcls')
+                    b['IgnorePublicAcls'] = pab.get('IgnorePublicAcls')
+                    b['BlockPublicPolicy'] = pab.get('BlockPublicPolicy')
+                    b['RestrictPublicBuckets'] = pab.get('RestrictPublicBuckets')
                 except ClientError:
                     b['PublicAccess'] = None
+                    b['BlockPublicAcls'] = None
+                    b['IgnorePublicAcls'] = None
+                    b['BlockPublicPolicy'] = None
+                    b['RestrictPublicBuckets'] = None
+
+                # Versionado + MFA Delete
                 try:
                     versioning = s3.get_bucket_versioning(Bucket=b['Name'])
-                    b['Versioning'] = versioning.get('Status','Disabled')
+                    b['Versioning'] = versioning.get('Status', 'Disabled')
+                    b['MFADelete'] = versioning.get('MFADelete', 'Disabled') == 'Enabled'
                 except ClientError:
                     b['Versioning'] = 'Disabled'
+                    b['MFADelete'] = False
 
+                # Cifrado
                 try:
-                    encryption = s3.get_bucket_encryption(Bucket=b['Name'])
+                    s3.get_bucket_encryption(Bucket=b['Name'])
                     b['Encryption'] = True
                 except ClientError:
                     b['Encryption'] = False
 
+                # Bucket policy
                 try:
-                    policies = s3.get_bucket_policy(Bucket=b['Name'])
-                    policies_str=policies.get('Policy', None)
+                    policies_str = s3.get_bucket_policy(Bucket=b['Name']).get('Policy')
                     b['Policies'] = json.loads(policies_str) if policies_str else None
                 except ClientError:
                     b['Policies'] = None
 
+                # Región
                 try:
-                    location = s3.get_bucket_location(Bucket=b['Name'])
-                    b['Region'] = location.get('LocationConstraint')
+                    b['Region'] = s3.get_bucket_location(Bucket=b['Name']).get('LocationConstraint') or 'us-east-1'
                 except ClientError:
                     b['Region'] = 'Unknown'
 
+                # ACL grantees — acceso público vía ACL sin pasar por bucket policy
+                try:
+                    acl = s3.get_bucket_acl(Bucket=b['Name'])
+                    b['AclGrantees'] = [
+                        {
+                            'type': g.get('Grantee', {}).get('Type'),
+                            'uri': g.get('Grantee', {}).get('URI'),
+                            'id': g.get('Grantee', {}).get('ID'),
+                            'permission': g.get('Permission'),
+                        }
+                        for g in acl.get('Grants', [])
+                    ]
+                except ClientError:
+                    b['AclGrantees'] = []
+
+                # Logging de acceso
+                try:
+                    logging_cfg = s3.get_bucket_logging(Bucket=b['Name']).get('LoggingEnabled', {})
+                    b['Logging'] = bool(logging_cfg)
+                    b['LoggingTargetBucket'] = logging_cfg.get('TargetBucket') if logging_cfg else None
+                except ClientError:
+                    b['Logging'] = False
+                    b['LoggingTargetBucket'] = None
+
+                # Object Lock
+                try:
+                    lock = s3.get_object_lock_configuration(Bucket=b['Name'])
+                    b['ObjectLock'] = lock.get('ObjectLockConfiguration', {}).get('ObjectLockEnabled') == 'Enabled'
+                except ClientError:
+                    b['ObjectLock'] = False
+
+                # Lifecycle
+                try:
+                    lifecycle = s3.get_bucket_lifecycle_configuration(Bucket=b['Name'])
+                    b['Lifecycle'] = lifecycle.get('Rules', [])
+                except ClientError:
+                    b['Lifecycle'] = []
+
+                # Replicación cross-region
+                try:
+                    replication = s3.get_bucket_replication(Bucket=b['Name'])
+                    b['ReplicationRules'] = replication.get('ReplicationConfiguration', {}).get('Rules', [])
+                except ClientError:
+                    b['ReplicationRules'] = []
+
+                # Notificaciones de eventos
+                try:
+                    b['NotificationConfig'] = s3.get_bucket_notification_configuration(Bucket=b['Name'])
+                except ClientError:
+                    b['NotificationConfig'] = {}
 
             return buckets['Buckets']
 
@@ -435,6 +546,36 @@ class AwsScanner(IScanner):
                                     instance['SecurityGroupsDetails'] = []
 
                                 instance['public_ip'] = instance.get('PublicIpAddress', None)
+
+                                # IMDSv2 — describe_instances ya devuelve MetadataOptions
+                                metadata = instance.get('MetadataOptions', {})
+                                instance['http_tokens'] = metadata.get('HttpTokens')
+                                instance['http_endpoint'] = metadata.get('HttpEndpoint')
+
+                                # Perfil IAM adjunto
+                                instance['instance_profile'] = instance.get('IamInstanceProfile')
+
+                                # Monitoreo detallado
+                                instance['monitoring_state'] = instance.get('Monitoring', {}).get('State')
+
+                                # Tipo de virtualización
+                                instance['virtualization_type'] = instance.get('VirtualizationType')
+
+                                # Red
+                                instance['private_ip'] = instance.get('PrivateIpAddress')
+                                instance['subnet_id'] = instance.get('SubnetId')
+
+                                # User data — llamada extra por instancia; puede contener secretos hardcodeados
+                                try:
+                                    ud_response = regional_ec2.describe_instance_attribute(
+                                        InstanceId=instance['InstanceId'],
+                                        Attribute='userData'
+                                    )
+                                    ud_value = ud_response.get('UserData', {}).get('Value')
+                                    instance['user_data'] = base64.b64decode(ud_value).decode('utf-8', errors='replace') if ud_value else None
+                                except ClientError:
+                                    instance['user_data'] = None
+
                                 all_instances.append(instance)
 
                 except Exception as e:

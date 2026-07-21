@@ -47,6 +47,9 @@ class JSONDeserializer:
             inline_policies=raw.get("inline_policies", []),
             mfa_enabled=raw.get("mfa_enabled", False),
             password_last_used=JSONDeserializer.parse_datetime(raw.get("password_last_used")),
+            console_access=raw.get("console_access"),
+            mfa_devices=raw.get("mfa_devices", []),
+            tags=raw.get("tags", []),
         )
 
     @staticmethod
@@ -85,6 +88,9 @@ class JSONDeserializer:
             managed_policies=raw.get("managed_policies", []),
             inline_policies=raw.get("inline_policies", []),
             trusted_entities=raw.get("trusted_entities", []),
+            permissions_boundary=raw.get("permissions_boundary"),
+            is_service_role=raw.get("is_service_role", False),
+            tags=raw.get("tags", []),
         )
 
     @staticmethod
@@ -150,6 +156,14 @@ class JSONDeserializer:
             security_groups=security_groups,
             volumes=raw.get("volumes"),
             tags=raw.get("tags", []),
+            http_tokens=raw.get("http_tokens"),
+            http_endpoint=raw.get("http_endpoint"),
+            instance_profile=raw.get("instance_profile"),
+            user_data=raw.get("user_data"),
+            monitoring_state=raw.get("monitoring_state"),
+            virtualization_type=raw.get("virtualization_type"),
+            private_ip=raw.get("private_ip"),
+            subnet_id=raw.get("subnet_id"),
         )
 
     @staticmethod
@@ -169,6 +183,18 @@ class JSONDeserializer:
             versioning=raw.get("versioning"),
             encryption=raw.get("encryption"),
             public_access=raw.get("public_access"),
+            block_public_acls=raw.get("block_public_acls"),
+            ignore_public_acls=raw.get("ignore_public_acls"),
+            block_public_policy=raw.get("block_public_policy"),
+            restrict_public_buckets=raw.get("restrict_public_buckets"),
+            acl_grantees=raw.get("acl_grantees", []),
+            logging=raw.get("logging", False),
+            logging_target_bucket=raw.get("logging_target_bucket"),
+            object_lock=raw.get("object_lock", False),
+            mfa_delete=raw.get("mfa_delete", False),
+            lifecycle=raw.get("lifecycle", []),
+            replication_rules=raw.get("replication_rules", []),
+            notification_config=raw.get("notification_config", {}),
         )
 
     @staticmethod

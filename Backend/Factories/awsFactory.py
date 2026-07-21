@@ -65,7 +65,10 @@ class AWSFactory:
                     managed_policies=[{"policy_name": p["PolicyName"]} for p in u.get('AttachedManagedPolicies', [])],
                     inline_policies=inline_policies_normalized,
                     mfa_enabled=u.get('Mfa_enabled', False),
-                    password_last_used=u.get('PasswordLastUsed', None)
+                    password_last_used=u.get('PasswordLastUsed', None),
+                    console_access=u.get('ConsoleAccess'),
+                    mfa_devices=u.get('MfaDevices', []),
+                    tags=u.get('Tags', []),
                 )
                 logger.info(f"access_keys for user {user.name}: {user.access_keys}")
                 users.append(user)
@@ -129,6 +132,24 @@ class AWSFactory:
                         "resources": statement.get("Resource") if isinstance(statement.get("Resource"), list) else [statement.get("Resource")],
                         "effect": statement.get("Effect")
                     })
+            trust_policy = r.get('TrustPolicy', {})
+            # is_service_role: True si TODOS los principals de la trust policy son servicios AWS
+            service_principals = [
+                p
+                for stmt in trust_policy.get('Statement', [])
+                for p in ([stmt.get('Principal', {}).get('Service', [])]
+                           if isinstance(stmt.get('Principal', {}).get('Service'), str)
+                           else stmt.get('Principal', {}).get('Service', []))
+            ]
+            aws_principals = [
+                p
+                for stmt in trust_policy.get('Statement', [])
+                for p in ([stmt.get('Principal', {}).get('AWS', [])]
+                           if isinstance(stmt.get('Principal', {}).get('AWS'), str)
+                           else stmt.get('Principal', {}).get('AWS', []))
+            ]
+            is_service_role = bool(service_principals) and not bool(aws_principals)
+
             role = IAMRole(
                 id=r.get('RoleId', ''),
                 name=r.get('RoleName', ''),
@@ -138,7 +159,10 @@ class AWSFactory:
                 assume_role_policy=r.get('AssumeRolePolicyDocument'),
                 managed_policies=[{"policy_name": p["PolicyName"]} for p in r.get('AttachedManagedPolicies', [])],
                 inline_policies=inline_policies_normalized,
-                trusted_entities=extract_trusted_entities(r.get('TrustPolicy', {}))
+                trusted_entities=extract_trusted_entities(trust_policy),
+                permissions_boundary=r.get('PermissionsBoundary'),
+                is_service_role=is_service_role,
+                tags=r.get('Tags', []),
             )
             roles.append(role)
         return roles
@@ -188,7 +212,15 @@ class AWSFactory:
                 state=i.get('State', {}).get('Name', ''),
                 security_groups=AWSFactory.create_security_groups(i.get('SecurityGroupsDetails', [])),
                 volumes=i.get('volumes') or [],
-                tags=i.get('Tags', [])
+                tags=i.get('Tags', []),
+                http_tokens=i.get('http_tokens'),
+                http_endpoint=i.get('http_endpoint'),
+                instance_profile=i.get('instance_profile'),
+                user_data=i.get('user_data'),
+                monitoring_state=i.get('monitoring_state'),
+                virtualization_type=i.get('virtualization_type'),
+                private_ip=i.get('private_ip'),
+                subnet_id=i.get('subnet_id'),
             )
             instances.append(instance)
         return instances
@@ -237,8 +269,19 @@ class AWSFactory:
                 public_access=b.get('PublicAccess'),
                 versioning=b.get('Versioning'),
                 encryption=b.get('Encryption'),
-                bucket_policy=b.get('Policies')
-
+                bucket_policy=b.get('Policies'),
+                block_public_acls=b.get('BlockPublicAcls'),
+                ignore_public_acls=b.get('IgnorePublicAcls'),
+                block_public_policy=b.get('BlockPublicPolicy'),
+                restrict_public_buckets=b.get('RestrictPublicBuckets'),
+                acl_grantees=b.get('AclGrantees', []),
+                logging=b.get('Logging', False),
+                logging_target_bucket=b.get('LoggingTargetBucket'),
+                object_lock=b.get('ObjectLock', False),
+                mfa_delete=b.get('MFADelete', False),
+                lifecycle=b.get('Lifecycle', []),
+                replication_rules=b.get('ReplicationRules', []),
+                notification_config=b.get('NotificationConfig', {}),
             )
             buckets.append(bucket)
         return buckets
