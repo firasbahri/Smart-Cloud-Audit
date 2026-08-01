@@ -121,7 +121,7 @@ YOUR ANALYSIS, in order of priority:
 
 4. BUSINESS FRAMING — for every finding, make the impact concrete for THIS company: name what would actually be lost or exposed (client data, production uptime, account takeover), not generic textbook consequences.
 
-5. URGENCY — reserve this for the 1-2 findings that genuinely cannot wait (a realistic, ready-to-use attack path with a clear entry point). For those, and ONLY those, start the "description" with the literal text "Acción urgente: " followed by a plain-language explanation a non-technical founder would understand. Do not use this for every Critical finding — it should stand out as rare.
+5. URGENCY — reserve this for the 1-2 findings that genuinely cannot wait (a realistic, ready-to-use attack path with a clear entry point). For those, and ONLY those, start the "description" with the literal text "Urgent action: " followed by a plain-language explanation a non-technical founder would understand. Do not use this for every Critical finding — it should stand out as rare.
 
 6. SIGNAL OVER NOISE — if a resource's context marks it as non-productive (test, sandbox, development, no real data), do not generate findings about it. Focus entirely on what matters for this company's real exposure.
 
@@ -131,16 +131,16 @@ SEVERITY CRITERIA:
 - Medium: risk exists but exploitation requires specific conditions
 - Low: minor risk or best practice deviation
 
-OUTPUT FORMAT (JSON array, in Spanish). Use ONLY these exact fields — no others, no "origin", no "attack_chain", no extra keys:
+OUTPUT FORMAT (JSON array, in English). Use ONLY these exact fields — no others, no "origin", no "attack_chain", no extra keys:
 [
     {{
         "id": "ai_001",
-        "name": "nombre breve y concreto del hallazgo (sin tecnicismos innecesarios en el título)",
-        "description": "2-4 frases: qué ocurre, por qué importa para ESTA empresa, y si aplica, la cadena de ataque narrada paso a paso y/o el prefijo de urgencia — todo integrado en este único texto",
+        "name": "short and concrete finding name (no unnecessary jargon in the title)",
+        "description": "2-4 sentences: what is happening, why it matters for THIS company, and if applicable, the attack chain narrated step by step and/or the urgency prefix — all integrated in this single field",
         "severity": "Critical|High|Medium|Low",
-        "resource_id": "recurso afectado",
+        "resource_id": "affected resource",
         "resource_type": "IAM|EC2|S3",
-        "recommendation": "una acción concreta y accionable para remediarlo"
+        "recommendation": "one concrete, actionable step to remediate it"
     }}
 ]
 
@@ -198,18 +198,18 @@ If no additional findings are found beyond the static analysis, return an empty 
         str: prompt para generate_content, pensado para una sola vulnerabilidad (no un batch).
     """
 
-    return f"""Para la siguiente vulnerabilidad AWS genera:
-1. Una recomendación clara de cómo remediarla
-2. El comando AWS CLI exacto si existe
+    return f"""For the following AWS vulnerability, generate:
+1. A clear recommendation on how to remediate it
+2. The exact AWS CLI command if one exists
 
-Vulnerabilidad: {vulnerability.name}
-Recurso ID: {vulnerability.resource_id}
-Tipo: {vulnerability.resource_type}
+Vulnerability: {vulnerability.name}
+Resource ID: {vulnerability.resource_id}
+Type: {vulnerability.resource_type}
 
-Responde SOLO en JSON:
+Respond ONLY with valid JSON:
 {{
-    "recommendation": "pasos claros para remediar enumerados como 1, 2, 3 , cada linea un paso separados por salto de linea",
-    "cli_command": "comando AWS CLI exacto o null"
+    "recommendation": "clear remediation steps numbered as 1, 2, 3 — one step per line separated by newline",
+    "cli_command": "exact AWS CLI command or null"
 }}
 """
 

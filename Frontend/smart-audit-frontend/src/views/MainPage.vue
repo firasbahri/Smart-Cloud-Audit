@@ -18,7 +18,7 @@
         <li>
           <router-link to="/app/cloud-accounts" active-class="active">
             <Cloud :size="20" />
-            <span>Cuentas de Nube</span>
+            <span>Cloud Accounts</span>
           </router-link>
         </li>
         
@@ -26,32 +26,32 @@
           <li>
             <router-link to="/app/dashboard" active-class="active">
               <LayoutDashboard :size="20" />
-              <span>Panel de Control</span>
+              <span>Dashboard</span>
             </router-link>
           </li>
           <li>
             <router-link to="/app/inventory" active-class="active">
               <Package :size="20" />
-              <span>Inventario</span>
+              <span>Inventory</span>
             </router-link>
           </li>
           <li>
             <router-link to="/app/audit" active-class="active">
               <Search :size="20" />
-              <span>Auditoría</span>
+              <span>Audit</span>
             </router-link>
           </li>
           <li>
             <router-link to="/app/my-audits" active-class="active">
               <History :size="20" />
-              <span>Mis Auditorías</span>
+              <span>My Audits</span>
             </router-link>
           </li>
         </template>
         
         <li v-else class="menu-hint">
           <div class="hint-text">
-            <span>👆 Añade una cuenta para comenzar</span>
+            <span>👆 Add an account to get started</span>
           </div>
         </li>
       </ul>
@@ -60,15 +60,15 @@
         <Transition name="user-menu">
           <div v-if="userMenuOpen" class="user-menu">
             <div class="user-menu-item">
-              <User :size="13" /> Mi perfil
+              <User :size="13" /> My profile
             </div>
             <div class="user-menu-divider" />
             <div class="user-menu-item danger" @click.stop="logout">
-              <LogOut :size="13" /> Cerrar sesión
+              <LogOut :size="13" /> Sign out
             </div>
             <div class="user-menu-divider" />
             <div class="user-menu-item danger" @click.stop="openDeleteAccountDialog">
-              <Trash2 :size="13" /> Eliminar cuenta
+              <Trash2 :size="13" /> Delete account
             </div>
           </div>
         </Transition>
@@ -88,26 +88,26 @@
         <div class="confirm-icon-wrap">
           <AlertTriangle :size="22" />
         </div>
-        <div class="confirm-title">Eliminar cuenta de forma definitiva</div>
+        <div class="confirm-title">Delete account permanently</div>
         <div class="confirm-body">
-          Esta acción eliminará tu cuenta de SmartAudit de manera <strong>permanente</strong>:
-          tus cuentas cloud conectadas, escaneos y auditorías guardadas se borrarán y no podrán recuperarse.
+          This action will permanently delete your SmartAudit account: your connected cloud accounts,
+          scans and saved audits will be deleted and <strong>cannot be recovered</strong>.
         </div>
         <div class="confirm-body">
-          Para confirmar, escribe <strong>confirmo</strong> en el campo de abajo.
+          To confirm, type <strong>confirm</strong> in the field below.
         </div>
         <input
           v-model="deleteAccountDialog.confirmText"
           type="text"
           class="confirm-input"
-          placeholder="Escribe «confirmo»"
+          placeholder="Type &quot;confirm&quot;"
           autocomplete="off"
           @keyup.enter="confirmDeleteAccount"
         />
         <div class="confirm-actions">
-          <button class="btn-cancel" @click="cancelDeleteAccount">Cancelar</button>
+          <button class="btn-cancel" @click="cancelDeleteAccount">Cancel</button>
           <button class="btn-delete" :disabled="!canDeleteAccount" @click="confirmDeleteAccount">
-            Eliminar cuenta
+            Delete account
           </button>
         </div>
       </div>
@@ -115,13 +115,13 @@
 
     <main class="content flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto relative">
       <div v-if="hasAccounts" class="content-account-corner">
-        <span class="account-switcher-label">Cambiar cuenta</span>
+        <span class="account-switcher-label">Switch account</span>
         <Select
           v-model="selectedAccountKey"
           :options="accountOptions"
           optionLabel="label"
           optionValue="value"
-          placeholder="Selecciona una cuenta"
+          placeholder="Select an account"
           appendTo="self"
           :style="accountSelectStyle"
           class="account-select"
@@ -154,7 +154,7 @@ let isLoggingOut = false;
 
 const userMenuOpen = ref(false)
 const userMenuRef = ref(null)
-const storedUsername = computed(() => localStorage.getItem('username') || 'Usuario')
+const storedUsername = computed(() => localStorage.getItem('username') || 'User')
 const userInitial = computed(() => storedUsername.value.charAt(0).toUpperCase())
 
 const handleDocumentClick = (e) => {
@@ -169,7 +169,7 @@ const getAccountKey = (account) => String(
 
 const accountOptions = computed(() =>
   cloudAccountsStore.accounts.map(account => ({
-    label: account.name || 'Cuenta sin nombre',
+    label: account.name || 'Unnamed account',
     value: getAccountKey(account)
   }))
 );
@@ -186,7 +186,7 @@ const selectedAccountKey = computed({
 
 const selectedAccountName = computed(() => {
   const selected = cloudAccountsStore.selectedAccount;
-  return selected?.name || 'Cuenta sin nombre';
+  return selected?.name || 'Unnamed account';
 });
 
 const accountSelectStyle = computed(() => {
@@ -259,7 +259,7 @@ const logout = () => {
 };
 
 const deleteAccountDialog = ref({ visible: false, confirmText: '' })
-const canDeleteAccount = computed(() => deleteAccountDialog.value.confirmText.trim().toLowerCase() === 'confirmo')
+const canDeleteAccount = computed(() => deleteAccountDialog.value.confirmText.trim().toLowerCase() === 'confirm')
 
 const openDeleteAccountDialog = () => {
   userMenuOpen.value = false
@@ -287,12 +287,12 @@ const confirmDeleteAccount = async () => {
     if(!response.ok){
       throw new Error('Error al eliminar la cuenta')
     }
-    toast.add({severity:'success', summary:'Cuenta eliminada', detail:'Tu cuenta ha sido eliminada correctamente', life: 3000})
+    toast.add({severity:'success', summary:'Account deleted', detail:'Your account has been deleted successfully', life: 3000})
     logout()
   }
   catch (error) {
     console.error('Error al eliminar la cuenta:', error);
-    toast.add({severity:'error', summary:'Error', detail:'No se pudo eliminar la cuenta. Inténtalo de nuevo más tarde.', life: 3000})
+    toast.add({severity:'error', summary:'Error', detail:'Could not delete the account. Please try again later.', life: 3000})
   }
 
   cancelDeleteAccount()

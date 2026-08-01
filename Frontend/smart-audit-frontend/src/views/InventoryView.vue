@@ -7,13 +7,13 @@
           <Package :size="18" />
         </div>
         <div>
-          <h2>Inventario de Recursos AWS</h2>
-          <p class="subtitle">Recursos detectados en la cuenta vinculada{{ scanAge }}</p>
+          <h2>AWS Resource Inventory</h2>
+          <p class="subtitle">Resources detected in the linked account{{ scanAge }}</p>
         </div>
       </div>
       <div v-if="resourcesWithContext.length > 0" class="ai-coverage-badge">
         <Sparkles :size="13" />
-        <span><strong class="ai-count">{{ aiCoverage.with }}/{{ aiCoverage.total }}</strong> recursos con contexto IA</span>
+        <span><strong class="ai-count">{{ aiCoverage.with }}/{{ aiCoverage.total }}</strong> resources with AI context</span>
       </div>
     </div>
 
@@ -35,31 +35,31 @@
     <div class="toolbar">
       <div class="search-box">
         <Search :size="13" class="search-icon" />
-        <input v-model="search" placeholder="Buscar recursos..." />
+        <input v-model="search" placeholder="Search resources..." />
       </div>
       <button :class="['missing-btn', { active: onlyMissing }]" @click="onlyMissing = !onlyMissing">
-        <Sparkles :size="11" /> Solo sin contexto IA
+        <Sparkles :size="11" /> Only without AI context
       </button>
-      <span class="result-count">{{ filtered.length }} resultados</span>
+      <span class="result-count">{{ filtered.length }} results</span>
     </div>
 
     <div class="content-wrap" :class="{ 'has-drawer': !!selectedResource }">
       <div class="table-box" :class="{ 'drawer-open': !!selectedResource }">
         <div class="table-header table-grid">
-          <div>Nombre</div>
-          <div>Tipo</div>
-          <div>Región</div>
-          <div class="ai-col-header"><Sparkles :size="11" /> Contexto IA</div>
+          <div>Name</div>
+          <div>Type</div>
+          <div>Region</div>
+          <div class="ai-col-header"><Sparkles :size="11" /> AI Context</div>
           <div></div>
         </div>
 
         <div v-if="resourcesWithContext.length === 0" class="empty-state">
           <FileX :size="28" />
-          <span>Sin datos de escaneo para esta cuenta</span>
+          <span>No scan data for this account</span>
         </div>
         <div v-else-if="filtered.length === 0" class="empty-state">
           <Search :size="28" />
-          <span>No se encontraron recursos con estos filtros</span>
+          <span>No resources found matching these filters</span>
         </div>
 
         <div
@@ -81,7 +81,7 @@
               <span>{{ r.aiContext }}</span>
             </div>
             <button v-else class="context-add-btn" @click="openDrawerEdit(r)">
-              ✏️ Añadir
+              ✏️ Add
             </button>
           </div>
           <div class="col-actions">
@@ -101,16 +101,16 @@
 
         <div class="drawer-body">
           <div class="drawer-section">
-            <div class="section-label">DETALLES</div>
+            <div class="section-label">DETAILS</div>
             <div class="detail-list">
-              <div class="detail-row"><span>Región</span><span>{{ selectedResource.region }}</span></div>
+              <div class="detail-row"><span>Region</span><span>{{ selectedResource.region }}</span></div>
               <div v-if="selectedResource.state" class="detail-row">
-                <span>Estado</span>
+                <span>State</span>
                 <span :style="{ color: selectedResource.state === 'STOPPED' ? '#f85149' : '#3fb950' }">{{ selectedResource.state }}</span>
               </div>
               <div v-if="selectedResource.public !== undefined && selectedResource.service === 's3'" class="detail-row">
-                <span>Público</span>
-                <span :style="{ color: selectedResource.public ? '#f85149' : '#3fb950' }">{{ selectedResource.public ? 'Sí' : 'No' }}</span>
+                <span>Public</span>
+                <span :style="{ color: selectedResource.public ? '#f85149' : '#3fb950' }">{{ selectedResource.public ? 'Yes' : 'No' }}</span>
               </div>
             </div>
           </div>
@@ -118,40 +118,40 @@
           <div class="drawer-section">
             <div class="ai-context-box">
               <div class="ai-ctx-header">
-                <div class="ai-ctx-title"><Sparkles :size="12" /> Contexto IA</div>
-                <span v-if="selectedResource.aiContext && drawerMode !== 'edit'" class="ctx-status">✓ Descrito</span>
+                <div class="ai-ctx-title"><Sparkles :size="12" /> AI Context</div>
+                <span v-if="selectedResource.aiContext && drawerMode !== 'edit'" class="ctx-status">✓ Described</span>
               </div>
-              <p class="ai-ctx-hint">Describe este recurso (qué guarda, propósito, criticidad). La IA lo usará al auditar.</p>
+              <p class="ai-ctx-hint">Describe this resource (what it stores, its purpose, criticality). The AI will use it when auditing.</p>
               <textarea
                 v-if="drawerMode === 'edit'"
                 ref="contextTextareaRef"
                 v-model="editingContext"
                 class="ctx-textarea"
                 rows="4"
-                placeholder="Ej: este bucket almacena facturas de clientes. Es PII y debe cumplir con PSD2..."
+                placeholder="E.g.: this bucket stores customer invoices. It is PII and must comply with PSD2..."
               />
               <div v-else-if="selectedResource.aiContext" class="ctx-preview" @click="startEdit">{{ selectedResource.aiContext }}</div>
               <div class="ctx-actions">
                 <template v-if="drawerMode === 'edit'">
-                  <button class="btn-cancel" @click="cancelEdit">Cancelar</button>
-                  <button class="btn-save" @click="saveContext">Guardar</button>
+                  <button class="btn-cancel" @click="cancelEdit">Cancel</button>
+                  <button class="btn-save" @click="saveContext">Save</button>
                 </template>
                 <template v-else>
-                  <button class="btn-edit" @click="startEdit">Editar</button>
+                  <button class="btn-edit" @click="startEdit">Edit</button>
                 </template>
               </div>
             </div>
           </div>
 
           <div class="drawer-section">
-            <div class="section-label">ÚLTIMA AUDITORÍA</div>
+            <div class="section-label">LAST AUDIT</div>
             <div v-if="resourceFindings.length" class="findings-list">
               <div v-for="(f, fi) in resourceFindings" :key="fi" class="finding-item">
                 <span :class="['sev-badge', `sev-${(f.severity || '').toLowerCase()}`]">{{ f.severity }}</span>
                 <span class="finding-name">{{ f.check_id || f.title || f.check_name }}</span>
               </div>
             </div>
-            <div v-else class="no-findings">Sin hallazgos</div>
+            <div v-else class="no-findings">No findings</div>
           </div>
         </div>
       </div>
@@ -159,7 +159,7 @@
 
     <div class="footer-tip">
       <Sparkles :size="11" />
-      <span>Click sobre cualquier fila para ver detalles y editar contexto. Los contextos guardados se usan automáticamente al ejecutar <strong>Análisis IA</strong>.</span>
+      <span>Click any row to view details and edit context. Saved contexts are automatically used when running <strong>AI Analysis</strong>.</span>
     </div>
   </div>
 </template>
@@ -185,9 +185,9 @@ const scanAge = computed(() => {
   const createdAt = scanStore.scanCreatedAtByAccount[accountId.value]
   if (!createdAt) return ''
   const hours = Math.floor((new Date() - new Date(createdAt)) / (1000 * 60 * 60))
-  if (hours < 1) return ' · último escaneo hace menos de 1h'
-  if (hours === 1) return ' · último escaneo hace 1h'
-  return ` · último escaneo hace ${hours}h`
+  if (hours < 1) return ' · last scan less than 1h ago'
+  if (hours === 1) return ' · last scan 1h ago'
+  return ` · last scan ${hours}h ago`
 })
 
 const allResources = computed(() => {
@@ -254,7 +254,7 @@ const tabs = computed(() => {
   const cnt = (svc) => svc === 'all' ? rs.length : rs.filter(r => r.service === svc).length
   const ctx = (svc) => svc === 'all' ? rs.filter(r => r.aiContext).length : rs.filter(r => r.service === svc && r.aiContext).length
   return [
-    { id: 'all', label: 'Todos', count: cnt('all'), ctxCount: ctx('all') },
+    { id: 'all', label: 'All', count: cnt('all'), ctxCount: ctx('all') },
     { id: 'iam', label: 'IAM', count: cnt('iam'), ctxCount: ctx('iam') },
     { id: 'ec2', label: 'EC2', count: cnt('ec2'), ctxCount: ctx('ec2') },
     { id: 's3', label: 'S3', count: cnt('s3'), ctxCount: ctx('s3') },
@@ -312,7 +312,7 @@ const saveContext = () => {
   scanStore.setResourceContext(accountId.value, selectedResource.value.id, ctx)
   selectedResource.value = { ...selectedResource.value, aiContext: ctx }
   drawerMode.value = 'view'
-  toast.add({ severity: 'success', summary: 'Contexto guardado', life: 2000 })
+  toast.add({ severity: 'success', summary: 'Context saved', life: 2000 })
 }
 
 const resourceFindings = computed(() => {

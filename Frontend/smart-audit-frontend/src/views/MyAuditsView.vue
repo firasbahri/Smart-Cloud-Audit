@@ -4,8 +4,8 @@
       <div class="title-group">
         <div class="page-icon"><History :size="18" /></div>
         <div>
-          <h2>Mis Auditorías</h2>
-          <p class="subtitle">Historial de auditorías · {{ activeAccountLabel }}</p>
+          <h2>My Audits</h2>
+          <p class="subtitle">Audit history · {{ activeAccountLabel }}</p>
         </div>
       </div>
 
@@ -14,13 +14,13 @@
           :class="['filter-btn', { active: originFilter === 'all' }]"
           @click="originFilter = 'all'"
         >
-          Todas <span class="filter-count">{{ audits.length }}</span>
+          All <span class="filter-count">{{ audits.length }}</span>
         </button>
         <button
           :class="['filter-btn', 'filter-btn--static', { active: originFilter === 'static' }]"
           @click="originFilter = 'static'"
         >
-          Estático <span class="filter-count">{{ originCounts.static }}</span>
+          Static <span class="filter-count">{{ originCounts.static }}</span>
         </button>
         <button
           :class="['filter-btn', 'filter-btn--ai', { active: originFilter === 'ai' }]"
@@ -33,19 +33,19 @@
 
     <div v-if="auditStore.auditsLoading" class="state-box">
       <i class="pi pi-spin pi-spinner" style="font-size:1.6rem;color:#768390" />
-      <span>Cargando auditorías...</span>
+      <span>Loading audits...</span>
     </div>
 
     <div v-else-if="!audits.length" class="state-box">
       <FileX :size="34" style="color:#4d5566" />
-      <span>No hay auditorías para esta cuenta</span>
-      <p>Ejecuta una desde <strong>Auditoría</strong></p>
+      <span>No audits for this account</span>
+      <p>Run one from <strong>Audit</strong></p>
     </div>
 
     <div v-else-if="!filteredAudits.length" class="state-box">
       <FileX :size="34" style="color:#4d5566" />
-      <span>No hay auditorías {{ originFilter === 'ai' ? 'de IA' : 'estáticas' }}</span>
-      <p>Prueba a cambiar el filtro o ejecuta una desde <strong>Auditoría</strong></p>
+      <span>No {{ originFilter === 'ai' ? 'AI' : 'static' }} audits</span>
+      <p>Try changing the filter or run one from <strong>Audit</strong></p>
     </div>
 
     <div v-else class="layout">
@@ -60,17 +60,17 @@
             <div class="audit-item__id">{{ shortId(audit.audit_id) }}</div>
             <div class="audit-item__actions">
               <span :class="['origin-badge', audit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
-                {{ audit.origin === 'ai' ? '✦ IA' : 'Estático' }}
+                {{ audit.origin === 'ai' ? '✦ AI' : 'Static' }}
               </span>
               <div class="kebab-wrap" @click.stop>
                 <button class="kebab-btn" @click.stop="toggleMenu(audit.audit_id)">⋮</button>
                 <div v-if="openMenuId === audit.audit_id" class="audit-menu">
                   <button class="menu-item disabled" @click="openMenuId = null">
-                    <i class="pi pi-file-pdf" /> Exportar PDF
+                    <i class="pi pi-file-pdf" /> Export PDF
                   </button>
                   <div class="menu-divider" />
                   <button class="menu-item danger" @click="requestDelete(audit.audit_id)">
-                    <i class="pi pi-trash" /> Eliminar
+                    <i class="pi pi-trash" /> Delete
                   </button>
                 </div>
               </div>
@@ -95,17 +95,17 @@
           </div>
           <div class="detail-header__right">
             <span :class="['origin-badge', 'origin-badge--lg', selectedAudit.origin === 'ai' ? 'origin-ai' : 'origin-static']">
-              {{ selectedAudit.origin === 'ai' ? '✦ Análisis IA' : '⚙ Estático' }}
+              {{ selectedAudit.origin === 'ai' ? '✦ AI Analysis' : '⚙ Static' }}
             </span>
             <div class="kebab-wrap" @click.stop>
               <button class="kebab-btn" @click.stop="toggleMenu('detail')">⋮</button>
               <div v-if="openMenuId === 'detail'" class="audit-menu audit-menu--left">
                 <button class="menu-item disabled" @click="openMenuId = null">
-                  <i class="pi pi-file-pdf" /> Exportar PDF
+                  <i class="pi pi-file-pdf" /> Export PDF
                 </button>
                 <div class="menu-divider" />
                 <button class="menu-item danger" @click="requestDelete(selectedAudit.audit_id)">
-                  <i class="pi pi-trash" /> Eliminar
+                  <i class="pi pi-trash" /> Delete
                 </button>
               </div>
             </div>
@@ -118,26 +118,26 @@
             <strong>{{ totalVulns(selectedAudit) }}</strong>
           </div>
           <div class="summary-card danger">
-            <span class="summary-label">Críticos</span>
+            <span class="summary-label">Critical</span>
             <strong>{{ selectedAudit.counts.critical }}</strong>
           </div>
           <div class="summary-card warn">
-            <span class="summary-label">Altos</span>
+            <span class="summary-label">High</span>
             <strong>{{ selectedAudit.counts.high }}</strong>
           </div>
           <div class="summary-card info">
-            <span class="summary-label">Medios</span>
+            <span class="summary-label">Medium</span>
             <strong>{{ selectedAudit.counts.medium }}</strong>
           </div>
           <div class="summary-card ok">
-            <span class="summary-label">Bajos</span>
+            <span class="summary-label">Low</span>
             <strong>{{ selectedAudit.counts.low }}</strong>
           </div>
         </div>
 
         <div class="findings-section">
           <div class="findings-header">
-            <span class="section-label">HALLAZGOS</span>
+            <span class="section-label">FINDINGS</span>
             <span class="findings-count">{{ selectedAudit.vulnerabilities.length }}</span>
           </div>
           <div v-if="selectedAudit.vulnerabilities.length" class="finding-list">
@@ -155,7 +155,7 @@
                       <span v-if="selectedAudit.origin === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name || vuln.id }}
                     </span>
                     <span :class="['vi-origin', selectedAudit.origin === 'ai' ? 'vi-origin--ai' : 'vi-origin--static']">
-                      {{ selectedAudit.origin === 'ai' ? '✦ IA' : 'Estático' }}
+                      {{ selectedAudit.origin === 'ai' ? '✦ AI' : 'Static' }}
                     </span>
                   </div>
                   <div class="vi-resource">{{ vuln.resource_id }}</div>
@@ -166,7 +166,7 @@
                   class="fix-pill"
                   @click="expandedVulns[vuln.id] = !expandedVulns[vuln.id]"
                 >
-                  ✓ Solución lista
+                  ✓ Fix ready
                   <i
                     :class="['pi', expandedVulns[vuln.id] ? 'pi-chevron-up' : 'pi-chevron-down']"
                     style="font-size:0.6rem;color:#4d5566;transition:transform 0.15s"
@@ -174,18 +174,18 @@
                 </button>
                 <!-- loading mientras se genera -->
                 <div v-else-if="loadingVulns[vuln.id]" class="gen-loading" role="status" aria-live="polite">
-                  <span class="rem-spin" aria-hidden="true">✦</span> Generando comando...
+                  <span class="rem-spin" aria-hidden="true">✦</span> Generating command...
                 </div>
                 <!-- botón morado: no hay solución -->
                 <button v-else class="gen-btn" @click="handleGenerate(vuln.id)">
-                  <span aria-hidden="true">✦</span> Generar solución
+                  <span aria-hidden="true">✦</span> Generate fix
                 </button>
               </div>
 
               <!-- Detalle expandible: solo si hay solución y está abierta -->
               <div v-if="expandedVulns[vuln.id] && vuln.cli_command" class="row-detail">
                 <div :class="['row-origin-pill', selectedAudit.origin === 'ai' ? 'row-origin-pill--ai' : 'row-origin-pill--static']">
-                  {{ selectedAudit.origin === 'ai' ? '✦ Generada por IA · guardada' : '✓ Solución guardada' }}
+                  {{ selectedAudit.origin === 'ai' ? '✦ AI-generated · saved' : '✓ Fix saved' }}
                 </div>
                 <ol v-if="parseRemediationSteps(vuln.recommendation).length" class="rem-steps">
                   <li v-for="(step, i) in parseRemediationSteps(vuln.recommendation)" :key="i" class="rem-step">
@@ -195,12 +195,12 @@
                 </ol>
                 <div class="rem-code-box">
                   <div class="rem-code-header">
-                    <span class="rem-cmd-label">AWS CLI · guardado</span>
+                    <span class="rem-cmd-label">AWS CLI · saved</span>
                     <button
                       :class="['rem-copy-btn', { 'rem-copy-btn--copied': copiedVuln[vuln.id] }]"
                       @click="copyVulnCommand(vuln.id, vuln.cli_command)"
                     >
-                      {{ copiedVuln[vuln.id] ? '✓ Copiado' : 'Copiar' }}
+                      {{ copiedVuln[vuln.id] ? '✓ Copied' : 'Copy' }}
                     </button>
                   </div>
                   <div class="rem-code-body">
@@ -210,7 +210,7 @@
               </div>
             </div>
           </div>
-          <div v-else class="no-findings">Sin hallazgos registrados.</div>
+          <div v-else class="no-findings">No findings recorded.</div>
         </div>
       </article>
     </div>
@@ -218,11 +218,11 @@
   
     <div v-if="confirmDialog.visible" class="confirm-overlay" @click.self="confirmDialog.visible = false">
       <div class="confirm-box">
-        <div class="confirm-title">¿Eliminar auditoría {{ shortId(confirmDialog.auditId) }}?</div>
-        <div class="confirm-body">Se borrarán todos sus hallazgos. Esta acción no se puede deshacer.</div>
+        <div class="confirm-title">Delete audit {{ shortId(confirmDialog.auditId) }}?</div>
+        <div class="confirm-body">All its findings will be deleted. This action cannot be undone.</div>
         <div class="confirm-actions">
-          <button class="btn-cancel" @click="confirmDialog.visible = false">Cancelar</button>
-          <button class="btn-delete" @click="confirmDelete">Eliminar</button>
+          <button class="btn-cancel" @click="confirmDialog.visible = false">Cancel</button>
+          <button class="btn-delete" @click="confirmDelete">Delete</button>
         </div>
       </div>
     </div>
@@ -250,7 +250,7 @@ const copiedVuln    = reactive({})
 const expandedVulns = reactive({})
 const loadingVulns  = reactive({})
 
-const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada')
+const activeAccountLabel = computed(() => cloudAccountsStore.selectedAccount?.name || 'No account selected')
 const selectedAudit = computed(() => audits.value.find(a => a.audit_id === selectedAuditId.value) ?? null)
 
 const originCounts = computed(() => ({
@@ -279,8 +279,8 @@ const shortId = (id = '') => {
 const formatDate = (iso) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
 const SEV_COLORS = { CRITICAL: '#f85149', HIGH: '#e3b341', MEDIUM: '#388bfd', LOW: '#3fb950' }
@@ -300,7 +300,7 @@ const copyVulnCommand = async (vulnId, command) => {
     await navigator.clipboard.writeText(command)
     copiedVuln[vulnId] = true
     setTimeout(() => { copiedVuln[vulnId] = false }, 1500)
-  } catch { /* clipboard no disponible */ }
+  } catch { /* clipboard not available */ }
 }
 
 const handleGenerate = async (vulnId) => {
@@ -349,7 +349,7 @@ const deleteAudit = async (auditId) => {
     if (selectedAuditId.value === auditId) {
       selectedAuditId.value = audits.value[0]?.audit_id ?? null
     }
-    toast.add({ severity: 'success', summary: 'Eliminada', life: 2000 })
+    toast.add({ severity: 'success', summary: 'Deleted', life: 2000 })
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 3000 })
   }

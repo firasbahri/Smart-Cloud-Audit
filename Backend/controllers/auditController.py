@@ -5,6 +5,40 @@ import logging
 
 logger=logging.getLogger(__name__)
 
+_SENSITIVE_FIELDS = {"user_data", "tags", "access_keys"}
+
+
+def sanitize_resources_for_ai(resources: dict) -> dict:
+    """Return a copy of resources with sensitive fields stripped from every resource entry.
+
+    Called by AuditController before dispatching to any AI analyzer, so the guarantee
+    applies to all current and future AI providers without touching their implementations.
+
+    Fields removed: user_data (startup scripts may contain hardcoded secrets),
+    tags (internal labels may reveal environment or ownership metadata),
+    access_keys (IAM key material must never reach an external API).
+
+    To exclude a new sensitive field, add its key to _SENSITIVE_FIELDS above.
+
+    Args:
+        resources (dict): raw scan dict with category keys (ec2, users, groups, roles, buckets),
+                          each holding a list of resource dicts as stored in MongoDB.
+
+    Returns:
+        dict: structurally identical copy with _SENSITIVE_FIELDS removed from every item.
+    """
+    sanitized = {}
+    for category, items in resources.items():
+        if isinstance(items, list):
+            sanitized[category] = [
+                {k: v for k, v in item.items() if k not in _SENSITIVE_FIELDS}
+                if isinstance(item, dict) else item
+                for item in items
+            ]
+        else:
+            sanitized[category] = items
+    return sanitized
+
 
 class AuditController:
     """Capa fina entre los servicios y los analizadores: pide a la factory correspondiente el analizador
@@ -45,7 +79,9 @@ class AuditController:
         """
         try:
             self.ai_analyzer = AIAnalyzerFactory.create_analyzer(modelo)
-            result = self.ai_analyzer.analyze(resources, vulnerabilities, user_context)
+            safe_resources = sanitize_resources_for_ai(resources)
+            logger.info(f"Sanitized resources for AI analysis: {safe_resources}")
+            result = self.ai_analyzer.analyze(safe_resources, vulnerabilities, user_context)
             return result
         except Exception as e:
             logger.error(f"Error auditing cloud resources with AI: {str(e)}")

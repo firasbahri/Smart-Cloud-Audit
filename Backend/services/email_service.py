@@ -10,9 +10,9 @@ async def send_email(email: str, token: str):
     logger.info(f"server_host: {server_host}")
     link = f"{server_host}/auth/verify-email?token={token}"
     body = f"""
-        <h2>SmartAudit - Verificación de Email</h2>
-        <p>Haz clic en el siguiente enlace para verificar tu email:</p>
-        <a href='{link}'>Verificar Email</a>
+        <h2>SmartAudit - Email Verification</h2>
+        <p>Click the link below to verify your email address:</p>
+        <a href='{link}'>Verify Email</a>
     """
 
     resend.Emails.send({
@@ -28,14 +28,14 @@ async def send_password_reset_email(email: str, token: str, username: str):
     logger.info(f"frontend_host: {frontend_host}")
     link = f"{frontend_host}/reset-password?token={token}"
     body = f"""
-        <h2>SmartAudit - Restablecimiento de Contraseña</h2>
-        <p>Hola {username},</p>
-        <p>Hemos recibido una solicitud para restablecer tu contraseña. Si no realizaste esta solicitud, puedes ignorar este correo electrónico.</p>
-        <p>Si deseas restablecer tu contraseña, haz clic en el siguiente enlace:</p>
-        <a href='{link}'>Restablecer Contraseña</a>
-        <p>Este enlace expirará en 30 minutos. Si no puedes hacer clic en el enlace, copia y pega la URL en tu navegador.</p>
-        <p>Gracias,</p>
-        <p>El equipo de SmartAudit</p>
+        <h2>SmartAudit - Password Reset</h2>
+        <p>Hi {username},</p>
+        <p>We received a request to reset your password. If you did not make this request, you can safely ignore this email.</p>
+        <p>To reset your password, click the link below:</p>
+        <a href='{link}'>Reset Password</a>
+        <p>This link will expire in 30 minutes. If you cannot click the link, copy and paste the URL into your browser.</p>
+        <p>Thanks,</p>
+        <p>The SmartAudit team</p>
     """
 
     resend.Emails.send({

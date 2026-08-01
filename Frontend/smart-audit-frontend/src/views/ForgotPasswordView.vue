@@ -9,32 +9,32 @@
           <SmartAuditLogo :size="40" />
         </div>
         <h1>Smart Audit</h1>
-        <p class="subtitle">Recupera tu contraseña</p>
+        <p class="subtitle">Reset your password</p>
       </div>
 
       <div v-if="sent" class="success-box">
         <div class="success-icon">✓</div>
-        <p class="success-title">Correo enviado</p>
+        <p class="success-title">Email sent</p>
         <p class="success-text">
-          Si existe una cuenta con <strong>{{ sentEmail }}</strong>, recibirás un
-          enlace para restablecer tu contraseña.
+          If an account with <strong>{{ sentEmail }}</strong> exists, you will receive a
+          link to reset your password.
         </p>
-        <router-link to="/login" class="back-link">Volver al inicio de sesión</router-link>
+        <router-link to="/login" class="back-link">Back to sign in</router-link>
       </div>
 
       <template v-else>
         <p class="hint">
-          Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña.
+          Enter your email and we'll send you a link to reset your password.
         </p>
 
         <div class="flex flex-column gap-4">
           <div class="flex flex-column gap-2">
-            <label for="email" class="font-semibold">Correo electrónico</label>
+            <label for="email" class="font-semibold">Email address</label>
             <InputText
               id="email"
               v-model="email"
               type="email"
-              placeholder="tu@correo.com"
+              placeholder="you@email.com"
               fluid
               :disabled="isLoading"
               @keydown.enter="submit"
@@ -43,7 +43,7 @@
           </div>
 
           <Button
-            label="Enviar enlace"
+            label="Send link"
             icon="pi pi-send"
             class="login-button"
             :loading="isLoading"
@@ -53,7 +53,7 @@
 
           <div class="text-center mt-2">
             <router-link to="/login" class="back-link">
-              ← Volver al inicio de sesión
+              ← Back to sign in
             </router-link>
           </div>
         </div>
@@ -80,11 +80,11 @@ const sentEmail = ref('')
 
 const validate = () => {
   if (!email.value.trim()) {
-    emailError.value = 'El correo es requerido.'
+    emailError.value = 'Email is required.'
     return false
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
-    emailError.value = 'Ingresa un correo válido.'
+    emailError.value = 'Enter a valid email.'
     return false
   }
   emailError.value = ''
@@ -111,7 +111,7 @@ const submit = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'No se pudo enviar el correo. Inténtalo de nuevo.',
+      detail: 'Could not send email. Please try again.',
       life: 4000
     })
   } finally {

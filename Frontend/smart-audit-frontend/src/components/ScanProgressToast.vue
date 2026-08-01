@@ -2,7 +2,7 @@
   <div v-if="activeScans.length > 0" class="scan-progress-toast">
     <div class="toast-header">
       <i class="pi pi-spin pi-spinner" style="font-size: 0.85rem"></i>
-      <span>Escaneando...</span>
+      <span>Scanning...</span>
     </div>
     <div v-for="scan in activeScans" :key="scan.accountId" class="scan-item">
       <div class="scan-item-header">
@@ -32,7 +32,7 @@ const activeScans = computed(() => {
       const account = cloudAccountsStore.accounts.find(a => String(a.id) === String(accountId))
       return {
         accountId,
-        name: account?.name || `Cuenta ${accountId}`,
+        name: account?.name || `Account ${accountId}`,
         progress: scanStore.scanProgressByAccount[accountId] || 0
       }
     })

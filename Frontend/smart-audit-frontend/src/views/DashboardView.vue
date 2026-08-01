@@ -3,8 +3,8 @@
 
     <div class="dash-header mb-4">
       <div>
-        <h2 class="dash-title">Panel de Control</h2>
-        <p class="dash-subtitle">Postura de seguridad de la cuenta auditada</p>
+        <h2 class="dash-title">Dashboard</h2>
+        <p class="dash-subtitle">Security posture of the audited account</p>
       </div>
       <div v-if="selectedAccount" class="dash-account">
         <span class="acc-name">{{ selectedAccount.name }}</span>
@@ -19,32 +19,32 @@
           :class="['toggle-btn', 'static-btn', { active: selectedMode === 'static' }]"
           @click="selectedMode = 'static'"
         >
-          <i class="pi pi-shield" /> Estático
+          <i class="pi pi-shield" /> Static
         </button>
         <button
           :class="['toggle-btn', 'ai-btn', { active: selectedMode === 'ai' }]"
           @click="selectedMode = 'ai'"
         >
-          <i class="pi pi-sparkles" /> Análisis IA
+          <i class="pi pi-sparkles" /> AI Analysis
         </button>
       </div>
       <span class="mode-count">
         {{ auditCounts[selectedMode] }}
-        {{ auditCounts[selectedMode] === 1 ? 'auditoría' : 'auditorías' }}
-        {{ selectedMode === 'static' ? 'estáticas' : 'de IA' }}
+        {{ auditCounts[selectedMode] === 1 ? 'audit' : 'audits' }}
+        {{ selectedMode === 'static' ? 'static' : 'AI' }}
       </span>
     </div>
 
     <Card class="donut-card mb-3">
       <template #content>
         <span class="section-lbl">
-          Hallazgos por severidad · última auditoría {{ selectedMode === 'static' ? 'estática' : 'de IA' }}
+          Findings by severity · last {{ selectedMode === 'static' ? 'static' : 'AI' }} audit
         </span>
 
         <div v-if="!current" class="chart-empty">
           <i class="pi pi-chart-pie chart-empty-icon" />
-          <p class="chart-empty-title">Aún no tienes auditorías {{ selectedMode === 'static' ? 'estáticas' : 'de IA' }}</p>
-          <p class="chart-empty-hint">Ejecuta una auditoría {{ selectedMode === 'static' ? 'estática' : 'de IA' }} para ver los datos aquí.</p>
+          <p class="chart-empty-title">You have no {{ selectedMode === 'static' ? 'static' : 'AI' }} audits yet</p>
+          <p class="chart-empty-hint">Run a {{ selectedMode === 'static' ? 'static' : 'AI' }} audit to see data here.</p>
         </div>
 
         <div v-else class="donut-grid">
@@ -52,7 +52,7 @@
             <Chart type="doughnut" :data="donutData" :options="donutOptions" class="donut-canvas" />
             <div class="donut-center">
               <span class="donut-total">{{ currentTotal }}</span>
-              <span class="donut-total-lbl">hallazgos</span>
+              <span class="donut-total-lbl">findings</span>
             </div>
           </div>
           <div class="donut-legend">
@@ -73,7 +73,7 @@
     <Card class="trend-card mb-3">
       <template #content>
         <span class="section-lbl">
-          Evolución por severidad · {{ selectedMode === 'static' ? 'auditorías estáticas' : 'auditorías de IA' }}
+          Severity trend · {{ selectedMode === 'static' ? 'static audits' : 'AI audits' }}
         </span>
 
         <div v-if="filtered.length < 2" class="empty-chart">
@@ -81,8 +81,8 @@
           <p style="color:#4d5566;margin:0;font-size:12px">
             {{
               filtered.length === 0
-                ? 'Aún no tienes auditorías ' + (selectedMode === 'static' ? 'estáticas' : 'de IA')
-                : 'Necesitas al menos 2 auditorías ' + (selectedMode === 'static' ? 'estáticas' : 'de IA') + ' para ver la evolución'
+                ? 'You have no ' + (selectedMode === 'static' ? 'static' : 'AI') + ' audits yet'
+                : 'You need at least 2 ' + (selectedMode === 'static' ? 'static' : 'AI') + ' audits to see the trend'
             }}
           </p>
         </div>
@@ -94,7 +94,7 @@
 
     <Card v-if="inventoryItems.some(i => i.n > 0)" class="inv-card mb-3">
       <template #content>
-        <span class="section-lbl">Inventario · {{ totalInventory }} recursos escaneados</span>
+        <span class="section-lbl">Inventory · {{ totalInventory }} scanned resources</span>
         <div class="inv-strip">
           <div
             v-for="(item, i) in inventoryItems" :key="item.label"
@@ -111,15 +111,15 @@
       <template #content>
         <div class="meta-row">
           <div class="meta-item">
-            <span class="meta-key">Estado</span>
-            <span class="meta-val"><span class="dot-green">●</span> Conectada</span>
+            <span class="meta-key">Status</span>
+            <span class="meta-val"><span class="dot-green">●</span> Connected</span>
           </div>
           <div class="meta-item meta-sep">
-            <span class="meta-key">Último escaneo</span>
+            <span class="meta-key">Last scan</span>
             <span class="meta-val">{{ lastScanLabel }}</span>
           </div>
           <div class="meta-item meta-sep">
-            <span class="meta-key">Última auditoría</span>
+            <span class="meta-key">Last audit</span>
             <span class="meta-val">{{ lastAuditMetaLabel }}</span>
           </div>
         </div>
@@ -173,10 +173,10 @@ const filtered = computed(() =>
 )
 
 const SEV_DEF = [
-  { key: 'crit', label: 'Críticos', color: '#f85149' },
-  { key: 'high', label: 'Altos',    color: '#e3b341' },
-  { key: 'med',  label: 'Medios',   color: '#388bfd' },
-  { key: 'low',  label: 'Bajos',    color: '#768390' },
+  { key: 'crit', label: 'Critical', color: '#f85149' },
+  { key: 'high', label: 'High',     color: '#e3b341' },
+  { key: 'med',  label: 'Medium',   color: '#388bfd' },
+  { key: 'low',  label: 'Low',      color: '#768390' },
 ]
 
 const totalOf = a => a.crit + a.high + a.med + a.low
@@ -230,19 +230,19 @@ const lineOptions = {
 }
 
 const inventoryItems = computed(() => [
-  { label: 'Roles IAM',      n: scanResult.value?.roles?.length   ?? 0 },
-  { label: 'Instancias EC2', n: scanResult.value?.ec2?.length     ?? 0 },
-  { label: 'Almacenes S3',   n: scanResult.value?.buckets?.length ?? 0 },
-  { label: 'Usuarios IAM',   n: scanResult.value?.users?.length   ?? 0 },
-  { label: 'Grupos IAM',     n: scanResult.value?.groups?.length  ?? 0 },
+  { label: 'IAM Roles',      n: scanResult.value?.roles?.length   ?? 0 },
+  { label: 'EC2 Instances',  n: scanResult.value?.ec2?.length     ?? 0 },
+  { label: 'S3 Buckets',     n: scanResult.value?.buckets?.length ?? 0 },
+  { label: 'IAM Users',      n: scanResult.value?.users?.length   ?? 0 },
+  { label: 'IAM Groups',     n: scanResult.value?.groups?.length  ?? 0 },
 ])
 const totalInventory = computed(() => inventoryItems.value.reduce((s, i) => s + i.n, 0))
 
 const formatDate = iso => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-    + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 const lastScanLabel      = computed(() => formatDate(scanStore.scanCreatedAtByAccount[accountId.value]))
 const lastAuditMetaLabel = computed(() => formatDate(current.value?.created_at))

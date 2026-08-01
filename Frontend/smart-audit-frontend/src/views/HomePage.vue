@@ -9,13 +9,13 @@
         </div>
         <div class="nav-actions">
           <Button 
-            label="Iniciar Sesión" 
-            text 
+            label="Sign In"
+            text
             @click="$router.push('/login')"
             class="nav-btn"
           />
-          <Button 
-            label="Registrarse" 
+          <Button
+            label="Register" 
             @click="$router.push('/register')"
             class="register-btn"
           />
@@ -28,16 +28,16 @@
       <div class="hero-content">
         <div class="hero-text">
           <h1 class="hero-title">
-            Auditoría de Seguridad en la Nube
-            <span class="highlight">Automatizada e Inteligente</span>
+            Cloud Security Auditing
+            <span class="highlight">Automated and Intelligent</span>
           </h1>
           <p class="hero-description">
-            Smart Audit analiza tu infraestructura  en tiempo real, identifica vulnerabilidades 
-            y proporciona recomendaciones de seguridad basadas en las mejores prácticas de la industria.
+            Smart Audit analyzes your infrastructure in real time, identifies vulnerabilities
+            and provides security recommendations based on industry best practices.
           </p>
           <div class="hero-buttons">
             <Button 
-              label="Comenzar ahora" 
+              label="Get started"
               icon="pi pi-arrow-right"
               iconPos="right"
               size="large"
@@ -45,7 +45,7 @@
               class="cta-button"
             />
             <Button 
-              label="Ver demo" 
+              label="View demo"
               icon="pi pi-play"
               outlined
               size="large"
@@ -65,7 +65,7 @@
 
   
     <section class="features-section">
-      <h2 class="section-title">Características Principales</h2>
+      <h2 class="section-title">Key Features</h2>
       <div class="features-grid">
         <Card class="feature-card" v-for="feature in features" :key="feature.title">
           <template #content>
@@ -81,7 +81,7 @@
 
    
     <section class="services-section">
-      <h2 class="section-title">Servicios AWS Soportados</h2>
+      <h2 class="section-title">Supported AWS Services</h2>
       <div class="services-grid">
         <Card class="service-card" v-for="service in services" :key="service.name">
           <template #content>
@@ -95,10 +95,10 @@
 
     <section class="cta-section">
       <div class="cta-content">
-        <h2>¿Listo para asegurar tu infraestructura?</h2>
-        <p>Comienza tu auditoría de seguridad hoy mismo</p>
-        <Button 
-          label="Crear cuenta gratis" 
+        <h2>Ready to secure your infrastructure?</h2>
+        <p>Start your security audit today</p>
+        <Button
+          label="Create free account"
           icon="pi pi-user-plus"
           size="large"
           @click="$router.push('/register')"
@@ -115,10 +115,10 @@
           <span>Smart Audit</span>
         </div>
         <nav class="footer-links">
-          <a href="mailto:contacto@smartaudit-ai.com">Contacto</a>
-          <a href="mailto:soporte@smartaudit-ai.com">Soporte</a>
-          <router-link to="/politica-privacidad">Privacidad</router-link>
-          <router-link to="/terminos-y-condiciones">Términos</router-link>
+          <a href="mailto:contacto@smartaudit-ai.com">Contact</a>
+          <a href="mailto:soporte@smartaudit-ai.com">Support</a>
+          <router-link to="/politica-privacidad">Privacy</router-link>
+          <router-link to="/terminos-y-condiciones">Terms</router-link>
         </nav>
         <p class="footer-text">
           © 2026 Smart Audit - Trabajo Fin de Grado
@@ -141,33 +141,33 @@ const router = useRouter();
 
 const features = ref([
   {
-    title: 'Análisis Automático',
-    description: 'Escaneo completo de recursos AWS identificando configuraciones inseguras.',
+    title: 'Automatic Analysis',
+    description: 'Full scan of AWS resources identifying insecure configurations.',
     icon: Search
   },
   {
-    title: 'Detección de Vulnerabilidades',
-    description: 'Identifica riesgos de seguridad basados en estándares CIS y AWS Well-Architected.',
+    title: 'Vulnerability Detection',
+    description: 'Identifies security risks based on CIS and AWS Well-Architected standards.',
     icon: Shield
   },
   {
-    title: 'Reportes Detallados',
-    description: 'Visualiza métricas y genera informes comprensivos de tu postura de seguridad.',
+    title: 'Detailed Reports',
+    description: 'Visualize metrics and generate comprehensive reports of your security posture.',
     icon: BarChart3
   },
   {
-    title: 'Gestión IAM',
-    description: 'Analiza usuarios, roles y políticas para detectar permisos excesivos.',
+    title: 'IAM Management',
+    description: 'Analyze users, roles and policies to detect excessive permissions.',
     icon: Lock
   },
   {
-    title: 'Inventario Cloud',
-    description: 'Mantén un registro actualizado de todos tus recursos en la nube.',
+    title: 'Cloud Inventory',
+    description: 'Keep an up-to-date record of all your cloud resources.',
     icon: Cloud
   },
   {
-    title: 'Auditorías Rápidas',
-    description: 'Obtén resultados en minutos con nuestro motor de análisis optimizado.',
+    title: 'Fast Audits',
+    description: 'Get results in minutes with our optimized analysis engine.',
     icon: Zap
   }
 ]);

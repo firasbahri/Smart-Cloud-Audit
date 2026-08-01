@@ -9,7 +9,7 @@
           <SmartAuditLogo :size="40" />
         </div>
         <h1>Smart Audit</h1>
-        <p class="subtitle">Inicia sesión en tu cuenta</p>
+        <p class="subtitle">Sign in to your account</p>
         <Message v-if="verificationMessage" severity="success" size="small" class="mt-3">
           {{ verificationMessage }}
         </Message>
@@ -17,12 +17,12 @@
 
       <Form v-slot="$form" :initialValues :resolver @submit="onFormSubmit" :disabled="isLoading"  class="flex flex-column gap-4">
         <div class="flex flex-column gap-2">
-          <label for="username" class="font-semibold">Usuario</label>
-          <InputText 
+          <label for="username" class="font-semibold">Username</label>
+          <InputText
             id="username"
-            name="username" 
-            type="text" 
-            placeholder="Ingresa tu usuario" 
+            name="username"
+            type="text"
+            placeholder="Enter your username"
             fluid 
           />
           <Message v-if="$form.username?.invalid" severity="error" size="small">
@@ -31,11 +31,11 @@
         </div>
 
         <div class="flex flex-column gap-2">
-          <label for="password" class="font-semibold">Contraseña</label>
-          <Password 
+          <label for="password" class="font-semibold">Password</label>
+          <Password
             id="password"
-            name="password" 
-            placeholder="Ingresa tu contraseña" 
+            name="password"
+            placeholder="Enter your password"
             :feedback="false" 
             toggleMask 
             fluid 
@@ -49,14 +49,14 @@
           </Message>
           <div class="forgot-row">
             <router-link to="/forgot-password" class="forgot-link">
-              ¿Olvidaste tu contraseña?
+              Forgot your password?
             </router-link>
           </div>
         </div>
 
         <Button 
           type="submit" 
-          label="Iniciar Sesión" 
+          label="Sign In"
           icon="pi pi-sign-in"
           class="login-button"
           :loading="isLoading"
@@ -64,9 +64,9 @@
         />
 
         <div class="text-center mt-3">
-          <span class="text-color-secondary">¿No tienes cuenta? </span>
+          <span class="text-color-secondary">Don't have an account? </span>
           <router-link to="/register" class="register-link">
-            Regístrate aquí
+            Sign up here
           </router-link>
         </div>
       </Form>
@@ -96,7 +96,7 @@ const route = useRoute();
 const verificationMessage = ref('');
 onMounted(() => {
   if (route.query.verified) {
-    verificationMessage.value = 'Email verificado exitosamente. Ahora puedes iniciar sesión.';
+    verificationMessage.value = 'Email verified successfully. You can now sign in.';
   }
 });
 const initialValues = ref({
@@ -106,8 +106,8 @@ const initialValues = ref({
 const isLoading = ref(false);
 const resolver = zodResolver(
   z.object({
-    username: z.string().min(1, { message: 'El usuario es requerido.' }),
-    password: z.string().min(1, { message: 'La contraseña es requerida.' })
+    username: z.string().min(1, { message: 'Username is required.' }),
+    password: z.string().min(1, { message: 'Password is required.' })
   })
 );
 
@@ -135,17 +135,17 @@ const onFormSubmit = async(e) => {
   if (response.status === 403) {
     toast.add({
       severity: 'error',
-      summary: 'Error de inicio de sesión',
-      detail: 'Tu correo electrónico no ha sido verificado. Por favor, verifica tu correo para activar tu cuenta.',
+      summary: 'Login Error',
+      detail: 'Your email has not been verified. Please check your inbox to activate your account.',
       life: 3000
     });
   }
 
     if (response.status==200) {
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Inicio de sesión exitoso', 
-        detail: 'Bienvenido a Smart Audit',
+      toast.add({
+        severity: 'success',
+        summary: 'Login successful',
+        detail: 'Welcome to Smart Audit',
          life: 3000 
       });
       
@@ -158,10 +158,10 @@ const onFormSubmit = async(e) => {
       }, 2000);
     }
     else if (response.status==401){
-      toast.add({ 
-        severity: 'error', 
-        summary: 'Error de inicio de sesión', 
-        detail: 'Credenciales inválidas. Revisa tu usuario y contraseña.',
+      toast.add({
+        severity: 'error',
+        summary: 'Login Error',
+        detail: 'Invalid credentials. Check your username and password.',
          life: 3000 
       });
     }
@@ -170,10 +170,10 @@ const onFormSubmit = async(e) => {
   }
   catch (error) {
     console.error(error);
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error de inicio de sesión', 
-      detail: error.message || 'Revisa tus credenciales e inténtalo de nuevo',
+    toast.add({
+      severity: 'error',
+      summary: 'Login Error',
+      detail: error.message || 'Check your credentials and try again',
       life: 3000 
     });
 }finally{

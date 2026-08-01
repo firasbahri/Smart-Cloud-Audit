@@ -9,40 +9,40 @@
           <SmartAuditLogo :size="40" />
         </div>
         <h1>Smart Audit</h1>
-        <p class="subtitle">Nueva contraseña</p>
+        <p class="subtitle">New password</p>
       </div>
 
       <!-- invalid / missing token -->
       <div v-if="!token" class="error-box">
-        <p class="error-title">Enlace inválido</p>
+        <p class="error-title">Invalid link</p>
         <p class="error-text">
-          El enlace de restablecimiento no es válido o ha expirado.
-          Solicita uno nuevo.
+          The reset link is invalid or has expired.
+          Request a new one.
         </p>
         <router-link to="/forgot-password" class="action-link">
-          Solicitar nuevo enlace
+          Request new link
         </router-link>
       </div>
 
       <!-- success state -->
       <div v-else-if="done" class="success-box">
         <div class="success-icon">✓</div>
-        <p class="success-title">Contraseña actualizada</p>
+        <p class="success-title">Password updated</p>
         <p class="success-text">
-          Tu contraseña ha sido restablecida correctamente. Ya puedes iniciar sesión.
+          Your password has been reset successfully. You can now sign in.
         </p>
-        <router-link to="/login" class="action-link">Iniciar sesión</router-link>
+        <router-link to="/login" class="action-link">Sign in</router-link>
       </div>
 
       <!-- form -->
       <template v-else>
         <div class="flex flex-column gap-4">
           <div class="flex flex-column gap-2">
-            <label for="password" class="font-semibold">Nueva contraseña</label>
+            <label for="password" class="font-semibold">New password</label>
             <Password
               id="password"
               v-model="password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Minimum 8 characters"
               :feedback="true"
               toggleMask
               fluid
@@ -52,11 +52,11 @@
           </div>
 
           <div class="flex flex-column gap-2">
-            <label for="confirm" class="font-semibold">Confirmar contraseña</label>
+            <label for="confirm" class="font-semibold">Confirm password</label>
             <Password
               id="confirm"
               v-model="confirm"
-              placeholder="Repite la contraseña"
+              placeholder="Repeat your password"
               :feedback="false"
               toggleMask
               fluid
@@ -67,7 +67,7 @@
           </div>
 
           <Button
-            label="Restablecer contraseña"
+            label="Reset password"
             icon="pi pi-lock"
             class="login-button"
             :loading="isLoading"
@@ -77,7 +77,7 @@
 
           <div class="text-center mt-2">
             <router-link to="/login" class="back-link">
-              ← Volver al inicio de sesión
+              ← Back to sign in
             </router-link>
           </div>
         </div>
@@ -109,14 +109,14 @@ const done = ref(false)
 const validate = () => {
   errors.value = {}
   if (!password.value) {
-    errors.value.password = 'La contraseña es requerida.'
+    errors.value.password = 'Password is required.'
   } else if (password.value.length < 8) {
-    errors.value.password = 'La contraseña debe tener al menos 8 caracteres.'
+    errors.value.password = 'Password must be at least 8 characters.'
   }
   if (!confirm.value) {
-    errors.value.confirm = 'Confirma tu contraseña.'
+    errors.value.confirm = 'Please confirm your password.'
   } else if (password.value !== confirm.value) {
-    errors.value.confirm = 'Las contraseñas no coinciden.'
+    errors.value.confirm = 'Passwords do not match.'
   }
   return Object.keys(errors.value).length === 0
 }
@@ -145,7 +145,7 @@ const submit = async () => {
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: data.detail || 'El enlace ha expirado o no es válido.',
+        detail: data.detail || 'The link has expired or is invalid.',
         life: 5000
       })
     }
@@ -153,7 +153,7 @@ const submit = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'No se pudo restablecer la contraseña. Inténtalo de nuevo.',
+      detail: 'Could not reset password. Please try again.',
       life: 4000
     })
   } finally {

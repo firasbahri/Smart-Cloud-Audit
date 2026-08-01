@@ -29,12 +29,15 @@ class AWSFactory:
 
             if u['UserName'] == 'root':
                 logger.info("Creating root user")
+                # AccessKeysPresent is an int (0/1) from get_account_summary; convert to
+                # synthetic entries so check_root_access_keys can treat root like any user.
+                root_keys = [{'Status': 'Active'}] * u.get('AccessKeysPresent', 0)
                 userRoot = IAMUser(
                     id=u['UserId'],
                     name=u['UserName'],
                     service='IAM',
                     region='global',
-                    access_keys=u.get('AccessKeyMetadata', []),
+                    access_keys=root_keys,
                     date=u.get('CreateDate', ''),
                     managed_policies=[],
                     inline_policies=[],

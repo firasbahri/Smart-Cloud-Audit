@@ -5,16 +5,16 @@
     <div class="page-header flex align-items-center gap-3 mb-5">
       <Cloud :size="32" class="page-icon p-3 border-round-xl shadow-3" />
       <div>
-        <h2 class="m-0">Cuentas de Nube</h2>
-        <p class="subtitle m-0 mt-2">Gestiona tus cuentas de proveedores cloud vinculadas</p>
+        <h2 class="m-0">Cloud Accounts</h2>
+        <p class="subtitle m-0 mt-2">Manage your linked cloud provider accounts</p>
       </div>
     </div>
 
     <div class="accounts-section mb-5">
       <div class="flex justify-content-between align-items-center mb-4">
-        <h3 class="m-0">Cuentas Vinculadas</h3>
+        <h3 class="m-0">Linked Accounts</h3>
         <Button
-          label="Añadir Cuenta"
+          label="Add Account"
           icon="pi pi-plus"
           @click="showAddDialog = true"
           severity="success"
@@ -25,7 +25,7 @@
         <template #content>
           <div class="flex flex-column align-items-center justify-content-center py-6 gap-3">
             <i class="pi pi-spin pi-spinner text-500" style="font-size: 2rem"></i>
-            <h3 class="text-600 m-0">Cargando cuentas vinculadas...</h3>
+            <h3 class="text-600 m-0">Loading linked accounts...</h3>
           </div>
         </template>
       </Card>
@@ -36,10 +36,10 @@
         <template #content>
           <div class="flex flex-column align-items-center justify-content-center py-6">
             <CloudOff :size="64" class="text-400 mb-3" />
-            <h3 class="text-600 mb-2">No hay cuentas vinculadas</h3>
-            <p class="text-500 mb-4">Añade tu primera cuenta de nube para comenzar</p>
+            <h3 class="text-600 mb-2">No linked accounts</h3>
+            <p class="text-500 mb-4">Add your first cloud account to get started</p>
             <Button
-              label="Conectar Cuenta"
+              label="Connect Account"
               icon="pi pi-plus"
               @click="showAddDialog = true"
             />
@@ -94,7 +94,7 @@
                   </div>
                   <div class="account-detail flex align-items-center gap-2 text-sm">
                     <Calendar :size="16" class="text-500" />
-                    <span class="text-600 font-semibold">Vinculada:</span>
+                    <span class="text-600 font-semibold">Linked:</span>
                     <span class="text-500">{{ formatDate(account.created_at) }}</span>
                   </div>
                 </div>
@@ -133,8 +133,8 @@
             <div class="add-modal__title-group">
               <div class="add-modal__icon"><Cloud :size="15" /></div>
               <div>
-                <div class="add-modal__title">Añadir Cuenta</div>
-                <div class="add-modal__sub">Conecta una cuenta AWS</div>
+                <div class="add-modal__title">Add Account</div>
+                <div class="add-modal__sub">Connect an AWS account</div>
               </div>
             </div>
             <button class="add-modal__close" @click="closeDialog">✕</button>
@@ -143,14 +143,14 @@
           <div class="add-modal__body">
             <!-- Name -->
             <div class="af-field">
-              <label class="af-label">Nombre de la cuenta</label>
-              <input v-model="newAccount.name" class="af-input" :class="{ invalid: errors.name }" placeholder="ej. Producción AWS" />
+              <label class="af-label">Account name</label>
+              <input v-model="newAccount.name" class="af-input" :class="{ invalid: errors.name }" placeholder="e.g. Production AWS" />
               <span v-if="errors.name" class="af-error">{{ errors.name }}</span>
             </div>
 
             <!-- Provider -->
             <div class="af-field">
-              <label class="af-label">Proveedor</label>
+              <label class="af-label">Provider</label>
               <div class="prov-seg">
                 <button :class="['prov-btn', { active: selectedProvider === 'AWS' }]" @click="selectedProvider = 'AWS'">AWS</button>
                 <button class="prov-btn prov-btn--disabled" disabled title="Próximamente">Azure</button>
@@ -163,10 +163,10 @@
               <div class="arn-label-row">
                 <div class="arn-label-left">
                   <span class="af-label">Role ARN</span>
-                  <span class="req-pill">requerido</span>
+                  <span class="req-pill">required</span>
                 </div>
                 <button class="guide-link" @click="showGuide = !showGuide">
-                  ¿Cómo lo consigo? {{ showGuide ? '←' : '→' }}
+                  How do I get it? {{ showGuide ? '←' : '→' }}
                 </button>
               </div>
               <input v-model="newAccount.arn" class="af-input af-input--mono" :class="{ invalid: errors.arn }" placeholder="arn:aws:iam::..." />
@@ -180,7 +180,7 @@
                 <label class="auto-detect-toggle">
                   <input type="checkbox" v-model="autoDetectRegions" @change="autoDetectRegions && (newAccount.regions = [])" />
                   <span class="toggle-track"><span class="toggle-thumb" /></span>
-                  <span class="toggle-label">Auto-detectar</span>
+                  <span class="toggle-label">Auto-detect</span>
                 </label>
               </div>
               <MultiSelect
@@ -191,42 +191,42 @@
                 optionValue="value"
                 optionGroupLabel="label"
                 optionGroupChildren="items"
-                placeholder="Selecciona regiones..."
+                placeholder="Select regions..."
                 display="chip"
                 filter
-                filterPlaceholder="Buscar región..."
+                filterPlaceholder="Search region..."
                 class="w-full"
                 panelClass="add-account-multiselect-panel"
                 :invalid="errors.regions"
               />
               <div v-if="autoDetectRegions" class="auto-detect-warn">
                 <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
-                <span>Recorrerá ~30 regiones. El escaneo inicial será más lento.</span>
+                <span>Will scan ~30 regions. The initial scan will be slower.</span>
               </div>
               <span v-if="errors.regions && !autoDetectRegions" class="af-error">{{ errors.regions }}</span>
-              <span class="af-hint">Recomendación: selecciona tus regiones manualmente — ayuda a reducir el tiempo de escaneo de EC2.</span>
+              <span class="af-hint">Recommendation: select your regions manually — it helps reduce EC2 scan time.</span>
             </div>
 
             <!-- Description -->
             <div class="af-field">
-              <label class="af-label">Descripción <span class="af-optional">(opcional)</span></label>
-              <textarea v-model="newAccount.description" class="af-textarea" rows="2" placeholder="Describe el propósito de esta cuenta..." />
+              <label class="af-label">Description <span class="af-optional">(optional)</span></label>
+              <textarea v-model="newAccount.description" class="af-textarea" rows="2" placeholder="Describe the purpose of this account..." />
               <div class="ai-ctx-hint-box">
                 <i class="pi pi-sparkles" style="font-size:0.75rem;color:#a78bfa" />
-                <span>Se usará como contexto en el <strong>Análisis IA</strong>.</span>
+                <span>Will be used as context in <strong>AI Analysis</strong>.</span>
               </div>
             </div>
           </div>
 
           <div class="add-modal__footer">
-            <button class="af-btn-cancel" @click="closeDialog">Cancelar</button>
+            <button class="af-btn-cancel" @click="closeDialog">Cancel</button>
             <button
               class="af-btn-primary"
               :disabled="isConnecting || !selectedProvider || !newAccount.name || !newAccount.arn"
               @click="addAccount"
             >
               <i v-if="isConnecting" class="pi pi-spin pi-spinner" style="font-size:0.8rem" />
-              {{ isConnecting ? 'Conectando...' : 'Conectar cuenta' }}
+              {{ isConnecting ? 'Connecting...' : 'Connect account' }}
             </button>
           </div>
         </div>
@@ -235,7 +235,7 @@
         <div class="arn-guide" :class="{ open: showGuide }">
           <div class="arn-guide__inner">
             <div class="arn-guide__header">
-              <span class="arn-guide__title">Cómo obtener tu Role ARN</span>
+              <span class="arn-guide__title">How to get your Role ARN</span>
               <button class="add-modal__close" @click="showGuide = false">✕</button>
             </div>
 
@@ -261,7 +261,7 @@
               <div class="copy-box">
                 <span class="copy-value">{{ GUIDE_STEPS[guideStep - 1].copyValue }}</span>
                 <button class="copy-btn" @click="copyGuideStep(guideStep)">
-                  {{ copiedStep === guideStep ? '✓ Copiado' : '📋 Copiar' }}
+                  {{ copiedStep === guideStep ? '✓ Copied' : '📋 Copy' }}
                 </button>
               </div>
 
@@ -281,9 +281,9 @@
             </div>
 
             <div class="guide-nav">
-              <button class="af-btn-ghost" :disabled="guideStep === 1" @click="guideStep--">← Anterior</button>
-              <button v-if="guideStep < 5" class="af-btn-secondary" @click="guideStep++">Siguiente →</button>
-              <button v-else class="af-btn-primary af-btn-primary--sm" @click="showGuide = false">✓ Ya tengo mi ARN</button>
+              <button class="af-btn-ghost" :disabled="guideStep === 1" @click="guideStep--">← Previous</button>
+              <button v-if="guideStep < 5" class="af-btn-secondary" @click="guideStep++">Next →</button>
+              <button v-else class="af-btn-primary af-btn-primary--sm" @click="showGuide = false">✓ I have my ARN</button>
             </div>
           </div>
         </div>
@@ -294,39 +294,39 @@
     <Dialog
       v-model:visible="showScanConfirmDialog"
       modal
-      header="Scan reciente detectado"
+      header="Recent scan detected"
       :style="{ width: '28rem' }"
     >
       <div class="flex align-items-center gap-3 mb-3">
         <i class="pi pi-exclamation-triangle text-yellow-500" style="font-size: 2rem" />
         <p class="m-0">
-          Ya tienes un escaneo de menos de <strong>24 horas</strong> para esta cuenta.
-          ¿Quieres lanzar uno nuevo igualmente?
+          You already have a scan from less than <strong>24 hours</strong> ago for this account.
+          Do you want to launch a new one anyway?
         </p>
       </div>
       <template #footer>
-        <Button label="Cancelar" icon="pi pi-times" text @click="cancelScan" />
-        <Button label="Sí, escanear" icon="pi pi-refresh" severity="warning" @click="confirmScan" />
+        <Button label="Cancel" icon="pi pi-times" text @click="cancelScan" />
+        <Button label="Yes, scan" icon="pi pi-refresh" severity="warning" @click="confirmScan" />
       </template>
     </Dialog>
 
     <Dialog
       v-model:visible="showDeleteDialog"
       modal
-      header="Eliminar Cuenta"
+      header="Delete Account"
       :style="{ width: '30rem' }"
     >
       <div class="flex align-items-center gap-3 mb-3">
         <AlertTriangle :size="48" class="text-orange-500" />
         <p class="m-0">
-          ¿Estás seguro de que deseas eliminar la cuenta <strong>{{ selectedAccount?.name }}</strong>?
+          Are you sure you want to delete the account <strong>{{ selectedAccount?.name }}</strong>?
         </p>
       </div>
-      <p class="text-500 text-sm">Esta acción no se puede deshacer.</p>
+      <p class="text-500 text-sm">This action cannot be undone.</p>
 
       <template #footer>
-        <Button label="Cancelar" icon="pi pi-times" text @click="showDeleteDialog = false" />
-        <Button label="Eliminar" icon="pi pi-trash" severity="danger" @click="confirmDelete" />
+        <Button label="Cancel" icon="pi pi-times" text @click="showDeleteDialog = false" />
+        <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDelete" />
       </template>
     </Dialog>
 
@@ -339,7 +339,7 @@
             </div>
             <div>
               <div class="add-modal__title">{{ selectedAccount?.name }}</div>
-              <div class="add-modal__sub">Detalles de la cuenta</div>
+              <div class="add-modal__sub">Account details</div>
             </div>
           </div>
           <button class="add-modal__close" @click="showDetailsDialog = false">✕</button>
@@ -358,30 +358,30 @@
           </div>
 
           <div class="af-field">
-            <label class="af-label">ID de Cuenta</label>
+            <label class="af-label">Account ID</label>
             <div class="af-readonly">{{ selectedAccount.account_id || '-' }}</div>
           </div>
 
           <div class="af-field">
-            <label class="af-label">Fecha de Vinculación</label>
+            <label class="af-label">Linked date</label>
             <div class="af-readonly">{{ selectedAccount.created_at ? formatDate(selectedAccount.created_at) : '-' }}</div>
           </div>
 
           <div class="af-field">
-            <label class="af-label">Regiones AWS</label>
+            <label class="af-label">AWS Regions</label>
             <div class="af-readonly">
-              {{ (selectedAccount.regions && selectedAccount.regions.length) ? selectedAccount.regions.join(', ') : 'Auto-detectar (todas las regiones)' }}
+              {{ (selectedAccount.regions && selectedAccount.regions.length) ? selectedAccount.regions.join(', ') : 'Auto-detect (all regions)' }}
             </div>
           </div>
 
           <div class="af-field">
-            <label class="af-label">Descripción</label>
-            <div class="af-readonly">{{ selectedAccount.description || 'Sin descripción' }}</div>
+            <label class="af-label">Description</label>
+            <div class="af-readonly">{{ selectedAccount.description || 'No description' }}</div>
           </div>
         </div>
 
         <div class="add-modal__footer">
-          <button class="af-btn-cancel" @click="showDetailsDialog = false">Cerrar</button>
+          <button class="af-btn-cancel" @click="showDetailsDialog = false">Close</button>
         </div>
       </div>
     </div>
@@ -392,8 +392,8 @@
           <div class="add-modal__title-group">
             <div class="add-modal__icon"><Cloud :size="15" /></div>
             <div>
-              <div class="add-modal__title">Editar Cuenta</div>
-              <div class="add-modal__sub">{{ editAccount.name || 'Cuenta de nube' }}</div>
+              <div class="add-modal__title">Edit Account</div>
+              <div class="add-modal__sub">{{ editAccount.name || 'Cloud account' }}</div>
             </div>
           </div>
           <button class="add-modal__close" @click="closeEditDialog">✕</button>
@@ -402,8 +402,8 @@
         <div class="add-modal__body">
           <!-- Name -->
           <div class="af-field">
-            <label class="af-label">Nombre de la cuenta</label>
-            <input v-model="editAccount.name" class="af-input" :class="{ invalid: editErrors.name }" placeholder="Nombre de la cuenta" />
+            <label class="af-label">Account name</label>
+            <input v-model="editAccount.name" class="af-input" :class="{ invalid: editErrors.name }" placeholder="Account name" />
             <span v-if="editErrors.name" class="af-error">{{ editErrors.name }}</span>
           </div>
 
@@ -411,17 +411,17 @@
           <div class="af-field">
             <label class="af-label">Role ARN</label>
             <div class="af-readonly af-readonly--mono">{{ editAccount.arn }}</div>
-            <span class="af-hint">El ARN no puede modificarse. Elimina y vuelve a conectar la cuenta si necesitas cambiarlo.</span>
+            <span class="af-hint">The ARN cannot be changed. Delete and reconnect the account if you need to change it.</span>
           </div>
 
           <!-- Regions -->
           <div class="af-field">
             <div class="region-label-row">
-              <label class="af-label">Regiones AWS</label>
+              <label class="af-label">AWS Regions</label>
               <label class="auto-detect-toggle">
                 <input type="checkbox" v-model="editAutoDetectRegions" @change="editAutoDetectRegions && (editAccount.regions = [])" />
                 <span class="toggle-track"><span class="toggle-thumb" /></span>
-                <span class="toggle-label">Auto-detectar</span>
+                <span class="toggle-label">Auto-detect</span>
               </label>
             </div>
             <MultiSelect
@@ -432,36 +432,36 @@
               optionValue="value"
               optionGroupLabel="label"
               optionGroupChildren="items"
-              placeholder="Selecciona regiones..."
+              placeholder="Select regions..."
               display="chip"
               filter
-              filterPlaceholder="Buscar región..."
+              filterPlaceholder="Search region..."
               class="w-full"
               panelClass="add-account-multiselect-panel"
               :invalid="editErrors.regions"
             />
             <div v-if="editAutoDetectRegions" class="auto-detect-warn">
               <i class="pi pi-exclamation-triangle" style="font-size:0.75rem" />
-              <span>El próximo escaneo recorrerá ~30 regiones.</span>
+              <span>The next scan will cover ~30 regions.</span>
             </div>
             <span v-if="editErrors.regions && !editAutoDetectRegions" class="af-error">{{ editErrors.regions }}</span>
-            <span class="af-hint">Recomendación: selecciona tus regiones manualmente — ayuda a reducir el tiempo de escaneo de EC2.</span>
+            <span class="af-hint">Recommendation: select your regions manually — it helps reduce EC2 scan time.</span>
           </div>
 
           <!-- Description -->
           <div class="af-field">
-            <label class="af-label">Descripción <span class="af-optional">(opcional)</span></label>
-            <textarea v-model="editAccount.description" class="af-textarea" rows="2" placeholder="Describe el propósito de esta cuenta..." />
+            <label class="af-label">Description <span class="af-optional">(optional)</span></label>
+            <textarea v-model="editAccount.description" class="af-textarea" rows="2" placeholder="Describe the purpose of this account..." />
             <div class="ai-ctx-hint-box">
               <i class="pi pi-sparkles" style="font-size:0.75rem;color:#a78bfa" />
-              <span>Se usará como contexto en el <strong>Análisis IA</strong>.</span>
+              <span>Will be used as context in <strong>AI Analysis</strong>.</span>
             </div>
           </div>
         </div>
 
         <div class="add-modal__footer">
-          <button class="af-btn-cancel" @click="closeEditDialog">Cancelar</button>
-          <button class="af-btn-primary" :disabled="!editAccount.name" @click="saveEdit">Guardar cambios</button>
+          <button class="af-btn-cancel" @click="closeEditDialog">Cancel</button>
+          <button class="af-btn-primary" :disabled="!editAccount.name" @click="saveEdit">Save changes</button>
         </div>
       </div>
     </div>
@@ -495,7 +495,7 @@ import MultiSelect from 'primevue/multiselect'
 
 const AWS_REGIONS = [
   {
-    label: '🇺🇸 Estados Unidos',
+    label: '🇺🇸 United States',
     items: [
       { label: 'us-east-1 — N. Virginia', value: 'us-east-1' },
       { label: 'us-east-2 — Ohio', value: 'us-east-2' },
@@ -504,49 +504,49 @@ const AWS_REGIONS = [
     ]
   },
   {
-    label: '🇪🇺 Europa',
+    label: '🇪🇺 Europe',
     items: [
-      { label: 'eu-west-1 — Irlanda', value: 'eu-west-1' },
-      { label: 'eu-west-2 — Londres', value: 'eu-west-2' },
-      { label: 'eu-west-3 — París', value: 'eu-west-3' },
+      { label: 'eu-west-1 — Ireland', value: 'eu-west-1' },
+      { label: 'eu-west-2 — London', value: 'eu-west-2' },
+      { label: 'eu-west-3 — Paris', value: 'eu-west-3' },
       { label: 'eu-central-1 — Frankfurt', value: 'eu-central-1' },
-      { label: 'eu-central-2 — Zúrich', value: 'eu-central-2' },
-      { label: 'eu-north-1 — Estocolmo', value: 'eu-north-1' },
-      { label: 'eu-south-1 — Milán', value: 'eu-south-1' },
-      { label: 'eu-south-2 — España', value: 'eu-south-2' },
+      { label: 'eu-central-2 — Zurich', value: 'eu-central-2' },
+      { label: 'eu-north-1 — Stockholm', value: 'eu-north-1' },
+      { label: 'eu-south-1 — Milan', value: 'eu-south-1' },
+      { label: 'eu-south-2 — Spain', value: 'eu-south-2' },
     ]
   },
   {
-    label: '🌏 Asia Pacífico',
+    label: '🌏 Asia Pacific',
     items: [
-      { label: 'ap-southeast-1 — Singapur', value: 'ap-southeast-1' },
-      { label: 'ap-southeast-2 — Sídney', value: 'ap-southeast-2' },
-      { label: 'ap-southeast-3 — Yakarta', value: 'ap-southeast-3' },
+      { label: 'ap-southeast-1 — Singapore', value: 'ap-southeast-1' },
+      { label: 'ap-southeast-2 — Sydney', value: 'ap-southeast-2' },
+      { label: 'ap-southeast-3 — Jakarta', value: 'ap-southeast-3' },
       { label: 'ap-southeast-4 — Melbourne', value: 'ap-southeast-4' },
-      { label: 'ap-northeast-1 — Tokio', value: 'ap-northeast-1' },
-      { label: 'ap-northeast-2 — Seúl', value: 'ap-northeast-2' },
+      { label: 'ap-northeast-1 — Tokyo', value: 'ap-northeast-1' },
+      { label: 'ap-northeast-2 — Seoul', value: 'ap-northeast-2' },
       { label: 'ap-northeast-3 — Osaka', value: 'ap-northeast-3' },
-      { label: 'ap-south-1 — Bombay', value: 'ap-south-1' },
+      { label: 'ap-south-1 — Mumbai', value: 'ap-south-1' },
       { label: 'ap-south-2 — Hyderabad', value: 'ap-south-2' },
       { label: 'ap-east-1 — Hong Kong', value: 'ap-east-1' },
     ]
   },
   {
-    label: '🌎 América',
+    label: '🌎 Americas',
     items: [
-      { label: 'ca-central-1 — Canadá Central', value: 'ca-central-1' },
-      { label: 'ca-west-1 — Canadá Oeste', value: 'ca-west-1' },
+      { label: 'ca-central-1 — Canada Central', value: 'ca-central-1' },
+      { label: 'ca-west-1 — Canada West', value: 'ca-west-1' },
       { label: 'sa-east-1 — São Paulo', value: 'sa-east-1' },
-      { label: 'mx-central-1 — México', value: 'mx-central-1' },
+      { label: 'mx-central-1 — Mexico', value: 'mx-central-1' },
     ]
   },
   {
-    label: '🌍 Oriente Medio y África',
+    label: '🌍 Middle East & Africa',
     items: [
-      { label: 'me-south-1 — Baréin', value: 'me-south-1' },
-      { label: 'me-central-1 — EAU', value: 'me-central-1' },
+      { label: 'me-south-1 — Bahrain', value: 'me-south-1' },
+      { label: 'me-central-1 — UAE', value: 'me-central-1' },
       { label: 'il-central-1 — Israel', value: 'il-central-1' },
-      { label: 'af-south-1 — Ciudad del Cabo', value: 'af-south-1' },
+      { label: 'af-south-1 — Cape Town', value: 'af-south-1' },
     ]
   },
 ]
@@ -579,34 +579,34 @@ const SMART_AUDIT_ACCOUNT_ID = import.meta.env.VITE_SMART_AUDIT_ACCOUNT_ID || '4
 
 const GUIDE_STEPS = [
   {
-    title: 'Crea un nuevo rol en IAM',
-    description: "En la consola de AWS ve a IAM → Roles → 'Create role' y selecciona el tipo de entidad de confianza 'AWS account'.",
+    title: 'Create a new role in IAM',
+    description: "In the AWS console go to IAM → Roles → 'Create role' and select 'AWS account' as the trusted entity type.",
     copyValue: 'https://console.aws.amazon.com/iam/home#/roles',
-    placeholder: "IAM → Roles → 'Create role' → tipo de entidad 'AWS account'",
+    placeholder: "IAM → Roles → 'Create role' → entity type 'AWS account'",
   },
   {
-    title: 'Autoriza la cuenta de Smart Audit',
-    description: "Marca 'Another AWS account' e introduce nuestro ID de cuenta. Esto nos permite leer tus recursos de forma segura.",
+    title: 'Authorize the Smart Audit account',
+    description: "Select 'Another AWS account' and enter our account ID. This allows us to read your resources securely.",
     copyValue: SMART_AUDIT_ACCOUNT_ID,
-    placeholder: "Marcar 'Another AWS account' e introducir el ID de cuenta",
+    placeholder: "Select 'Another AWS account' and enter the account ID",
   },
   {
-    title: 'Asigna permisos de solo lectura',
-    description: "Busca y selecciona la política gestionada 'ReadOnlyAccess'. Smart Audit nunca modifica tus recursos — solo los lee.",
+    title: 'Assign read-only permissions',
+    description: "Search for and select the managed policy 'ReadOnlyAccess'. Smart Audit never modifies your resources — it only reads them.",
     copyValue: 'ReadOnlyAccess',
-    placeholder: "Buscar y seleccionar la política 'ReadOnlyAccess'",
+    placeholder: "Search and select the 'ReadOnlyAccess' policy",
   },
   {
-    title: 'Ponle un nombre al rol',
-    description: 'Dale un nombre identificable al rol para reconocerlo más tarde, y confirma la creación.',
+    title: 'Name the role',
+    description: 'Give the role an identifiable name so you can recognize it later, then confirm the creation.',
     copyValue: 'SmartAuditRole',
-    placeholder: 'Campo de nombre del rol y confirmar creación',
+    placeholder: 'Role name field and confirm creation',
   },
   {
-    title: 'Copia el ARN del rol',
-    description: 'Abre el rol recién creado. En la parte superior verás su ARN — cópialo y pégalo en el campo del formulario.',
+    title: 'Copy the role ARN',
+    description: 'Open the newly created role. At the top you will see its ARN — copy it and paste it into the form field.',
     copyValue: `arn:aws:iam::${SMART_AUDIT_ACCOUNT_ID}:role/SmartAuditRole`,
-    placeholder: 'Pantalla del rol creado mostrando su ARN arriba',
+    placeholder: 'Newly created role screen showing its ARN at the top',
   },
 ]
 
@@ -675,12 +675,12 @@ onUnmounted(() => {
 
 const menuItems = ref([
   {
-    label: 'Ver detalles',
+    label: 'View details',
     icon: 'pi pi-eye',
     command: () => openDetails(selectedAccount.value)
   },
   {
-    label: 'Editar',
+    label: 'Edit',
     icon: 'pi pi-pencil',
     command: () => openEdit(selectedAccount.value)
   },
@@ -688,7 +688,7 @@ const menuItems = ref([
     separator: true
   },
   {
-    label: 'Eliminar',
+    label: 'Delete',
     icon: 'pi pi-trash',
     command: () => {
       showDeleteDialog.value = true
@@ -716,7 +716,7 @@ const getProviderSeverity = (provider) => {
 
 
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('es-ES', {
+  return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -741,20 +741,20 @@ const validateForm = () => {
   let isValid = true
 
   if (!newAccount.name.trim()) {
-    errors.name = 'El nombre es requerido'
+    errors.name = 'Name is required'
     isValid = false
   }
 
   if (!newAccount.arn.trim()) {
-    errors.arn = 'El ARN es requerido'
+    errors.arn = 'ARN is required'
     isValid = false
   } else if (!/^arn:aws:iam::\d{12}:role\/.+$/.test(newAccount.arn.trim())) {
-    errors.arn = 'Formato: arn:aws:iam::<ID_cuenta>:role/<nombre>'
+    errors.arn = 'Format: arn:aws:iam::<account_id>:role/<name>'
     isValid = false
   }
 
   if (!autoDetectRegions.value && !newAccount.regions.length) {
-    errors.regions = 'Selecciona al menos una región'
+    errors.regions = 'Select at least one region'
     isValid = false
   }
 
@@ -782,9 +782,9 @@ const isAccountScanning = (accountId) => {
 
 const getScanButtonLabel = (accountId) => {
   const progress = Number(scanStore.scanProgressByAccount[accountId] ?? 0)
-  if (isAccountScanning(accountId)) return 'Escaneando...'
-  if (progress === 100) return 'Escaneo completado'
-  return 'Escanear'
+  if (isAccountScanning(accountId)) return 'Scanning...'
+  if (progress === 100) return 'Scan completed'
+  return 'Scan'
 }
 
 const shouldShowProgressBar = (accountId) => {
@@ -807,8 +807,8 @@ const addAccount = async () => {
     })
     toast.add({
       severity: 'success',
-      summary: 'Cuenta Añadida',
-      detail: `La cuenta ${accountData.name} se ha vinculado exitosamente`,
+      summary: 'Account Added',
+      detail: `The account ${accountData.name} has been linked successfully`,
       life: 3000
     })
   } catch (error) {
@@ -861,7 +861,7 @@ const confirmDelete = async () => {
     await cloudAccountsStore.removeCloudAccount(id)
     showDeleteDialog.value = false
     selectedAccount.value = null
-    toast.add({ severity: 'info', summary: 'Cuenta Eliminada', detail: 'La cuenta ha sido eliminada correctamente', life: 3000 })
+    toast.add({ severity: 'info', summary: 'Account Deleted', detail: 'The account has been deleted successfully', life: 3000 })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 3000 })
   }
@@ -890,12 +890,12 @@ const validateEditForm = () => {
   let isValid = true
 
   if (!editAccount.name.trim()) {
-    editErrors.name = 'El nombre es requerido'
+    editErrors.name = 'Name is required'
     isValid = false
   }
 
   if (!editAutoDetectRegions.value && !editAccount.regions.length) {
-    editErrors.regions = 'Selecciona al menos una región'
+    editErrors.regions = 'Select at least one region'
     isValid = false
   }
 
@@ -918,8 +918,8 @@ const saveEdit = async () => {
     })
     toast.add({
       severity: 'success',
-      summary: 'Cuenta Actualizada',
-      detail: `La cuenta ${editAccount.name} se ha actualizado exitosamente`,
+      summary: 'Account Updated',
+      detail: `The account ${editAccount.name} has been updated successfully`,
       life: 3000
     })
     showEditDialog.value = false

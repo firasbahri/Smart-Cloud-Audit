@@ -8,17 +8,17 @@
           <SmartAuditLogo :size="40" />
         </div>
         <h1>Smart Audit</h1>
-        <p class="subtitle">Crea tu cuenta</p>
+        <p class="subtitle">Create your account</p>
       </div>
 
       <Form v-slot="$form" :initialValues :resolver @submit="register" :disabled="isLoading" class="flex flex-column gap-4"  > 
         <div class="flex flex-column gap-2">
-          <label for="username" class="font-semibold">Usuario</label>
-          <InputText 
+          <label for="username" class="font-semibold">Username</label>
+          <InputText
             id="username"
-            name="username" 
-            type="text" 
-            placeholder="Elige un nombre de usuario" 
+            name="username"
+            type="text"
+            placeholder="Choose a username"
             fluid 
           />
           <Message v-if="$form.username?.invalid" severity="error" size="small">
@@ -27,7 +27,7 @@
         </div>
 
         <div class="flex flex-column gap-2">
-          <label for="email" class="font-semibold">Correo electrónico</label>
+          <label for="email" class="font-semibold">Email address</label>
           <InputText 
             id="email"
             name="email" 
@@ -41,17 +41,17 @@
         </div>
 
         <div class="flex flex-column gap-2">
-          <label for="password" class="font-semibold">Contraseña</label>
-          <Password 
+          <label for="password" class="font-semibold">Password</label>
+          <Password
             id="password"
-            name="password" 
-            placeholder="Crea una contraseña segura" 
+            name="password"
+            placeholder="Create a strong password"
             toggleMask 
             fluid 
           >
             <template #footer>
               <p class="password-hint">
-                Debe contener mínimo 8 caracteres, mayúsculas, minúsculas y números
+                Must contain at least 8 characters, uppercase, lowercase and numbers
               </p>
             </template>
           </Password>
@@ -65,11 +65,11 @@
         </div>
 
         <div class="flex flex-column gap-2">
-          <label for="confirmPassword" class="font-semibold">Confirmar contraseña</label>
-          <Password 
+          <label for="confirmPassword" class="font-semibold">Confirm password</label>
+          <Password
             id="confirmPassword"
-            name="confirmPassword" 
-            placeholder="Repite tu contraseña" 
+            name="confirmPassword"
+            placeholder="Repeat your password"
             :feedback="false"
             toggleMask 
             fluid 
@@ -81,7 +81,7 @@
 
         <Button 
           type="submit" 
-          label="Crear cuenta" 
+          label="Create account"
           icon="pi pi-user-plus"
           class="register-button"
           :loading="isLoading"
@@ -89,9 +89,9 @@
         />
 
         <div class="text-center mt-3">
-          <span class="text-color-secondary">¿Ya tienes cuenta? </span>
+          <span class="text-color-secondary">Already have an account? </span>
           <router-link to="/login" class="login-link">
-            Inicia sesión aquí
+            Sign in here
           </router-link>
         </div>
       </Form>
@@ -130,34 +130,34 @@ const resolver = zodResolver(
   z.object({
     username: z
       .string()
-      .min(3, { message: 'El usuario debe tener al menos 3 caracteres.' })
-      .max(20, { message: 'El usuario no puede exceder 20 caracteres.' })
-      .regex(/^[a-zA-Z0-9_]+$/, { 
-        message: 'Solo letras, números y guiones bajos.' 
+      .min(3, { message: 'Username must be at least 3 characters.' })
+      .max(20, { message: 'Username cannot exceed 20 characters.' })
+      .regex(/^[a-zA-Z0-9_]+$/, {
+        message: 'Only letters, numbers and underscores.'
       }),
     email: z
       .string()
-      .min(1, { message: 'El correo es requerido.' })
-      .email({ message: 'Formato de correo inválido.' }),
+      .min(1, { message: 'Email is required.' })
+      .email({ message: 'Invalid email format.' }),
     password: z
       .string()
-      .min(8, { message: 'Mínimo 8 caracteres.' })
-      .max(50, { message: 'Máximo 50 caracteres.' })
+      .min(8, { message: 'Minimum 8 characters.' })
+      .max(50, { message: 'Maximum 50 characters.' })
       .refine((value) => /[a-z]/.test(value), {
-        message: 'Debe tener una letra minúscula.'
+        message: 'Must contain a lowercase letter.'
       })
       .refine((value) => /[A-Z]/.test(value), {
-        message: 'Debe tener una letra mayúscula.'
+        message: 'Must contain an uppercase letter.'
       })
       .refine((value) => /\d/.test(value), {
-        message: 'Debe tener un número.'
+        message: 'Must contain a number.'
       }),
     confirmPassword: z
       .string()
-      .min(1, { message: 'Debes confirmar tu contraseña.' })
+      .min(1, { message: 'You must confirm your password.' })
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Las contraseñas no coinciden.',
+    message: 'Passwords do not match.',
     path: ['confirmPassword']
   })
 );
@@ -178,7 +178,7 @@ const register = async (e) => {
     })
     
     if (!response.ok) {
-      let errorMessage = 'Error desconocido';
+      let errorMessage = 'Unknown error';
       const text = await response.text();
       try {
         const errorData = JSON.parse(text);
@@ -188,10 +188,10 @@ const register = async (e) => {
       }
       throw new Error(errorMessage);
     }
-      toast.add({ 
-      severity: 'success', 
-      summary: 'Verificación enviada', 
-      detail: 'Por favor, verifica tu correo electrónico para activar tu cuenta.',
+      toast.add({
+      severity: 'success',
+      summary: 'Verification sent',
+      detail: 'Please check your email to activate your account.',
       life: 3000 
     });
       setTimeout(() => {
@@ -200,10 +200,10 @@ const register = async (e) => {
 
   } catch (error) {
     console.error(error);
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error de registro', 
-      detail: error.message || 'Fallo al crear la cuenta',
+    toast.add({
+      severity: 'error',
+      summary: 'Registration error',
+      detail: error.message || 'Failed to create account',
       life: 3000 
     });
   } finally {

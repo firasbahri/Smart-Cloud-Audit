@@ -3,8 +3,8 @@
 		<div class="page-header flex align-items-center gap-3 mb-5">
 			<i class="pi pi-shield page-icon p-3 border-round-xl shadow-3" />
 			<div>
-				<h2 class="m-0">Auditoria de Seguridad</h2>
-				<p class="subtitle m-0 mt-2">Ejecuta auditorias estaticas o con IA sobre la cuenta escaneada</p>
+				<h2 class="m-0">Security Audit</h2>
+				<p class="subtitle m-0 mt-2">Run static or AI audits on the scanned account</p>
 			</div>
 		</div>
 
@@ -12,7 +12,7 @@
 			<template #content>
 				<div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-3">
 					<div class="flex flex-column gap-2">
-						<span class="account-label">Cuenta a auditar</span>
+						<span class="account-label">Account to audit</span>
 						<span class="account-value">{{ activeAccountLabel }}</span>
 					</div>
 					<div class="audit-controls">
@@ -22,18 +22,18 @@
 								:disabled="isLoadingAny"
 								@click="auditMode = 'static'"
 							>
-								<i class="pi pi-search" /> Estático
+								<i class="pi pi-search" /> Static
 							</button>
 							<button
 								:class="['toggle-btn', 'ai-btn', { active: auditMode === 'ai' }]"
 								:disabled="isLoadingAny"
 								@click="auditMode = 'ai'"
 							>
-								<i class="pi pi-sparkles" /> Análisis IA
+								<i class="pi pi-sparkles" /> AI Analysis
 							</button>
 						</div>
 						<Button
-							:label="auditMode === 'ai' ? 'Ejecutar IA' : 'Ejecutar'"
+							:label="auditMode === 'ai' ? 'Run AI' : 'Run'"
 							:icon="auditMode === 'ai' ? 'pi pi-sparkles' : 'pi pi-search'"
 							:loading="isLoadingAny"
 							:disabled="isLoadingAny || !canRunAudit"
@@ -49,15 +49,15 @@
 			<div class="ctx-panel-header">
 				<div class="ctx-panel-title">
 					<i class="pi pi-sparkles" style="color:#a78bfa" />
-					<span>Contexto IA activo</span>
-					<span class="ctx-sections-badge">{{ filledSections }}/{{ totalSections }} secciones</span>
+					<span>Active AI context</span>
+					<span class="ctx-sections-badge">{{ filledSections }}/{{ totalSections }} sections</span>
 				</div>
-				<button class="ctx-edit-link" @click="router.push('/app/inventory')">Editar contexto →</button>
+				<button class="ctx-edit-link" @click="router.push('/app/inventory')">Edit context →</button>
 			</div>
 			<p v-if="cloudAccountsStore.selectedAccount?.description" class="ctx-business">
-				<strong>Negocio:</strong> {{ cloudAccountsStore.selectedAccount.description }}
+				<strong>Business:</strong> {{ cloudAccountsStore.selectedAccount.description }}
 			</p>
-			<p v-else class="ctx-business ctx-empty-hint">Sin descripción de negocio — añádela al editar la cuenta.</p>
+			<p v-else class="ctx-business ctx-empty-hint">No business description — add it when editing the account.</p>
 			<div class="ctx-pills">
 				<span
 					v-for="g in contextGroups"
@@ -67,13 +67,13 @@
 					<span v-if="g.status === 'full'">✓ </span>{{ g.label }}
 					<span v-if="g.status === 'full'"> · {{ g.filled }}</span>
 					<span v-else-if="g.status === 'partial'"> · {{ g.filled }}/{{ g.total }}</span>
-					<span v-else> · sin contexto</span>
+					<span v-else> · no context</span>
 				</span>
 			</div>
 		</div>
 
 		<Message v-if="!hasResources" severity="warn" :closable="false" class="mb-4">
-			No hay recursos para auditar en la cuenta seleccionada.
+			No resources to audit in the selected account.
 		</Message>
 
 		<Card v-if="hasResources" class="vuln-card">
@@ -84,12 +84,12 @@
 						<div class="empty-icon-box">
 							<i class="pi pi-shield" style="font-size:1.25rem" />
 						</div>
-						<h3 class="empty-title">Aún no hay hallazgos</h3>
+						<h3 class="empty-title">No findings yet</h3>
 						<p class="empty-hint">
-							Elige <span style="color:#3fb950;font-weight:600">Estático</span> o
-							<span style="color:#a78bfa;font-weight:600">Análisis IA</span>
-							arriba y pulsa <strong style="color:#e6edf3">Ejecutar</strong>.
-							Los resultados aparecerán aquí en tiempo real.
+							Choose <span style="color:#3fb950;font-weight:600">Static</span> or
+							<span style="color:#a78bfa;font-weight:600">AI Analysis</span>
+							above and click <strong style="color:#e6edf3">Run</strong>.
+							Results will appear here in real time.
 						</p>
 					</div>
 				</div>
@@ -102,7 +102,7 @@
 							:disabled="isLoadingAi"
 							@click="activeTab = 'static'"
 						>
-							Estático
+							Static
 							<span v-if="staticVulnerabilities.length" class="seg-badge">{{ staticVulnerabilities.length }}</span>
 						</button>
 						<button
@@ -110,14 +110,21 @@
 							:disabled="isLoadingAi"
 							@click="activeTab = 'ai'"
 						>
-							<i class="pi pi-sparkles" style="font-size: 0.68rem" /> IA
+							<i class="pi pi-sparkles" style="font-size: 0.68rem" /> AI
 							<span v-if="aiVulnerabilities.length" class="seg-badge">{{ aiVulnerabilities.length }}</span>
 						</button>
 					</div>
 					<div class="filter-right">
-						<small class="text-muted">{{ currentTotal }} hallazgos</small>
+						<small class="filter-count">
+							{{ activeFiltered.length }} findings
+							<span v-if="isFiltered" class="filter-dim">· of {{ currentTotal }}</span>
+						</small>
 						<select v-model="selectedSeverity" class="sev-select">
 							<option v-for="opt in severityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+						</select>
+						<select v-model="resourceFilter" class="sev-select">
+							<option value="all">All types</option>
+							<option v-for="rt in resourceOptions" :key="rt" :value="rt">{{ rt }}</option>
 						</select>
 					</div>
 				</div>
@@ -125,10 +132,10 @@
 				<div v-if="activeTab === 'ai' && pagedVulns.length" class="ai-notice-banner" role="note">
 					<span class="ai-notice-icon pi pi-sparkles" aria-hidden="true" />
 					<p class="ai-notice-text">
-						<strong class="ai-notice-lead">Hallazgos generados por IA.</strong>
-						Son interpretaciones de un modelo de lenguaje sobre tu configuración y pueden variar entre ejecuciones o contener imprecisiones (falsos positivos/negativos).
-						<strong class="ai-notice-action">Verifica cada hallazgo antes de actuar</strong>
-						— a diferencia del análisis estático, no son deterministas, y no sustituyen el criterio de un profesional de seguridad.
+						<strong class="ai-notice-lead">AI-generated findings.</strong>
+						These are interpretations by a language model of your configuration and may vary between runs or contain inaccuracies (false positives/negatives).
+						<strong class="ai-notice-action">Verify each finding before acting</strong>
+						— unlike static analysis, they are not deterministic and do not replace the judgement of a security professional.
 					</p>
 				</div>
 
@@ -143,22 +150,16 @@
 								{{ vuln.severity }}
 							</div>
 							<div class="vi-center">
-								<div class="vi-name-row">
-									<div class="vi-name" :class="{ 'vi-name--ai': activeTab === 'ai' }">
-										<span v-if="activeTab === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name }}
-									</div>
-									<span v-if="activeTab === 'ai'" class="ai-row-badge">✦ IA</span>
+								<div class="vi-name" :class="{ 'vi-name--ai': activeTab === 'ai' }">
+									<span v-if="activeTab === 'ai'" aria-hidden="true">✦ </span>{{ vuln.name }}
 								</div>
 								<div class="vi-resource">{{ vuln.resource_id }}</div>
-							</div>
-							<div :class="['vi-origin', activeTab === 'ai' ? 'vi-origin--ai' : 'vi-origin--static']">
-								{{ activeTab === 'ai' ? '✦ IA' : 'Estático' }}
 							</div>
 						</div>
 
 						<div class="vi-body">
 							<div class="vi-why">
-								<span class="vi-label">Por qué es un problema</span>
+								<span class="vi-label">Why this is a problem</span>
 								<p class="vi-why-text">{{ vuln.description }}</p>
 							</div>
 
@@ -167,7 +168,7 @@
 								class="rem-gen-btn"
 								@click="handleGenerate(vuln.id)"
 							>
-								<span aria-hidden="true">✦</span> Generar solución con IA
+								<span aria-hidden="true">✦</span> Generate fix with AI
 							</button>
 
 							<div
@@ -177,15 +178,15 @@
 								aria-live="polite"
 							>
 								<span class="rem-spin" aria-hidden="true">✦</span>
-								<span>Generando comando para tu recurso...</span>
+								<span>Generating command for your resource...</span>
 							</div>
 
 							<div v-else class="rem-done">
 								<div class="rem-saved-pill">
-									<span aria-hidden="true">✦</span> Generada por IA · guardada
+									<span aria-hidden="true">✦</span> AI-generated · saved
 								</div>
 
-								<span class="vi-label">Cómo solucionarlo</span>
+								<span class="vi-label">How to fix it</span>
 
 								<ol class="rem-steps">
 									<li v-for="(step, i) in getRemData(vuln.id).steps" :key="i" class="rem-step">
@@ -202,7 +203,7 @@
 											:class="['rem-copy-btn', { 'rem-copy-btn--copied': copiedVuln[vuln.id] }]"
 											@click="copyVulnCommand(vuln.id)"
 										>
-											{{ copiedVuln[vuln.id] ? '✓ Copiado' : 'Copiar' }}
+											{{ copiedVuln[vuln.id] ? '✓ Copied' : 'Copy' }}
 										</button>
 									</div>
 									<div class="rem-code-body">
@@ -213,7 +214,7 @@
 								<!-- Disclaimer -->
 								<div class="rem-disclaimer" role="note">
 									<span class="rem-disc-icon" aria-hidden="true">⚠</span>
-									<span>Comando sugerido por IA — revísalo antes de ejecutar. Smart Audit no aplica cambios (solo lectura).</span>
+									<span>AI-suggested command — review it before executing. Smart Audit does not apply changes (read-only).</span>
 								</div>
 
 							</div>
@@ -222,7 +223,7 @@
 				</div>
 
 				<Message v-else-if="activeFiltered.length === 0 && currentTotal > 0" severity="info" :closable="false" class="mt-3">
-					No hay vulnerabilidades para la severidad seleccionada.
+					No findings match the selected filters.
 				</Message>
 
 				<div v-if="totalPages > 1" class="paginator">
@@ -248,28 +249,28 @@
 		<div class="ai-modal">
 			<div class="ai-modal__header">
 				<div class="ai-modal__icon"><i class="pi pi-sparkles" /></div>
-				<div class="ai-modal__title">Ya tienes una auditoría estática para esta cuenta</div>
-				<div class="ai-modal__subtitle">¿Cómo quieres ejecutar el análisis con IA?</div>
+				<div class="ai-modal__title">You already have a static audit for this account</div>
+				<div class="ai-modal__subtitle">How do you want to run the AI analysis?</div>
 			</div>
 			<div class="ai-modal__options">
 				<button class="ai-opt ai-opt--base" @click="executeAiAudit(auditStore.id || auditStore.auditIdByAccount[accountId])">
 					<div class="ai-opt__icon"><i class="pi pi-link" /></div>
 					<div class="ai-opt__content">
-						<div class="ai-opt__label">Usar auditoría estática como base</div>
-						<div class="ai-opt__desc">La IA complementa los hallazgos estáticos sin duplicarlos</div>
+						<div class="ai-opt__label">Use static audit as base</div>
+						<div class="ai-opt__desc">AI complements the static findings without duplicating them</div>
 					</div>
 					<i class="pi pi-chevron-right ai-opt__arrow" />
 				</button>
 				<button class="ai-opt ai-opt--scratch" @click="executeAiAudit(null)">
 					<div class="ai-opt__icon"><i class="pi pi-sparkles" /></div>
 					<div class="ai-opt__content">
-						<div class="ai-opt__label">Analizar todo desde cero con IA</div>
-						<div class="ai-opt__desc">La IA analiza los recursos de forma completamente independiente</div>
+						<div class="ai-opt__label">Analyze everything from scratch with AI</div>
+						<div class="ai-opt__desc">AI analyzes resources completely independently</div>
 					</div>
 					<i class="pi pi-chevron-right ai-opt__arrow" />
 				</button>
 			</div>
-			<button class="ai-modal__cancel" @click="aiModeDialog = false">Cancelar</button>
+			<button class="ai-modal__cancel" @click="aiModeDialog = false">Cancel</button>
 		</div>
 	</div>
 </template>
@@ -303,6 +304,7 @@ const aiVulnerabilities = computed(() =>
 )
 const activeTab = ref('static')
 const selectedSeverity = ref('ALL')
+const resourceFilter = ref('all')
 const isLoadingStatic = ref(false)
 const isLoadingAi = ref(false)
 const auditMode = ref('static')
@@ -313,7 +315,7 @@ const copiedVuln = reactive({})
 
 const getRemState = (vulnId) => remediationStates[vulnId] || 'idle'
 
-const getRemData = (vulnId) => remediationData[vulnId] || { steps: [], command: '', cmdLabel: 'AWS CLI · sugerido por IA' }
+const getRemData = (vulnId) => remediationData[vulnId] || { steps: [], command: '', cmdLabel: 'AWS CLI · AI-suggested' }
 
 // Parses "1- Paso uno\n2- Paso dos" → ['Paso uno', 'Paso dos']
 const parseRemediationSteps = (text) => {
@@ -336,7 +338,7 @@ const handleGenerate = async (vulnId) => {
 		remediationData[vulnId] = {
 			steps: steps.length > 0
 				? steps
-				: ['Consulta la documentación oficial de AWS para este tipo de vulnerabilidad.'],
+				: ['Check the official AWS documentation for this type of vulnerability.'],
 			command: cmd,
 			cmdLabel: cmd ? 'AWS CLI · generado por IA' : '',
 		}
@@ -354,7 +356,7 @@ const copyVulnCommand = async (vulnId) => {
 		await navigator.clipboard.writeText(cmd)
 		copiedVuln[vulnId] = true
 		setTimeout(() => { copiedVuln[vulnId] = false }, 1500)
-	} catch { /* clipboard no disponible */ }
+	} catch { /* clipboard not available */ }
 }
 
 const SEV_COLORS = { CRITICAL: '#f85149', HIGH: '#e3b341', MEDIUM: '#388bfd', LOW: '#3fb950' }
@@ -364,7 +366,7 @@ const sevBadgeStyle = (severity) => {
 }
 
 const severityOptions = [
-	{ label: 'Todas', value: 'ALL' },
+	{ label: 'All', value: 'ALL' },
 	{ label: 'Critical', value: 'CRITICAL' },
 	{ label: 'High', value: 'HIGH' },
 	{ label: 'Medium', value: 'MEDIUM' },
@@ -382,7 +384,7 @@ const totalResources = computed(() =>
 const hasResources = computed(() => totalResources.value > 0)
 
 const activeAccountLabel = computed(() =>
-	cloudAccountsStore.selectedAccount?.name || 'Sin cuenta seleccionada'
+	cloudAccountsStore.selectedAccount?.name || 'No account selected'
 )
 
 const resolvedScanId = computed(() => {
@@ -423,14 +425,25 @@ const filledSections = computed(() => {
 
 const totalSections = computed(() => 1 + contextGroups.value.length)
 
+const resourceOptions = computed(() => {
+	const source = activeTab.value === 'ai' ? aiVulnerabilities.value : staticVulnerabilities.value
+	return [...new Set(source.map(v => v.resource_type).filter(Boolean))].sort()
+})
+
+const isFiltered = computed(() => selectedSeverity.value !== 'ALL' || resourceFilter.value !== 'all')
+
 const filteredStatic = computed(() => {
-	if (selectedSeverity.value === 'ALL') return staticVulnerabilities.value
-	return staticVulnerabilities.value.filter(v => String(v.severity || '').toUpperCase() === selectedSeverity.value)
+	let list = staticVulnerabilities.value
+	if (selectedSeverity.value !== 'ALL') list = list.filter(v => String(v.severity || '').toUpperCase() === selectedSeverity.value)
+	if (resourceFilter.value !== 'all') list = list.filter(v => v.resource_type === resourceFilter.value)
+	return list
 })
 
 const filteredAi = computed(() => {
-	if (selectedSeverity.value === 'ALL') return aiVulnerabilities.value
-	return aiVulnerabilities.value.filter(v => String(v.severity || '').toUpperCase() === selectedSeverity.value)
+	let list = aiVulnerabilities.value
+	if (selectedSeverity.value !== 'ALL') list = list.filter(v => String(v.severity || '').toUpperCase() === selectedSeverity.value)
+	if (resourceFilter.value !== 'all') list = list.filter(v => v.resource_type === resourceFilter.value)
+	return list
 })
 
 const PAGE_SIZE = 10
@@ -461,7 +474,7 @@ const pageInfo = computed(() => {
 	if (!total) return ''
 	const start = (currentPage.value - 1) * PAGE_SIZE + 1
 	const end = Math.min(currentPage.value * PAGE_SIZE, total)
-	return `${start}–${end} de ${total}`
+	return `${start}–${end} of ${total}`
 })
 
 const normalizeVulnerability = (item, index, mode) => ({
@@ -470,6 +483,7 @@ const normalizeVulnerability = (item, index, mode) => ({
 	description: item?.description || item?.detail || 'Sin descripcion',
 	severity: String(item?.severity || 'LOW').toUpperCase(),
 	resource_id: item?.resource_id || item?.resourceId || 'N/A',
+	resource_type: item?.resource_type || item?.resourceType || '',
 	remediation: item?.remediation || item?.recommendation || item?.cli_command || '',
 	origin: item?.origin || (mode === 'ai' ? 'AI Analysis' : 'Static Analysis')
 })
@@ -478,12 +492,19 @@ watch(accountId, () => {
 	auditStore.clearData()
 	activeTab.value = 'static'
 	currentPage.value = 1
-	// Reset remediation state when account changes
+	selectedSeverity.value = 'ALL'
+	resourceFilter.value = 'all'
 	Object.keys(remediationStates).forEach(k => delete remediationStates[k])
 	Object.keys(remediationData).forEach(k => delete remediationData[k])
 })
 
-watch([activeTab, selectedSeverity], () => { currentPage.value = 1 })
+watch(activeTab, () => {
+	currentPage.value = 1
+	selectedSeverity.value = 'ALL'
+	resourceFilter.value = 'all'
+})
+
+watch([selectedSeverity, resourceFilter], () => { currentPage.value = 1 })
 
 // auditMode (qué voy a ejecutar) sincroniza la vista de resultados,
 // pero no al revés: navegar resultados no debe cambiar qué se va a ejecutar.
@@ -606,7 +627,9 @@ const executeAiAudit = async (auditId) => {
 	padding: 0.05rem 0.4rem; min-width: 18px;
 }
 
-.filter-right { display: flex; align-items: center; gap: 10px; }
+.filter-right { display: flex; align-items: center; gap: 8px; }
+.filter-count { color: #94a3b8; white-space: nowrap; }
+.filter-dim   { color: #4d5566; }
 
 .sev-select {
 	background: #1c2128; border: 1px solid #2d333b; color: #e6edf3;
@@ -691,16 +714,6 @@ const executeAiAudit = async (auditId) => {
 	text-overflow: ellipsis;
 }
 
-.vi-origin {
-	flex-shrink: 0;
-	font-size: 9px;
-	font-weight: 600;
-	padding: 3px 8px;
-	border-radius: 10px;
-	white-space: nowrap;
-}
-.vi-origin--ai     { background: rgba(167,139,250,0.15); color: #a78bfa; }
-.vi-origin--static { background: rgba(63,185,80,0.12);  color: #3fb950; }
 
 /* Body */
 .vi-body {
@@ -1067,26 +1080,4 @@ const executeAiAudit = async (auditId) => {
 .ai-notice-lead   { color: #a78bfa; font-weight: 600; }
 .ai-notice-action { color: #e6edf3; font-weight: 600; }
 
-/* ── Badge inline IA por hallazgo ── */
-.vi-name-row {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	min-width: 0;
-}
-
-.vi-name-row .vi-name {
-	min-width: 0;
-}
-
-.ai-row-badge {
-	flex-shrink: 0;
-	font-size: 9px;
-	font-weight: 600;
-	color: #a78bfa;
-	background: rgba(167, 139, 250, 0.15);
-	border-radius: 10px;
-	padding: 1px 7px;
-	white-space: nowrap;
-}
 </style>
